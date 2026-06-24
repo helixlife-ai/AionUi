@@ -138,6 +138,16 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         return;
       }
 
+      // /api/identity — device SN for the Agent Hub identity context. Carved
+      // out before the reverse proxy so the renderer can resolve the sole user
+      // identifier (AIONUI_SERIAL_NUMBER env var) without touching aioncore.
+      if (req.method === 'GET' && (req.url === '/api/identity' || req.url === '/api/identity/')) {
+        const sn = process.env.AIONUI_SERIAL_NUMBER ?? null;
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ success: true, sn }));
+        return;
+      }
+
       // /api/* — reverse proxy to backend (includes /api/auth/*).
       // /login and /logout are aionui-auth's top-level auth endpoints: proxy them too
       // so WebUI browser clients reach the backend without a path-rewrite.

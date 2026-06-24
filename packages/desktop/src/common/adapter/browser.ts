@@ -160,8 +160,11 @@ if (win.electronAPI) {
           return;
         }
 
-        // 处理认证过期 - 停止重连并跳转到登录页
-        // Handle auth expiration - stop reconnecting and redirect to login
+        // 处理认证过期 - 停止重连。Hub 无登录页（SN 为唯一标识），
+        // 所以不再跳转 /login；仅停止重连并上报错误，由上层决定如何提示。
+        // Auth expiration: stop reconnecting. The Hub has no login page (SN is
+        // the sole identity), so we no longer redirect to /login — just stop
+        // reconnecting and surface the error to the realtime layer.
         if (isRealtimeAuthTerminalError(payload)) {
           console.warn('[WebSocket] Authentication expired, stopping reconnection');
           shouldReconnect = false;
@@ -173,24 +176,7 @@ if (win.electronAPI) {
             reconnectTimer = null;
           }
 
-          // 关闭 socket 并跳转到登录页
-          // Close the socket and redirect to login page
           socket?.close();
-
-          // 已在登录页则不再重定向，防止无限刷新循环
-          // Skip redirect if already on login page to prevent infinite reload loop
-          if (window.location.pathname === '/login' || window.location.hash.includes('/login')) {
-            return;
-          }
-
-          // 短暂延迟后跳转到登录页，以便显示 UI 反馈
-          // Redirect to login page after a short delay to show any UI feedback
-          // Use hash navigation to stay within the SPA (HashRouter), avoiding a full
-          // page reload that would land on an empty hash and cause a blank screen.
-          setTimeout(() => {
-            window.location.hash = '/login';
-          }, 1000);
-
           return;
         }
 
