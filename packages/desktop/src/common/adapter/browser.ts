@@ -185,9 +185,11 @@ if (win.electronAPI) {
           return;
         }
 
-        // 处理认证过期 - 先静默续期，成功则重连，失败才跳转登录页
-        // Handle auth expiration - try a silent refresh first; reconnect on success,
-        // and only fall back to the login page when the refresh token is also dead.
+        // 处理认证过期 - 停止重连。Hub 无登录页（SN 为唯一标识），
+        // 所以不再跳转 /login；仅停止重连并上报错误，由上层决定如何提示。
+        // Auth expiration: stop reconnecting. The Hub has no login page (SN is
+        // the sole identity), so we no longer redirect to /login — just stop
+        // reconnecting and surface the error to the realtime layer.
         if (isRealtimeAuthTerminalError(payload)) {
           console.warn('[WebSocket] Authentication expired, attempting silent refresh');
 
@@ -199,20 +201,8 @@ if (win.electronAPI) {
             window.clearTimeout(reconnectTimer);
             reconnectTimer = null;
           }
+
           socket?.close();
-
-          void refreshSession().then((refreshed) => {
-            if (refreshed) {
-              // 新 Cookie 已就位，重连即可携带
-              // Fresh cookie is in place — the reconnect carries it.
-              shouldReconnect = true;
-              reconnectDelay = 500;
-              connect();
-              return;
-            }
-            redirectToLogin();
-          });
-
           return;
         }
 
