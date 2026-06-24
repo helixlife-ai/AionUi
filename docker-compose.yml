@@ -1,0 +1,26 @@
+services:
+  aionui:
+    image: aionui-hub:arm64
+    container_name: aionui-hub
+    pull_policy: never
+    ports:
+      - '25808:25808'
+    volumes:
+      - ./data:/data
+    environment:
+      AIONUI_PORT: '25808'
+      AIONUI_DATA_DIR: '/data'
+      AIONUI_ALLOW_REMOTE: '1'
+      # Device serial number — the sole user identifier for the Agent Hub.
+      # Surfaced to the renderer via web-host's /api/identity endpoint.
+      # No login flow: aioncore runs in --local mode and does not gate app routes.
+      AIONUI_SERIAL_NUMBER: '2605-88a29e047efb-2f8crT'
+      # keybalance (helix) proxy — Anthropic-compatible. SN doubles as auth token.
+      # Claude Code (ACP) inherits these via aioncore spawn and routes to DeepSeek.
+      ANTHROPIC_BASE_URL: 'https://paas-model.jova.bio/api/v1/helix'
+      ANTHROPIC_AUTH_TOKEN: '2605-88a29e047efb-2f8crT'
+      ANTHROPIC_DEFAULT_OPUS_MODEL: 'deepseek-reasoner'
+      ANTHROPIC_DEFAULT_SONNET_MODEL: 'deepseek-chat'
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: 'deepseek-chat'
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: '16000'
+    restart: unless-stopped
