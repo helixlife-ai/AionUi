@@ -33,9 +33,9 @@ export const BUILTIN_TAB_IDS = [
   'appearance',
   'webui',
   'pet',
-  'system',
   'archived',
-  'about',
+  // 'system',
+  // 'about',
 ] as const;
 
 /**

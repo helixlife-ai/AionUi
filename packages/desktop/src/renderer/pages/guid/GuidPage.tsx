@@ -732,12 +732,12 @@ const GuidPage: React.FC = () => {
           ) : null}
         </div>
 
-        <QuickActionButtons
-          onOpenLink={openLink}
-          onOpenBugReport={() => setShowFeedbackModal(true)}
-          inactiveBorderColor={inactiveBorderColor}
-          activeShadow={activeShadow}
-        />
+        {/*<QuickActionButtons*/}
+        {/*  onOpenLink={openLink}*/}
+        {/*  onOpenBugReport={() => setShowFeedbackModal(true)}*/}
+        {/*  inactiveBorderColor={inactiveBorderColor}*/}
+        {/*  activeShadow={activeShadow}*/}
+        {/*/>*/}
         <FeedbackReportModal visible={showFeedbackModal} onCancel={() => setShowFeedbackModal(false)} />
       </div>
     </ConfigProvider>
