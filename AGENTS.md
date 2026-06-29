@@ -139,6 +139,35 @@ Allowed types: `feat`, `fix`, `perf`, `refactor`, `docs`, `style`, `chore`, `tes
 
 **NEVER add AI signatures** (Co-Authored-By, Generated with, etc.).
 
+## Upstream Sync Strategy
+
+This repo is an **Agent Hub** extension built on top of the official AionUi `main` branch. The overriding goal is to keep merging upstream changes painless: future syncs must not trigger large conflict-resolution work.
+
+### Prefer New Files Over Editing Originals
+
+- New behavior should live in **new files** wherever possible — new components, hooks, utilities, config, or modules. New files cannot conflict with upstream.
+- When you must touch an original file, keep the change to a **small, self-owned switch** (a feature flag, env check, config-driven branch) — let the original code change its own behavior under that switch instead of rewriting the original logic.
+
+### Config-Driven UI
+
+- Settings tab visibility, channel on/off, and similar toggles must be driven by **config / environment variables** consumed by the original components.
+- Do **not** comment out, delete, or fork original code to hide or disable features. The `AIONUI_SN` / `NUI_SERIAL_NUMBER` mechanism is the model: extend it, don't replace it.
+
+### Rebase Cadence
+
+- Rebase on `origin/main` in **small, regular batches**. Resolve conflicts early.
+- Never accumulate a large pile of scattered edits before syncing.
+
+### Self-Check
+
+After every change, ask: **when upstream next edits this file, will my change conflict?**
+
+- Editing a **new file** → no conflict.
+- Adding a **small self-owned switch** inside an original file → rarely conflicts.
+- Modifying the **main body of original logic** → almost always conflicts — avoid.
+
+If the answer is "almost always conflicts", restructure the change into a new file or a config-driven switch before proceeding.
+
 ## Skills Index
 
 | Skill            | Purpose                                                                     | Triggers                                                                                               |

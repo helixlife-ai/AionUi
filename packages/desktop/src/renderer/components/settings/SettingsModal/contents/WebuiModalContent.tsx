@@ -52,9 +52,9 @@ const CHANNEL_LOGOS = [
   { src: ChannelLarkLogo, alt: 'Lark' },
   { src: ChannelDingTalkLogo, alt: 'DingTalk' },
   { src: ChannelWeixinLogo, alt: 'WeChat' },
-  { src: ChannelWecomLogo, alt: 'WeCom' },
-  { src: ChannelSlackLogo, alt: 'Slack' },
-  { src: ChannelDiscordLogo, alt: 'Discord' },
+  // { src: ChannelWecomLogo, alt: 'WeCom' },
+  // { src: ChannelSlackLogo, alt: 'Slack' },
+  // { src: ChannelDiscordLogo, alt: 'Discord' },
 ] as const;
 
 const ChannelModalContentLazy = React.lazy(() => import('./channels/ChannelModalContent'));
