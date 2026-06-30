@@ -42,8 +42,9 @@ const LocalAgents: React.FC = () => {
 
   // Hide deprecated runtime backends (nanobot / openclaw-gateway / remote / gemini)
   // — they are no longer offered as agents and shouldn't appear on the detection page.
+  // Agent Hub: hide the built-in Aion CLI entry from the agent management list.
   const officialAgents = allAgents.filter(
-    (a) => a.agent_source !== 'custom' && !isDeprecatedRuntimeAgentType(a.agent_type)
+    (a) => a.agent_source !== 'custom' && !isDeprecatedRuntimeAgentType(a.agent_type) && a.agent_type !== 'aionrs'
   );
 
   const customAgents: ManagedAgent[] = allAgents.filter((a) => a.agent_source === 'custom');
@@ -174,19 +175,19 @@ const LocalAgents: React.FC = () => {
         <h2 className='m-0 text-16px font-600 leading-[1.2] text-t-primary'>
           {t('settings.agents', { defaultValue: 'Agents' })}
         </h2>
-        <p className='mt-4px text-12px text-t-tertiary'>
-          <span>{t('settings.agentManagement.localAgentsDescription')} </span>
-          <Button
-            type='text'
-            size='mini'
-            className='!h-auto !p-0 !align-baseline !text-12px !font-normal !text-primary-6 hover:!text-primary-7 hover:!underline underline-offset-2'
-            onClick={() => {
-              void openExternalUrl(LOCAL_AGENT_SETUP_GUIDE_URL).catch(console.error);
-            }}
-          >
-            {t('settings.agentManagement.localAgentsSetupLink')}
-          </Button>
-        </p>
+        {/*<p className='mt-4px text-12px text-t-tertiary'>*/}
+        {/*  <span>{t('settings.agentManagement.localAgentsDescription')} </span>*/}
+        {/*  <Button*/}
+        {/*    type='text'*/}
+        {/*    size='mini'*/}
+        {/*    className='!h-auto !p-0 !align-baseline !text-12px !font-normal !text-primary-6 hover:!text-primary-7 hover:!underline underline-offset-2'*/}
+        {/*    onClick={() => {*/}
+        {/*      void openExternalUrl(LOCAL_AGENT_SETUP_GUIDE_URL).catch(console.error);*/}
+        {/*    }}*/}
+        {/*  >*/}
+        {/*    {t('settings.agentManagement.localAgentsSetupLink')}*/}
+        {/*  </Button>*/}
+        {/*</p>*/}
       </div>
       {isRefreshing ? (
         <div className='px-16px text-11px text-t-tertiary'>{t('settings.agentManagement.refreshingStatuses')}</div>

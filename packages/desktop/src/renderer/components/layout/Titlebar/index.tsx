@@ -416,15 +416,15 @@ const Titlebar: React.FC<TitlebarProps> = ({ workspaceAvailable }) => {
       </div>
       <div ref={toolbarRef} className='app-titlebar__toolbar'>
         {layout?.isMobile && <div id='app-titlebar-actions-slot' className='app-titlebar__actions-slot' />}
-        <button
-          type='button'
-          className={classNames('app-titlebar__button', layout?.isMobile && 'app-titlebar__button--mobile')}
-          onClick={() => void openFeedback({ autoScreenshot: true, module: resolveFeedbackModule(location.pathname) })}
-          aria-label={feedbackTooltip}
-          title={feedbackTooltip}
-        >
-          <FeedbackIcon size={iconSize} strokeWidth={desktopIconStroke} />
-        </button>
+        {/*<button*/}
+        {/*  type='button'*/}
+        {/*  className={classNames('app-titlebar__button', layout?.isMobile && 'app-titlebar__button--mobile')}*/}
+        {/*  onClick={() => void openFeedback({ autoScreenshot: true, module: resolveFeedbackModule(location.pathname) })}*/}
+        {/*  aria-label={feedbackTooltip}*/}
+        {/*  title={feedbackTooltip}*/}
+        {/*>*/}
+        {/*  <FeedbackIcon size={iconSize} strokeWidth={desktopIconStroke} />*/}
+        {/*</button>*/}
         {showWorkspaceButton && (
           <button
             type='button'

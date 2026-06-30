@@ -1,6 +1,6 @@
 import { ipcBridge } from '@/common';
 import { resolveLocaleKey } from '@/common/utils';
-import type { Assistant } from '@/common/types/agent/assistantTypes';
+import { isAionrsAssistant, type Assistant } from '@/common/types/agent/assistantTypes';
 import {
   applyAssistantSortOrders,
   buildAssistantSortUpdates,
@@ -24,7 +24,8 @@ export const useAssistantList = () => {
   const loadAssistants = useCallback(async () => {
     try {
       const list = await ipcBridge.assistants.list.invoke();
-      setAssistants(list);
+      // Agent Hub: hide the built-in Aion CLI entry from the assistant catalog.
+      setAssistants(list.filter((assistant) => !isAionrsAssistant(assistant)));
       setActiveAssistantId((prev) => {
         if (prev && list.some((a) => a.id === prev)) return prev;
         return list[0]?.id ?? null;

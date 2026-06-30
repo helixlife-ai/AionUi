@@ -152,7 +152,7 @@ describe('LocalAgents', () => {
     const refreshCatalog = vi.fn().mockResolvedValue(undefined);
     useManagedAgents.mockReturnValue({ agents: makeAgents(), revalidate: vi.fn(), refreshCatalog });
     vi.mocked(ipcBridge.acpConversation.checkManagedAgentHealthById.invoke).mockResolvedValue({
-      ...makeAgents()[0],
+      ...makeAgents()[1],
       status: 'online',
     });
 
@@ -161,7 +161,8 @@ describe('LocalAgents', () => {
     fireEvent.click(screen.getAllByText('settings.agentManagement.testConnection')[0]);
 
     await waitFor(() => {
-      expect(ipcBridge.acpConversation.checkManagedAgentHealthById.invoke).toHaveBeenCalledWith({ id: 'aionrs' });
+      // Aion CLI is hidden by Agent Hub, so the first official agent is Claude Code.
+      expect(ipcBridge.acpConversation.checkManagedAgentHealthById.invoke).toHaveBeenCalledWith({ id: 'acp-claude' });
     });
     await waitFor(() => {
       expect(refreshCatalog).toHaveBeenCalled();
@@ -199,7 +200,8 @@ describe('LocalAgents', () => {
 
     // Proves L30 (useManagedAgents) ran and fed the derived lists.
     expect(useManagedAgents).toHaveBeenCalled();
-    expect(screen.getByText('Aion CLI')).toBeTruthy();
+    // Aion CLI is hidden by Agent Hub; Claude Code remains as the official agent.
+    expect(screen.queryByText('Aion CLI')).toBeNull();
     expect(screen.getByText('Claude Code')).toBeTruthy();
     expect(screen.getByText('My Agent')).toBeTruthy();
   });
@@ -244,7 +246,7 @@ describe('LocalAgents', () => {
     render(<LocalAgents />);
 
     expect(screen.getByText('settings.agentManagement.refreshingStatuses')).toBeInTheDocument();
-    expect(screen.getByText('Aion CLI')).toBeInTheDocument();
+    expect(screen.getByText('Claude Code')).toBeInTheDocument();
   });
 
   it('renders official agents as diagnostics cards and filters out deprecated types', () => {
@@ -256,13 +258,12 @@ describe('LocalAgents', () => {
 
     render(<LocalAgents />);
 
-    // Agent names render
-    expect(screen.getByText('Aion CLI')).toBeInTheDocument();
+    // Agent names render — Aion CLI is hidden by Agent Hub, Claude Code remains.
+    expect(screen.queryByText('Aion CLI')).toBeNull();
     expect(screen.getByText('Claude Code')).toBeInTheDocument();
     // Deprecated openclaw-gateway agent is filtered out
     expect(screen.queryByText('OpenClaw Gateway')).toBeNull();
-    // Status tags render
-    expect(screen.getByText('settings.agentManagement.statusOnline')).toBeInTheDocument();
+    // Status tags render (Claude Code is 'missing'; the online Aion CLI is hidden)
     expect(screen.getByText('settings.agentManagement.statusMissing')).toBeInTheDocument();
   });
 
@@ -361,7 +362,7 @@ describe('LocalAgents', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Aion CLI')).toBeInTheDocument();
+    expect(screen.getByText('Claude Code')).toBeInTheDocument();
     expect(screen.queryByText('settings.agentManagement.localAgents')).toBeNull();
   });
 
