@@ -52,8 +52,9 @@ const LocalAgents: React.FC = () => {
 
   // Hide deprecated runtime backends (nanobot / openclaw-gateway / remote / gemini)
   // — they are no longer offered as agents and shouldn't appear on the detection page.
+  // Agent Hub: hide the built-in Aion CLI entry from the agent management list.
   const officialAgents = allAgents.filter(
-    (a) => a.agent_source !== 'custom' && !isDeprecatedRuntimeAgentType(a.agent_type)
+    (a) => a.agent_source !== 'custom' && !isDeprecatedRuntimeAgentType(a.agent_type) && a.agent_type !== 'aionrs'
   );
 
   const customAgents: ManagedAgent[] = allAgents.filter((a) => a.agent_source === 'custom');

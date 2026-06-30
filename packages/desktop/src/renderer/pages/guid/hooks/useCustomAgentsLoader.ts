@@ -5,7 +5,7 @@
  */
 
 import { ipcBridge } from '@/common';
-import type { Assistant } from '@/common/types/agent/assistantTypes';
+import { isAionrsAssistant, type Assistant } from '@/common/types/agent/assistantTypes';
 import { useEffect } from 'react';
 import useSWR, { mutate as swrMutate } from 'swr';
 
@@ -34,7 +34,8 @@ export const useCustomAgentsLoader = (): UseCustomAgentsLoaderResult => {
       return [] as Assistant[];
     }
   });
-  const assistants = assistantList ?? [];
+  // Agent Hub: hide the built-in Aion CLI entry from the assistant catalog.
+  const assistants = (assistantList ?? []).filter((assistant) => !isAionrsAssistant(assistant));
 
   useEffect(() => {
     void swrMutate('assistants.list');
