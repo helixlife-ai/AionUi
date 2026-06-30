@@ -779,6 +779,7 @@ const ChannelModalContent: React.FC = () => {
       },
     ].filter((channel) => !extensionTypeSet.has(String(channel.id).toLowerCase()));
 
+    // Agent Hub: hide not-yet-launched channels (status === 'coming_soon') from the UI.
     return [
       telegramChannel,
       larkChannel,
@@ -787,7 +788,7 @@ const ChannelModalContent: React.FC = () => {
       wecomChannel,
       ...extensionChannels,
       ...comingSoonChannels,
-    ];
+    ].filter((ch) => ch.status !== 'coming_soon');
   }, [
     pluginStatus,
     larkPluginStatus,
