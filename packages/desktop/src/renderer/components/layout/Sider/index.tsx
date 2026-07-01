@@ -60,7 +60,8 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
         console.error('Navigation failed:', error);
       });
     } else {
-      Promise.resolve(navigate('/settings/model')).catch((error) => {
+      // Agent Hub: default to the agent tab (the model tab is hidden).
+      Promise.resolve(navigate('/settings/agent')).catch((error) => {
         console.error('Navigation failed:', error);
       });
     }

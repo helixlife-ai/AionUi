@@ -47,11 +47,8 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => (
         <Route path='/settings/assistants' element={<Navigate to='/assistants' replace />} />
         <Route path='/settings/agent' element={withRouteFallback(AgentSettings)} />
         <Route path='/settings/agent/:id/repair' element={withRouteFallback(AgentRepairPage)} />
-          <Route path='/settings/capabilities' element={withRouteFallback(CapabilitiesSettings)} />
-          <Route
-            path='/settings/capabilities/skills/import-history'
-            element={withRouteFallback(CapabilitiesSettings)}
-          />
+        <Route path='/settings/capabilities' element={withRouteFallback(CapabilitiesSettings)} />
+        <Route path='/settings/capabilities/skills/import-history' element={withRouteFallback(CapabilitiesSettings)} />
         {/* Legacy routes — redirect to the merged /settings/capabilities page */}
         <Route path='/settings/skills-hub' element={<Navigate to='/settings/capabilities?tab=skills' replace />} />
         <Route path='/settings/tools' element={<Navigate to='/settings/capabilities?tab=tools' replace />} />
@@ -62,7 +59,8 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => (
         <Route path='/settings/system' element={withRouteFallback(SystemSettings)} />
         <Route path='/settings/about' element={withRouteFallback(SystemSettings)} />
         <Route path='/settings/ext/:tabId' element={withRouteFallback(ExtensionSettingsPage)} />
-        <Route path='/settings' element={<Navigate to='/settings/model' replace />} />
+        {/* Agent Hub: default to the agent tab (the model tab is hidden). */}
+        <Route path='/settings' element={<Navigate to='/settings/agent' replace />} />
         <Route path='/test/components' element={withRouteFallback(ComponentsShowcase)} />
         <Route path='/scheduled' element={withRouteFallback(ScheduledTasksPage)} />
         <Route path='/scheduled/:job_id' element={withRouteFallback(TaskDetailPage)} />
