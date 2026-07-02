@@ -57,6 +57,16 @@ describe('static-server', () => {
     expect(text).toContain('<title>root</title>');
   });
 
+  it('does not send Content-Disposition for static index.html (avoids embedded-client download)', async () => {
+    const backend = await startMockBackend((_req, res) => res.end('nope'));
+    stopBackend = backend.close;
+    handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+    const r = await fetch(`${handle.localUrl}/`);
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-disposition')).toBeNull();
+    expect(r.headers.get('content-type')).toContain('text/html');
+  });
+
   it('SPA fallback: /chat/123 returns index.html', async () => {
     const backend = await startMockBackend((_req, res) => res.end('nope'));
     stopBackend = backend.close;

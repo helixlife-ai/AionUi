@@ -117,6 +117,39 @@ function peekWsRoute(buf: Buffer): boolean | null {
   return /^GET\s+\/(?:ws|api\/stt\/stream)(?:\?[^\s]*)?\s+HTTP\/1\.[01]\r?$/.test(firstLine);
 }
 
+/**
+ * Prevent a `Content-Disposition` header from reaching the client for the given
+ * response. serve-handler emits `Content-Disposition: inline; filename="..."`,
+ * which makes some embedded webviews download the SPA instead of rendering it.
+ * The header is set through both `res.setHeader` and the headers argument of
+ * `res.writeHead`, so both must be intercepted.
+ */
+function stripContentDisposition(res: ServerResponse): void {
+  const CONTENT_DISPOSITION = 'content-disposition';
+
+  const setHeader = res.setHeader.bind(res);
+  res.setHeader = ((name: string, value: number | string | ReadonlyArray<string>) => {
+    if (name.toLowerCase() === CONTENT_DISPOSITION) return res;
+    return setHeader(name, value);
+  }) as typeof res.setHeader;
+
+  const writeHead = res.writeHead.bind(res);
+  res.writeHead = ((...args: unknown[]) => {
+    for (const arg of args) {
+      if (!arg || typeof arg !== 'object') continue;
+      if (Array.isArray(arg)) continue;
+      for (const key of Object.keys(arg as Record<string, unknown>)) {
+        if (key.toLowerCase() === CONTENT_DISPOSITION) {
+          delete (arg as Record<string, unknown>)[key];
+        }
+      }
+    }
+    return (writeHead as (...a: unknown[]) => ServerResponse)(...args);
+  }) as typeof res.writeHead;
+
+  res.removeHeader(CONTENT_DISPOSITION);
+}
+
 export async function startStaticServer(opts: StaticServerOptions): Promise<StaticServerHandle> {
   const port = opts.port ?? DEFAULT_PORT;
   const allowRemote = opts.allowRemote === true;
@@ -156,6 +189,16 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         return;
       }
 
+       // static files + SPA fallback.
+      // serve-handler adds `Content-Disposition: inline; filename="..."` to every
+      // response. Some embedding hosts (Electron <webview>, WebView2) honor the
+      // `filename=` attribute and trigger a file download ("Save As index.html")
+      // instead of rendering the page — even though the disposition is `inline`.
+      // Strip the header for static responses so nested/embedded clients render
+      // the SPA the same way a standalone browser does. serve-handler sets the
+      // header via res.writeHead(status, headers) as well as res.setHeader, so
+      // both paths must be intercepted.
+      stripContentDisposition(res);
       // static files + SPA fallback
       await serveHandler(req, res, {
         public: opts.staticDir,
