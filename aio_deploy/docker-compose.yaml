@@ -1,6 +1,9 @@
 name: aionui
 services:
   aionui:
+    build:
+      context: ..
+      dockerfile: Dockerfile
     image: helix-aio.tencentcloudcr.com/application/aionui-hub:latest
     container_name: aionui-hub
     pull_policy: never
@@ -8,20 +11,55 @@ services:
       - '25808:25808'
     volumes:
       - ./data:/data
+      - ./openclaw-models.patch.json:/tmp/openclaw-models.patch.json:ro
     environment:
       - AIONUI_PORT=25808
       - AIONUI_DATA_DIR=/data
       - AIONUI_ALLOW_REMOTE=1
       # Device serial number — the sole user identifier for the Agent Hub.
-      # Surfaced to the renderer via web-host's /api/identity endpoint.
-      # No login flow: aioncore runs in --local mode and does not gate app routes.
-      - AIONUI_SERIAL_NUMBER=2605-88a29e047efb-2f8crT
+      - AIONUI_SERIAL_NUMBER=${SERIAL_NUMBER}
       # keybalance (helix) proxy — Anthropic-compatible. SN doubles as auth token.
-      # Claude Code (ACP) inherits these via aioncore spawn and routes to DeepSeek.
       - ANTHROPIC_BASE_URL=https://paas-model.jova.bio/api/v1/helix
-      - ANTHROPIC_AUTH_TOKEN=2605-88a29e047efb-2f8crT
+      - ANTHROPIC_AUTH_TOKEN=${SERIAL_NUMBER}
+      - ANTHROPIC_API_KEY=${SERIAL_NUMBER}
       - ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-reasoner
       - ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-chat
       - ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-chat
       - CLAUDE_CODE_MAX_OUTPUT_TOKENS=16000
+      # OpenClaw models provider — same SN as auth token for helix proxy.
+      - OPENCLAW_API_KEY=${SERIAL_NUMBER}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /root/.openclaw
+        # Write the OpenClaw models provider config directly. `openclaw config patch`
+        # is unreliable here (ordering race with gateway-created config, and the
+        # gateway overwrites the file on start). Writing the JSON ourselves before
+        # the gateway starts avoids both issues.
+        if [ -f /tmp/openclaw-models.patch.json ]; then
+          node -e '
+            const fs = require("fs");
+            const raw = fs.readFileSync("/tmp/openclaw-models.patch.json", "utf8")
+              .replace(/__OPENCLAW_API_KEY__/g, process.env.OPENCLAW_API_KEY || "");
+            const patch = JSON.parse(raw);
+            let cfg = {};
+            try { cfg = JSON.parse(fs.readFileSync("/root/.openclaw/openclaw.json", "utf8")); } catch {}
+            cfg.models = cfg.models || {};
+            cfg.models.mode = patch.models.mode || "merge";
+            cfg.models.providers = Object.assign({}, cfg.models.providers, patch.models.providers);
+            fs.writeFileSync("/root/.openclaw/openclaw.json", JSON.stringify(cfg, null, 2) + "\n");
+          ' 2>/dev/null || true
+        fi
+        # Start the OpenClaw gateway in the background. The ACP OpenClaw agent
+        # (`openclaw acp`) connects to this gateway on 127.0.0.1:18789; without
+        # it the agent fails with "ACP bridge failed: connect ECONNREFUSED".
+        # --bind loopback: only listen locally (ACP agent is same-container).
+        # --auth none: no token needed for loopback (container is trusted).
+        openclaw gateway run --allow-unconfigured --bind loopback --auth none >/data/logs/openclaw-gateway.log 2>&1 &
+        # Wait for the gateway to report ready before launching aionui-web.
+        for i in $(seq 1 20); do
+          if grep -q "gateway. ready" /data/logs/openclaw-gateway.log 2>/dev/null; then break; fi
+          sleep 0.5
+        done
+        exec /app/aionui-web/aionui-web start
     restart: unless-stopped

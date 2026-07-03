@@ -1,0 +1,37 @@
+{
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "default_custom_proxy": {
+        "baseUrl": "https://paas-model.jova.bio/api/v1/helix",
+        "apiKey": "__OPENCLAW_API_KEY__",
+        "api": "anthropic-messages",
+        "models": [
+          {
+            "id": "openclaw",
+            "name": "openclaw",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 128000,
+            "maxTokens": 32000
+          },
+          {
+            "id": "openclaw-v2",
+            "name": "openclaw-v2",
+            "reasoning": true,
+            "input": ["text"],
+            "contextWindow": 1000000,
+            "maxTokens": 32000,
+            "compat": {
+              "supportsReasoningEffort": true,
+              "supportsUsageInStreaming": true,
+              "maxTokensField": "max_tokens",
+              "thinkingFormat": "deepseek"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
