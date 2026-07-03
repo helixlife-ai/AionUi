@@ -16,7 +16,10 @@
 # `build:renderer:web` / `scripts/build-server.mjs` scripts and could not build.
 
 # ---- Builder ---------------------------------------------------------------
-FROM node:22-bookworm AS builder
+# trixie = Debian 13, glibc 2.41. aioncore v0.1.41+ requires GLIBC_2.39;
+# bookworm (Debian 12, glibc 2.36) cannot run the aioncore binary during
+# prepare-managed-resources.
+FROM node:22-trixie AS builder
 WORKDIR /app
 
 RUN npm install -g bun
@@ -53,17 +56,18 @@ RUN PACK_PLATFORM=linux PACK_ARCH=arm64 GH_TOKEN=${GH_TOKEN} node scripts/pack-w
 RUN mkdir -p /out && tar -xzf dist-web-cli/aionui-web-*-linux-arm64.tar.gz -C /out
 
 # ---- Runtime ---------------------------------------------------------------
-# node:22-bookworm-slim = debian bookworm + Node 22 on PATH. Node is required
-# at runtime because the ACP CLI agents (codex, openclaw) are JS entry points
-# with `#!/usr/bin/env node` shebangs; aioncore detects the CLIs on PATH and
+# node:22-trixie-slim = Debian 13 trixie + Node 22 on PATH. glibc 2.41 satisfies
+# aioncore v0.1.41+'s GLIBC_2.39 requirement. Node is required at runtime
+# because the ACP CLI agents (codex, openclaw) are JS entry points with
+# `#!/usr/bin/env node` shebangs; aioncore detects the CLIs on PATH and
 # spawns them. claude-code ships a native binary but shares the PATH.
-FROM node:22-bookworm-slim AS runtime
+FROM node:22-trixie-slim AS runtime
 WORKDIR /app
 
-# libicu72: officecli (.NET) needs ICU if document preview is used.
+# libicu76: officecli (.NET) needs ICU if document preview is used (trixie ships libicu76).
 # ca-certificates: HTTPS calls to model providers / keybalance.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libicu72 ca-certificates \
+      libicu76 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Install the three CLI agents globally so aioncore auto-detects them on PATH
