@@ -26,7 +26,6 @@ import { getSiderTooltipProps } from '@/renderer/utils/ui/siderTooltip';
 export const BUILTIN_TAB_IDS = [
   'agent',
   // 'model',
-  'assistants',
   'capabilities',
   'appearance',
   'webui',
