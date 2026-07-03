@@ -42,7 +42,10 @@ export function assistantFromId(
 
 /** Filter assistants to only those supported in team mode. */
 export function filterTeamSupportedAssistants(assistants: TeamAssistantOption[]): TeamAssistantOption[] {
-  return assistants;
+  // Aion CLI (backend "aionrs") is hidden from the team leader picker — it is
+  // the built-in assistant already trimmed from other UI entry points, and
+  // team mode expects an ACP/vendor backend.
+  return assistants.filter((assistant) => assistant.backend !== 'aionrs');
 }
 
 export const AssistantOptionLabel: React.FC<{ assistant: TeamAssistantOption }> = ({ assistant }) => {
