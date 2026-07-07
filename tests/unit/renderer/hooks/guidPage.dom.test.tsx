@@ -517,9 +517,12 @@ describe('GuidPage', () => {
   it('falls back to default instruction prompts when the selected assistant has no recommendations', () => {
     render(<GuidPage />);
 
-    expect(screen.getByRole('button', { name: 'guid.defaultPrompts.understand' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'guid.defaultPrompts.cleanup' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'guid.defaultPrompts.create' })).toBeInTheDocument();
+    expect(screen.getByTestId('guid-prompt-carousel-category-title').textContent).toBe(
+      'guid.defaultPromptCategories.literature.title'
+    );
+    screen.getByRole('button', { name: 'guid.defaultPromptCategories.literature.items.prompt1' });
+    screen.getByRole('button', { name: 'guid.defaultPromptCategories.literature.items.prompt2' });
+    expect(screen.getByTestId('guid-prompt-carousel-indicators').children).toHaveLength(3);
   });
 
   it('does not seed skill defaults from the assistant list while detail is loading', async () => {

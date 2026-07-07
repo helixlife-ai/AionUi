@@ -1,3 +1,4 @@
+import { isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 /**
  * @license
  * Copyright 2025 AionUi (aionui.com)
@@ -111,6 +112,10 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
     modelLabel: acpButtonLabel,
     thoughtLevel: normalizedThoughtLevelOption,
   });
+
+  if (isAgentHubModelSelectorHidden()) {
+    return null;
+  }
 
   if (isGeminiMode) {
     // Provider-grouped models (e.g. aionrs). Build groups + a composite-id lookup

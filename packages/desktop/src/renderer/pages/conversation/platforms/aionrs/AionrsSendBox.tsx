@@ -1,3 +1,4 @@
+import { isAgentHubPermissionSelectorHidden, isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 /**
  * @license
  * Copyright 2025 AionUi (aionui.com)
@@ -549,8 +550,10 @@ const AionrsSendBox: React.FC<{
       modeOptions.find((opt) => opt.active)?.label ?? t('agentMode.default', { defaultValue: 'Default' });
     const currentModelLabel = modelSelection.current_model?.use_model || t('conversation.welcome.selectModel');
 
-    const entries: MobileActionSheetEntry[] = [
-      {
+    const entries: MobileActionSheetEntry[] = [];
+
+    if (!isAgentHubModelSelectorHidden()) {
+      entries.push({
         key: 'model',
         icon: <Brain theme='outline' size='16' />,
         label: t('common.model', { defaultValue: 'Model' }),
@@ -561,8 +564,11 @@ const AionrsSendBox: React.FC<{
           onSelect: handleSheetModelSelect,
           emptyText: t('conversation.welcome.selectModel'),
         },
-      },
-      {
+      });
+    }
+
+    if (!isAgentHubPermissionSelectorHidden()) {
+      entries.push({
         key: 'permission',
         icon: <Shield theme='outline' size='16' />,
         label: t('agentMode.permission', { defaultValue: 'Permission' }),
@@ -572,9 +578,10 @@ const AionrsSendBox: React.FC<{
           options: modeOptions,
           onSelect: (key) => void handleSheetModeChange(key),
         },
-      },
-      ...attachEntries,
-    ];
+      });
+    }
+
+    entries.push(...attachEntries);
 
     if (runtimeThoughtLevel) {
       entries.splice(1, 0, {
@@ -803,7 +810,7 @@ const AionrsSendBox: React.FC<{
         }
         rightTools={
           <div className='flex items-center gap-8px min-w-0'>
-            <AgentModeSelector
+            {!isAgentHubPermissionSelectorHidden() && <AgentModeSelector
               backend='aionrs'
               conversation_id={conversation_id}
               compact
@@ -817,7 +824,7 @@ const AionrsSendBox: React.FC<{
               beforeRuntimeSync={prepareRuntimeConfig}
               beforeRuntimeSet={teamPermission?.warmupSession}
               configOptionsPort={teamPermission?.configOptionsPort}
-            />
+            />}
           </div>
         }
         prefix={

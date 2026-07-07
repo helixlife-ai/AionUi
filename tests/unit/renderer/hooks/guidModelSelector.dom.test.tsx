@@ -9,6 +9,10 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import GuidModelSelector from '@/renderer/pages/guid/components/GuidModelSelector';
 
+vi.mock('@/renderer/utils/hub/agentHubUiPolicy', () => ({
+  isAgentHubModelSelectorHidden: () => false,
+}));
+
 vi.mock('@/renderer/hooks/agent/useModelProviderList', () => ({
   useProvidersQuery: () => ({ data: [] }),
 }));

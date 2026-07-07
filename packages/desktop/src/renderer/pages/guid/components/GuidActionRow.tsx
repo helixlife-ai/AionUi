@@ -36,6 +36,7 @@ import {
 } from '@icon-park/react';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { isAgentHubPermissionSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import styles from '../index.module.css';
 
 /**
@@ -163,7 +164,7 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
       setMcpQuery('');
     }
   }, []);
-  const showModeSwitch = dynamicModes.length > 0;
+  const showModeSwitch = !isAgentHubPermissionSelectorHidden() && dynamicModes.length > 0;
   const configOptionCount = (modelSelectorNode ? 1 : 0) + (showModeSwitch ? 1 : 0);
 
   // Browser file picker ref (WebUI only)

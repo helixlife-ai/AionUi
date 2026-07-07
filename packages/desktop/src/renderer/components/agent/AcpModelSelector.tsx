@@ -1,3 +1,4 @@
+import { isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 /**
  * @license
  * Copyright 2025 AionUi (aionui.com)
@@ -180,6 +181,10 @@ const AcpModelSelector: React.FC<{
   // branches. When a teammate is dormant/failed with a trigger, it becomes a
   // clickable wake pill; while (optimistically) triggering or pending it shows a
   // spinner; otherwise it stays the existing read-only pill.
+  if (isAgentHubModelSelectorHidden()) {
+    return null;
+  }
+
   const renderReadonlyPill = (label: string, readonlyTooltip: React.ReactNode) => {
     const clickable = !showWarmupSpinner && canManualWarmup;
     const tooltip = clickable ? t('agent.warmup.clickToWake') : readonlyTooltip;

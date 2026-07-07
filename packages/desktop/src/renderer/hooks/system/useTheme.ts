@@ -73,7 +73,7 @@ const useTheme = (): [Theme | null, (activeId: string) => Promise<void>, string 
     const off = ipcBridge.theme.changed.on((t: Theme) => {
       applyTheme(t);
       if (mounted) {
-        setActive((prev) => (prev?.id === t.id ? prev : t));
+        setActive(t);
         // Best-effort: config was persisted before the broadcast, fall back to the resolved id.
         setActiveId((configService.get('theme.activeId') as string) || t.id);
       }
