@@ -33,6 +33,10 @@ import {
 import { usePreviewContext } from '@/renderer/pages/conversation/Preview';
 import { useConversationRuntimeView } from '@/renderer/pages/conversation/runtime/useConversationRuntimeView';
 import { getConversationRuntimeWorkspaceErrorMessage } from '@/renderer/pages/conversation/utils/conversationCreateError';
+import {
+  isAgentHubPermissionSelectorHidden,
+  isAgentHubModelSelectorHidden,
+} from '@/renderer/utils/hub/agentHubUiPolicy';
 import { getChatSurfaceWidthClass } from '@/renderer/pages/conversation/utils/chatSurfaceWidth';
 import { useTeamPermission } from '@/renderer/pages/team/hooks/TeamPermissionContext';
 import type { TeamSendBoxRuntime } from '@/renderer/pages/team/components/teamSendRuntime';
@@ -123,7 +127,7 @@ const AcpSendBox: React.FC<{
   const { t } = useTranslation();
   const teamPermission = useTeamPermission();
   // In team mode, all agents show the permission mode selector (members don't propagate)
-  const showModeSelector = true;
+  const showModeSelector = !isAgentHubPermissionSelectorHidden();
   const isLeaderInTeam = teamPermission && conversation_id === teamPermission.leaderConversationId;
   const { checkAndUpdateTitle } = useAutoTitle();
   const { atPath, uploadFile, setAtPath, setUploadFile, content, setContent } = useSendBoxDraft(conversation_id);
@@ -477,7 +481,7 @@ Please check your local CLI tool authentication status`,
 
     // Model entry: only when the agent exposes a switchable list. Otherwise
     // (Codex with no list, no info) skip — exposing a no-op row would be noise.
-    if (modelOptions.length > 0) {
+    if (!isAgentHubModelSelectorHidden() && modelOptions.length > 0) {
       entries.push({
         key: 'model',
         icon: <Brain theme='outline' size='16' />,
@@ -517,7 +521,7 @@ Please check your local CLI tool authentication status`,
       });
     }
 
-    if (modeOptions.length > 0) {
+    if (!isAgentHubPermissionSelectorHidden() && modeOptions.length > 0) {
       entries.push({
         key: 'permission',
         icon: <Shield theme='outline' size='16' />,

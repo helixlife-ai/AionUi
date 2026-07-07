@@ -9,6 +9,7 @@ import type { PropsWithChildren } from 'react';
 import React, { createContext, useCallback, useContext } from 'react';
 import type { Theme, ThemeAppearance } from '@/common/theme/types';
 import useTheme from '@renderer/hooks/system/useTheme';
+import { getDocumentThemeAppearance } from '@renderer/utils/theme/themeAppearance';
 import { LIGHT_THEME_ID, DARK_THEME_ID } from '@/common/theme/constants';
 import useFontScale from '@renderer/hooks/ui/useFontScale';
 import useFontSizes from '@renderer/hooks/ui/useFontSizes';
@@ -38,7 +39,7 @@ export const ThemeProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const [activeTheme, selectTheme, activeId] = useTheme();
   const [fontScale, setFontScale] = useFontScale();
   const { fontSizes, setFontSize } = useFontSizes();
-  const theme: ThemeAppearance = activeTheme?.appearance ?? 'light';
+  const theme: ThemeAppearance = activeTheme?.appearance ?? getDocumentThemeAppearance();
   const setTheme = useCallback(
     (appearance: ThemeAppearance) => selectTheme(appearance === 'dark' ? DARK_THEME_ID : LIGHT_THEME_ID),
     [selectTheme]

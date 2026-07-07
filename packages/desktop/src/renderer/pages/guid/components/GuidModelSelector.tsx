@@ -15,6 +15,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useProvidersQuery } from '@/renderer/hooks/agent/useModelProviderList';
+import { isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 
 type GuidModelSelectorProps = {
   // Gemini model state
@@ -86,6 +87,10 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
       fallbackLabel: defaultModelLabel,
     });
   }, [acpSelectedLabel, currentAcpCachedModelInfo?.current_model_id, defaultModelLabel, selectedAcpModel]);
+
+  if (isAgentHubModelSelectorHidden()) {
+    return null;
+  }
 
   if (isGeminiMode) {
     return (

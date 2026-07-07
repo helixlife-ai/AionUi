@@ -1,9 +1,31 @@
 {
   "promptExamplesHint": "試試這些指令",
-  "defaultPrompts": {
-    "capabilities": "你能為我做哪些事情？",
-    "skills": "你有哪些技能？",
-    "tools": "你有哪些工具？"
+  "defaultPromptCategories": {
+    "literature": {
+      "title": "🧬 知識檢索與文獻（零數據）",
+      "items": {
+        "prompt1": "幫我查詢人類基因 [TP53] 的主要生物學功能、染色體位置以及常見的相關疾病。",
+        "prompt2": "檢索最近 3 年關於 [單細胞空間轉錄組在腫瘤微環境應用] 的最新研究進展和核心文獻。",
+        "prompt3": "查詢 EGFR 基因的 [L858R] 突變在非小細胞肺癌中的臨床意義及對應標靶藥物。",
+        "prompt4": "我想研究 [擬南芥的抗旱機制]，推薦 3 個最權威的公共資料庫或線上分析平台。"
+      }
+    },
+    "scripting": {
+      "title": "💻 腳本生成與命令列（零數據）",
+      "items": {
+        "prompt5": "寫一個簡單的 Python 腳本，將一個多序列的 FASTA 檔案中的所有序列反向互補。",
+        "prompt6": "使用 R 語言的 ggplot2 套件，寫一段繪製標準火山圖 (Volcano Plot) 的範例程式碼。",
+        "prompt7": "寫一個 Linux Shell 腳本，批次將某個資料夾下所有副檔名為 .fq.gz 的檔案解壓並重新命名。"
+      }
+    },
+    "concepts": {
+      "title": "📊 概念科普與流程設計（零數據）",
+      "items": {
+        "prompt8": "用通俗易懂的方式解釋什麼是 [GSEA 富集分析]，它的核心原理和分析目的是什麼？",
+        "prompt9": "幫我產生一個標準的 GFF3 基因註釋檔案和 VCF 變異檔案的文本範例，並簡要說明各欄位含義。",
+        "prompt10": "如果要做 [人類全外顯子組測序 (WES)] 分析，從原始資料到變異檢測的標準流程 (GATK) 步驟是怎樣的？"
+      }
+    }
   },
   "selectAssistantHint": "選擇一位助手開始任務",
   "workspace": {

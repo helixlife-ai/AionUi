@@ -11,6 +11,10 @@ import AcpModelSelector from '@/renderer/components/agent/AcpModelSelector';
 import type { AcpModelInfo } from '@/common/types/platform/acpTypes';
 import type { AcpConfigSetStatus, AcpDerivedOption } from '@/renderer/hooks/agent/useAcpConfigOptions';
 
+vi.mock('@/renderer/utils/hub/agentHubUiPolicy', () => ({
+  isAgentHubModelSelectorHidden: () => false,
+}));
+
 const { messageSuccessMock, messageErrorMock, useAcpModelInfoMock } = vi.hoisted(() => ({
   messageSuccessMock: vi.fn(),
   messageErrorMock: vi.fn(),

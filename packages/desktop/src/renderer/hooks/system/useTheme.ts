@@ -69,7 +69,7 @@ const useTheme = (): [Theme | null, (activeId: string) => Promise<void>, string 
     const off = ipcBridge.theme.changed.on((t: Theme) => {
       applyTheme(t);
       if (mounted) {
-        setActive((prev) => (prev?.id === t.id ? prev : t));
+        setActive(t);
         // Best-effort: config was persisted before the broadcast, fall back to the resolved id.
         setActiveId((configService.get('theme.activeId') as string) || t.id);
       }
@@ -88,8 +88,16 @@ const useTheme = (): [Theme | null, (activeId: string) => Promise<void>, string 
   }, []);
 
   const select = useCallback(async (activeId: string) => {
-    await setActiveTheme(activeId);
+    const userThemes = (configService.get('theme.userThemes') as Theme[]) ?? [];
+    const resolved = resolveActiveTheme(activeId, [...BUILTIN_THEMES, ...userThemes], getSystemPrefersDark());
+    applyTheme(resolved);
     setActiveId(activeId);
+    setActive(resolved);
+    try {
+      await setActiveTheme(activeId);
+    } catch (e) {
+      console.error('persist theme failed', e);
+    }
   }, []);
 
   return [active, select, activeId];

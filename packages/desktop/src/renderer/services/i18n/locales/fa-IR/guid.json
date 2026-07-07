@@ -1,10 +1,5 @@
 {
   "promptExamplesHint": "نمونه پرامپت‌ها را امتحان کنید:",
-  "defaultPrompts": {
-    "capabilities": "چه کارهایی می‌توانید برای من انجام دهید؟",
-    "skills": "چه مهارت‌هایی دارید؟",
-    "tools": "چه ابزارهایی دارید؟"
-  },
   "selectAssistantHint": "یک دستیار برای شروع کار انتخاب کنید",
   "workspace": {
     "workInProject": "کار در پروژه",
@@ -13,5 +8,32 @@
     "specifyWorkspace": "انتخاب پوشه پروژه",
     "searchPlaceholder": "جستجوی پروژه‌ها…",
     "noProject": "بدون پروژه"
+  },
+  "defaultPromptCategories": {
+    "literature": {
+      "title": "🧬 Knowledge Retrieval & Literature (Zero Data)",
+      "items": {
+        "prompt1": "Help me query the main biological functions, chromosomal location, and common related diseases of the human gene [TP53].",
+        "prompt2": "Search for the latest research progress and core literature on [single-cell spatial transcriptomics in tumor microenvironment applications] from the past 3 years.",
+        "prompt3": "Query the clinical significance and corresponding targeted drugs of the [L858R] mutation in the EGFR gene in non-small cell lung cancer.",
+        "prompt4": "I want to study [drought resistance mechanisms in Arabidopsis thaliana]. Recommend 3 authoritative public databases or online analysis platforms."
+      }
+    },
+    "scripting": {
+      "title": "💻 Script Generation & Command Line (Zero Data)",
+      "items": {
+        "prompt5": "Write a simple Python script to reverse complement all sequences in a multi-sequence FASTA file.",
+        "prompt6": "Use R's ggplot2 package to write sample code for drawing a standard volcano plot.",
+        "prompt7": "Write a Linux Shell script to batch decompress and rename all files with the .fq.gz suffix in a folder."
+      }
+    },
+    "concepts": {
+      "title": "📊 Concepts & Workflow Design (Zero Data)",
+      "items": {
+        "prompt8": "Explain in plain language what [GSEA enrichment analysis] is, its core principles, and analytical purpose.",
+        "prompt9": "Generate text examples of a standard GFF3 gene annotation file and a VCF variant file, and briefly explain the meaning of each column.",
+        "prompt10": "What are the standard GATK pipeline steps from raw data to variant detection for [human whole exome sequencing (WES)] analysis?"
+      }
+    }
   }
 }

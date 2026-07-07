@@ -46,6 +46,10 @@ import { emitter, useAddEventListener } from '@/renderer/utils/emitter';
 import { mergeFileSelectionItems } from '@/renderer/utils/file/fileSelection';
 import { buildDisplayMessage, collectSelectedFiles } from '@/renderer/utils/file/messageFiles';
 import type { AgentModeOption } from '@/renderer/utils/model/agentTypes';
+import {
+  isAgentHubPermissionSelectorHidden,
+  isAgentHubModelSelectorHidden,
+} from '@/renderer/utils/hub/agentHubUiPolicy';
 import { Message, Tag } from '@arco-design/web-react';
 import { Brain, MagicHat, Shield } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -462,8 +466,10 @@ const AionrsSendBox: React.FC<{
       modeOptions.find((opt) => opt.active)?.label ?? t('agentMode.default', { defaultValue: 'Default' });
     const currentModelLabel = modelSelection.current_model?.use_model || t('conversation.welcome.selectModel');
 
-    const entries: MobileActionSheetEntry[] = [
-      {
+    const entries: MobileActionSheetEntry[] = [];
+
+    if (!isAgentHubModelSelectorHidden()) {
+      entries.push({
         key: 'model',
         icon: <Brain theme='outline' size='16' />,
         label: t('common.model', { defaultValue: 'Model' }),
@@ -474,8 +480,11 @@ const AionrsSendBox: React.FC<{
           onSelect: handleSheetModelSelect,
           emptyText: t('conversation.welcome.selectModel'),
         },
-      },
-      {
+      });
+    }
+
+    if (!isAgentHubPermissionSelectorHidden()) {
+      entries.push({
         key: 'permission',
         icon: <Shield theme='outline' size='16' />,
         label: t('agentMode.permission', { defaultValue: 'Permission' }),
@@ -485,9 +494,10 @@ const AionrsSendBox: React.FC<{
           options: modeOptions,
           onSelect: (key) => void handleSheetModeChange(key),
         },
-      },
-      ...attachEntries,
-    ];
+      });
+    }
+
+    entries.push(...attachEntries);
 
     if (runtimeThoughtLevel) {
       entries.splice(1, 0, {
@@ -663,19 +673,21 @@ const AionrsSendBox: React.FC<{
         }
         rightTools={
           <div className='flex items-center gap-8px min-w-0'>
-            <AgentModeSelector
-              backend='aionrs'
-              conversation_id={conversation_id}
-              compact
-              initialMode={session_mode}
-              dynamicModes={dynamicModes}
-              compactLeadingIcon={<Shield theme='outline' size='14' fill={iconColors.secondary} />}
-              modeLabelFormatter={(mode) => t(`agentMode.${mode.value}`, { defaultValue: mode.label })}
-              compactLabelPrefix={t('agentMode.permission')}
-              hideCompactLabelPrefixOnMobile
-              onModeChanged={propagateMode}
-              beforeRuntimeSync={prepareRuntimeConfig}
-            />
+            {!isAgentHubPermissionSelectorHidden() && (
+              <AgentModeSelector
+                backend='aionrs'
+                conversation_id={conversation_id}
+                compact
+                initialMode={session_mode}
+                dynamicModes={dynamicModes}
+                compactLeadingIcon={<Shield theme='outline' size='14' fill={iconColors.secondary} />}
+                modeLabelFormatter={(mode) => t(`agentMode.${mode.value}`, { defaultValue: mode.label })}
+                compactLabelPrefix={t('agentMode.permission')}
+                hideCompactLabelPrefixOnMobile
+                onModeChanged={propagateMode}
+                beforeRuntimeSync={prepareRuntimeConfig}
+              />
+            )}
           </div>
         }
         prefix={

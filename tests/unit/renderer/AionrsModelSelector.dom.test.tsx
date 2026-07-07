@@ -12,6 +12,10 @@ import type { IProvider, TProviderWithModel } from '@/common/config/storage';
 import type { AcpDerivedOption } from '@/renderer/hooks/agent/useAcpConfigOptions';
 import type { AionrsModelSelection } from '@/renderer/pages/conversation/platforms/aionrs/useAionrsModelSelection';
 
+vi.mock('@/renderer/utils/hub/agentHubUiPolicy', () => ({
+  isAgentHubModelSelectorHidden: () => false,
+}));
+
 const provider: IProvider = {
   id: 'openai',
   name: 'OpenAI',

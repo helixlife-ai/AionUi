@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@arco-design/web-react';
 import { ArrowCircleLeft, CloseOne, Moon, SettingTwo, SunOne } from '@icon-park/react';
 import classNames from 'classnames';
+import { useThemeContext } from '@renderer/hooks/context/ThemeContext';
 import { iconColors } from '@renderer/styles/colors';
 import type { SiderTooltipProps } from '@renderer/utils/ui/siderTooltip';
 
@@ -16,7 +17,6 @@ interface SiderFooterProps {
   isMobile: boolean;
   isSettings: boolean;
   collapsed?: boolean;
-  theme: string;
   siderTooltipProps: SiderTooltipProps;
   onSettingsClick: () => void;
   onThemeToggle: () => void;
@@ -28,7 +28,6 @@ const SiderFooter: React.FC<SiderFooterProps> = ({
   isMobile,
   isSettings,
   collapsed = false,
-  theme,
   siderTooltipProps,
   onSettingsClick,
   onThemeToggle,
@@ -36,6 +35,7 @@ const SiderFooter: React.FC<SiderFooterProps> = ({
   onLogoutClick,
 }) => {
   const { t } = useTranslation();
+  const { theme } = useThemeContext();
 
   const settingsIcon = isSettings ? (
     <ArrowCircleLeft
@@ -54,7 +54,7 @@ const SiderFooter: React.FC<SiderFooterProps> = ({
       style={{ lineHeight: 0 }}
     />
   );
-  const showThemeToggle = isSettings && !collapsed;
+  const showThemeToggle = true;
   const themeTooltip = theme === 'dark' ? t('settings.lightMode') : t('settings.darkMode');
 
   return (
@@ -104,13 +104,14 @@ const SiderFooter: React.FC<SiderFooterProps> = ({
             </div>
           </Tooltip>
         )}
-        {/* Theme toggle — lightweight icon button, only while inside Settings page (not in collapsed mode) */}
+        {/* Theme toggle — fixed in the sidebar footer so it is always reachable. */}
         {showThemeToggle && (
           <Tooltip {...siderTooltipProps} content={themeTooltip} position='right'>
             <div
               onClick={onThemeToggle}
               className={classNames(
-                'h-32px w-40px shrink-0 flex items-center justify-center cursor-pointer rd-0.5rem transition-colors text-t-secondary hover:bg-fill-2 hover:text-t-primary active:bg-fill-3',
+                'h-32px shrink-0 flex items-center justify-center cursor-pointer rd-0.5rem transition-colors text-t-secondary hover:bg-fill-2 hover:text-t-primary active:bg-fill-3',
+                collapsed ? 'w-full' : 'w-40px',
                 isMobile && 'sider-footer-btn-mobile'
               )}
               aria-label={themeTooltip}

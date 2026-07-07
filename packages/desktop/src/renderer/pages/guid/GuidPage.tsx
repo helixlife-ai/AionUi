@@ -15,7 +15,7 @@ import AssistantSelectionArea from './components/AssistantSelectionArea';
 import GuidActionRow from './components/GuidActionRow';
 import GuidInputCard from './components/GuidInputCard';
 import GuidModelSelector from './components/GuidModelSelector';
-import QuickActionButtons from './components/QuickActionButtons';
+import GuidPromptCarousel from './components/GuidPromptCarousel';
 import FeedbackReportModal from '@/renderer/components/settings/SettingsModal/contents/FeedbackReportModal';
 import { useGuidAssistantSelection } from './hooks/useGuidAssistantSelection';
 import { useGuidInput } from './hooks/useGuidInput';
@@ -24,10 +24,14 @@ import { useGuidSend } from './hooks/useGuidSend';
 import { useTypewriterPlaceholder } from './hooks/useTypewriterPlaceholder';
 import { ensureBackendMcpCatalog } from '@/renderer/hooks/mcp/catalog';
 import { resolveGuidAssistantDefaults } from './utils/assistantDefaults';
+import {
+  GUID_DEFAULT_PROMPT_CATEGORY_DEFS,
+  type GuidPromptCategory,
+} from './utils/guidDefaultPromptKeys';
 import SpeechInputButton from '@/renderer/components/chat/SpeechInputButton';
 import { appendSpeechTranscript } from '@/renderer/hooks/system/useSpeechInput';
 import { useLiveTranscriptInsertion } from '@/renderer/hooks/system/useLiveTranscriptInsertion';
-import { Button, ConfigProvider } from '@arco-design/web-react';
+import { ConfigProvider } from '@arco-design/web-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -224,7 +228,7 @@ const GuidPage: React.FC = () => {
     const candidates = new Set([selectedId, `builtin-${strippedId}`, strippedId]);
     return agentSelection.assistants.find((item) => candidates.has(item.id));
   }, [agentSelection.assistants, selectedAssistantId, agentSelection.selectedAssistantId]);
-  const selectedAssistantPrompts = useMemo(() => {
+  const selectedAssistantPromptCategories = useMemo((): GuidPromptCategory[] => {
     if (!selectedAssistantId) return [];
     const resolvedPrompts =
       selectedAssistantDetail?.prompts.recommended_i18n?.[localeKey] ||
@@ -236,11 +240,22 @@ const GuidPage: React.FC = () => {
       [];
 
     if (resolvedPrompts.length > 0) {
-      return resolvedPrompts;
+      return [{ prompts: resolvedPrompts }];
     }
 
-    return [t('guid.defaultPrompts.capabilities'), t('guid.defaultPrompts.skills'), t('guid.defaultPrompts.tools')];
+    return GUID_DEFAULT_PROMPT_CATEGORY_DEFS.map((category) => ({
+      title: t(category.titleKey),
+      prompts: category.promptKeys.map((key) => t(key)),
+    }));
   }, [localeKey, selectedAssistantDetail, selectedAssistantRecord, selectedAssistantId, t]);
+
+  const handleSelectPrompt = useCallback(
+    (prompt: string) => {
+      guidInput.setInput(prompt);
+      guidInput.handleTextareaFocus();
+    },
+    [guidInput.handleTextareaFocus, guidInput.setInput]
+  );
 
   // Sync disabledBuiltinSkills + enabledSkills from assistant detail defaults.
   useEffect(() => {
@@ -519,26 +534,12 @@ const GuidPage: React.FC = () => {
             onClearWorkspace={() => guidInput.setDir('')}
           />
 
-          {selectedAssistantPrompts.length > 0 ? (
+          {selectedAssistantPromptCategories.length > 0 ? (
             <div className='mt-18px w-full animate-fade-in'>
               <div className={`${styles.assistantPromptHint} mb-10px text-left`}>
                 {t('guid.promptExamplesHint', { defaultValue: 'Try these example prompts:' })}
               </div>
-              <div className='flex flex-col gap-9px'>
-                {selectedAssistantPrompts.map((prompt, index) => (
-                  <Button
-                    key={`${index}-${prompt}`}
-                    type='text'
-                    className='!h-auto !w-full !rounded-10px !border !border-border-2 !bg-bg-base !px-10px !py-10px !text-left !text-12.5px !text-t-secondary !whitespace-normal !break-words transition-colors hover:!border-aou-6 hover:!text-t-primary'
-                    onClick={() => {
-                      guidInput.setInput(prompt);
-                      guidInput.handleTextareaFocus();
-                    }}
-                  >
-                    {prompt}
-                  </Button>
-                ))}
-              </div>
+              <GuidPromptCarousel categories={selectedAssistantPromptCategories} onSelect={handleSelectPrompt} />
             </div>
           ) : null}
         </div>

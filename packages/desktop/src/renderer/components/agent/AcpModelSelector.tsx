@@ -14,6 +14,7 @@ import { Brain, Down } from '@icon-park/react';
 import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import RuntimeSelectorPill from './RuntimeSelectorPill';
+import { isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import {
   composeRuntimeSelectorLabel,
   isConfigSetting,
@@ -87,6 +88,10 @@ const AcpModelSelector: React.FC<{
     [isRuntimeSetting, setConfigOption, thoughtLevel, t]
   );
   const tooltipContent = combinedLabel;
+
+  if (isAgentHubModelSelectorHidden()) {
+    return null;
+  }
 
   const renderLogo = () => <Brain theme='outline' size='14' fill={iconColors.secondary} className='shrink-0' />;
 

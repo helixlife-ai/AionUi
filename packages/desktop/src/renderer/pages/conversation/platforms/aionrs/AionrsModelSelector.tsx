@@ -21,6 +21,7 @@ import { Brain, Down } from '@icon-park/react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
+import { isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 
 const AionrsModelSelector: React.FC<{
   selection?: AionrsModelSelection;
@@ -35,6 +36,10 @@ const AionrsModelSelector: React.FC<{
   const compact = isPreviewOpen || layout?.isMobile;
   const isMobileHeaderCompact = Boolean(layout?.isMobile);
   const defaultModelLabel = t('common.defaultModel');
+
+  if (isAgentHubModelSelectorHidden()) {
+    return null;
+  }
 
   const current_model = selection?.current_model;
 

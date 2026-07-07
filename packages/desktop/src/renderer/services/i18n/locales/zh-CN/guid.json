@@ -1,9 +1,31 @@
 {
   "promptExamplesHint": "试试这些指令",
-  "defaultPrompts": {
-    "capabilities": "你能为我做哪些事情？",
-    "skills": "你有哪些技能？",
-    "tools": "你有哪些工具？"
+  "defaultPromptCategories": {
+    "literature": {
+      "title": "🧬 知识检索与文献（零数据）",
+      "items": {
+        "prompt1": "帮我查询人类基因 [TP53] 的主要生物学功能、染色体位置以及常见的相关疾病。",
+        "prompt2": "检索最近 3 年关于 [单细胞空间转录组在肿瘤微环境应用] 的最新研究进展和核心文献。",
+        "prompt3": "查询 EGFR 基因的 [L858R] 突变在非小细胞肺癌中的临床意义及对应靶向药物。",
+        "prompt4": "我想研究 [拟南芥的抗旱机制]，推荐 3 个最权威的公共数据库或在线分析平台。"
+      }
+    },
+    "scripting": {
+      "title": "💻 脚本生成与命令行（零数据）",
+      "items": {
+        "prompt5": "写一个简单的 Python 脚本，将一个多序列的 FASTA 文件中的所有序列反向互补。",
+        "prompt6": "使用 R 语言的 ggplot2 包，写一段绘制标准火山图 (Volcano Plot) 的示例代码。",
+        "prompt7": "写一个 Linux Shell 脚本，批量将某个文件夹下所有后缀为 .fq.gz 的文件解压并重命名。"
+      }
+    },
+    "concepts": {
+      "title": "📊 概念科普与流程设计（零数据）",
+      "items": {
+        "prompt8": "用通俗易懂的话解释什么是 [GSEA 富集分析]，它的核心原理和分析目的是什么？",
+        "prompt9": "帮我生成一个标准的 GFF3 基因注释文件和 VCF 变异文件的文本示例，并简要说明各列含义。",
+        "prompt10": "如果要做 [人类全外显子组测序 (WES)] 分析，从原始数据到变异检测的标准流程 (GATK) 步骤是怎样的？"
+      }
+    }
   },
   "selectAssistantHint": "选择一位助手开始任务",
   "workspace": {
