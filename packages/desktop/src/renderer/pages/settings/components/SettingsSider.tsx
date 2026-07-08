@@ -6,7 +6,6 @@ import { useExtensionSettingsTabs } from '@/renderer/hooks/system/useExtensionSe
 import {
   Cat,
   Communication,
-  Computer,
   Earth,
   Info,
   Lightning,
@@ -27,7 +26,6 @@ export const BUILTIN_TAB_IDS = [
   'agent',
   // 'model',
   'capabilities',
-  'appearance',
   'webui',
   'pet',
   // 'system',
@@ -42,7 +40,7 @@ export const BUILTIN_TAB_IDS = [
 export const LEGACY_ANCHOR_REMAP: Record<string, string> = {
   'skills-hub': 'capabilities',
   tools: 'capabilities',
-  display: 'appearance',
+  display: 'webui',
 };
 
 /**
@@ -52,7 +50,7 @@ export const LEGACY_ANCHOR_REMAP: Record<string, string> = {
  */
 const GROUP_HEADER_BEFORE: Record<string, string> = {
   agent: 'settings.groupAiCore',
-  appearance: 'settings.groupApp',
+  webui: 'settings.groupApp',
   about: 'settings.groupAbout',
 };
 
@@ -93,7 +91,6 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
         icon: <Lightning />,
         path: 'capabilities',
       },
-      appearance: { id: 'appearance', label: t('settings.appearancePanel'), icon: <Computer />, path: 'appearance' },
       webui: {
         id: 'webui',
         label: t('settings.webui'),

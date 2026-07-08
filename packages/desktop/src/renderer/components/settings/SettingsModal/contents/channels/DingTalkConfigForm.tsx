@@ -11,6 +11,7 @@ import { resolveLocaleKey } from '@/common/utils';
 import { openExternalUrl } from '@/renderer/utils/platform';
 import { resolveAssistantName } from '@/renderer/utils/model/assistantDisplay';
 import GoogleModelSelector from '@/renderer/pages/conversation/platforms/gemini/GoogleModelSelector';
+import { isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import type { GoogleModelSelection } from '@/renderer/pages/conversation/platforms/gemini/useGoogleModelSelection';
 import { Button, Dropdown, Empty, Input, Menu, Message, Spin, Tooltip } from '@arco-design/web-react';
 import { CheckOne, CloseOne, Copy, Delete, Down, Refresh } from '@icon-park/react';
@@ -521,19 +522,21 @@ const DingTalkConfigForm: React.FC<DingTalkConfigFormProps> = ({ pluginStatus, m
       </div>
 
       {/* Default Model Selection */}
-      <PreferenceRow
-        label={t('settings.assistant.defaultModel', 'Model')}
-        description={t('settings.dingtalk.defaultModelDesc', 'Model used for conversations handled by this assistant')}
-      >
-        <GoogleModelSelector
-          selection={showModelSelector ? modelSelection : undefined}
-          disabled={!showModelSelector}
-          label={
-            !showModelSelector ? t('settings.assistant.autoFollowCliModel', 'Auto-follow CLI runtime model') : undefined
-          }
-          variant='settings'
-        />
-      </PreferenceRow>
+      {!isAgentHubModelSelectorHidden() && (
+        <PreferenceRow
+          label={t('settings.assistant.defaultModel', 'Model')}
+          description={t('settings.dingtalk.defaultModelDesc', 'Model used for conversations handled by this assistant')}
+        >
+          <GoogleModelSelector
+            selection={showModelSelector ? modelSelection : undefined}
+            disabled={!showModelSelector}
+            label={
+              !showModelSelector ? t('settings.assistant.autoFollowCliModel', 'Auto-follow CLI runtime model') : undefined
+            }
+            variant='settings'
+          />
+        </PreferenceRow>
+      )}
 
       {/* Connection Status */}
       {pluginStatus?.enabled && authorizedUsers.length === 0 && (

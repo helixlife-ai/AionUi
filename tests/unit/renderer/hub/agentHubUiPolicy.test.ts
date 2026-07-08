@@ -15,7 +15,7 @@ describe('agentHubUiPolicy', () => {
     expect(isAgentHubModelSelectorHidden()).toBe(true);
   });
 
-  it('hides permission selectors in Agent Hub builds', () => {
-    expect(isAgentHubPermissionSelectorHidden()).toBe(true);
+  it('keeps permission selectors visible by default in Agent Hub builds', () => {
+    expect(isAgentHubPermissionSelectorHidden()).toBe(false);
   });
 });

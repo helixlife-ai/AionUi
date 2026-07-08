@@ -3,10 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const arcoOverridePath = path.resolve(process.cwd(), 'packages/desktop/src/renderer/styles/arco-override.css');
-const presetDir = path.resolve(
-  process.cwd(),
-  'packages/desktop/src/renderer/pages/settings/AppearanceSettings/presets'
-);
+const presetDir = path.resolve(process.cwd(), 'packages/desktop/src/renderer/theme/presets');
 
 describe('arco tooltip and popover overlay styles', () => {
   it('defines shared light and dark overlay tokens for tooltip-like surfaces', () => {
