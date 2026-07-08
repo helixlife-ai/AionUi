@@ -11,7 +11,6 @@ import { useExtensionSettingsTabs } from '@/renderer/hooks/system/useExtensionSe
 import {
   Cat,
   Communication,
-  Computer,
   Earth,
   Inbox,
   Info,
@@ -64,12 +63,6 @@ export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): 
       label: t('settings.tools', { defaultValue: 'Tools' }),
       icon: <Toolkit theme='outline' size='16' />,
       path: 'tools',
-    },
-    appearance: {
-      id: 'appearance',
-      label: t('settings.appearancePanel'),
-      icon: <Computer theme='outline' size='16' />,
-      path: 'appearance',
     },
     webui: {
       id: 'webui',
