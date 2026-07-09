@@ -33,6 +33,8 @@ export interface AuthContextValue {
   status: AuthStatus;
   /** Device serial number from the `AIONUI_SERIAL_NUMBER` env var, or null if unset. */
   sn: string | null;
+  /** File-picker root from the `AIONUI_FS_ROOT` env var, or null if unset. */
+  fsRoot: string | null;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -44,33 +46,39 @@ const isDesktopRuntime = typeof window !== 'undefined' && Boolean((window as { e
 interface IdentityResponse {
   success?: boolean;
   sn?: string | null;
+  fsRoot?: string | null;
 }
 
 /**
- * Fetch the device SN from web-host's `/api/identity` endpoint. Only available
- * in WebUI mode (static-server carves it out before the reverse proxy). Desktop
- * (Electron) has no static-server; the preload layer may inject the SN as
- * `window.__AIONUI_SERIAL_NUMBER__`, otherwise the SN stays null and the default identity
- * is used.
+ * Fetch the device SN and fs root from web-host's `/api/identity` endpoint.
+ * Only available in WebUI mode (static-server carves it out before the reverse
+ * proxy). Desktop (Electron) has no static-server; the preload layer may inject
+ * the SN as `window.__AIONUI_SERIAL_NUMBER__`, otherwise the SN stays null and
+ * the default identity is used.
  */
-async function fetchSn(): Promise<string | null> {
+async function fetchIdentity(): Promise<{ sn: string | null; fsRoot: string | null }> {
   if (isDesktopRuntime) {
-    return (window as { __AIONUI_SERIAL_NUMBER__?: string | null }).__AIONUI_SERIAL_NUMBER__ ?? null;
+    return {
+      sn: (window as { __AIONUI_SERIAL_NUMBER__?: string | null }).__AIONUI_SERIAL_NUMBER__ ?? null,
+      fsRoot: null,
+    };
   }
   try {
     const response = await fetch('/api/identity', { credentials: 'include' });
-    if (!response.ok) return null;
+    if (!response.ok) return { sn: null, fsRoot: null };
     const data = (await response.json()) as IdentityResponse;
-    if (typeof data.sn === 'string' && data.sn.length > 0) return data.sn;
-    return null;
+    const sn = typeof data.sn === 'string' && data.sn.length > 0 ? data.sn : null;
+    const fsRoot = typeof data.fsRoot === 'string' && data.fsRoot.length > 0 ? data.fsRoot : null;
+    return { sn, fsRoot };
   } catch (error) {
     console.error('Failed to fetch device identity:', error);
-    return null;
+    return { sn: null, fsRoot: null };
   }
 }
 
 export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [sn, setSn] = useState<string | null>(null);
+  const [fsRoot, setFsRoot] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
 
   // No login gate: resolve the SN once on mount and derive the identity.
@@ -79,9 +87,10 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const resolvedSn = await fetchSn();
+      const { sn: resolvedSn, fsRoot: resolvedFsRoot } = await fetchIdentity();
       if (cancelled) return;
       setSn(resolvedSn);
+      setFsRoot(resolvedFsRoot);
       setUser({ id: DEFAULT_USER_ID, username: resolvedSn ?? DEFAULT_USER_ID });
     })();
     return () => {
@@ -89,7 +98,10 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     };
   }, []);
 
-  const value = useMemo<AuthContextValue>(() => ({ ready: true, user, status: 'authenticated', sn }), [user, sn]);
+  const value = useMemo<AuthContextValue>(
+    () => ({ ready: true, user, status: 'authenticated', sn, fsRoot }),
+    [user, sn, fsRoot]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

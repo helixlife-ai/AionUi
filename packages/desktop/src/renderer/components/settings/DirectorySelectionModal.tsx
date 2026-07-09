@@ -9,6 +9,7 @@ import { IconFile, IconFolder, IconUp } from '@arco-design/web-react/icon';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getBaseUrl } from '@/common/adapter/httpBridge';
+import { useAuth } from '@renderer/hooks/context/AuthContext';
 import { stripWindowsVerbatimPrefix } from '@/renderer/utils/file/fileSelection';
 
 interface DirectoryItem {
@@ -38,11 +39,19 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
   onCancel,
 }) => {
   const { t } = useTranslation();
+  const { fsRoot } = useAuth();
   const [loading, setLoading] = useState(false);
   const [directoryData, setDirectoryData] = useState<DirectoryData>({ items: [], canGoUp: false });
   const [selectedPath, setSelectedPath] = useState<string>('');
   const [currentPath, setCurrentPath] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+
+  // When fsRoot is set (WebUI container mode), the picker is capped to that
+  // directory: it starts there and the up-arrow is hidden at the root so users
+  // never see container internals (app/bin/boot/…). aioncore's browse endpoint
+  // still reports canGoUp=true at fsRoot because `/` is in its allow-list, so
+  // we override the flag client-side.
+  const isAtRoot = (path: string) => Boolean(fsRoot) && path === fsRoot;
 
   const loadDirectory = useCallback(
     async (dirPath = '') => {
@@ -96,9 +105,9 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
   useEffect(() => {
     if (visible) {
       setSelectedPath('');
-      loadDirectory('').catch((error) => console.error('Failed to load initial directory:', error));
+      loadDirectory(fsRoot ?? '').catch((error) => console.error('Failed to load initial directory:', error));
     }
-  }, [visible, loadDirectory]);
+  }, [visible, loadDirectory, fsRoot]);
 
   const handleItemClick = (item: DirectoryItem) => {
     if (item.isDirectory) {
@@ -121,6 +130,10 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
       // Handle '__ROOT__' as empty path to show drive list on Windows
       // 处理 '__ROOT__' 为空路径，在 Windows 上显示驱动器列表
       const targetPath = directoryData.parentPath === '__ROOT__' ? '' : directoryData.parentPath;
+      // Refuse to navigate above the fsRoot cap.
+      if (fsRoot && targetPath && !targetPath.startsWith(fsRoot)) {
+        return;
+      }
       loadDirectory(targetPath).catch((error) => console.error('Failed to load parent directory:', error));
     }
   };
@@ -171,7 +184,7 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
       <Spin loading={loading} className='w-full'>
         <div className='w-full border border-b-base rd-4px overflow-hidden' style={{ height: 'min(400px, 60vh)' }}>
           <div className='h-full overflow-y-auto'>
-            {directoryData.canGoUp && (
+            {directoryData.canGoUp && !isAtRoot(currentPath) && (
               <div
                 className='flex items-center p-10px border-b border-b-light cursor-pointer hover:bg-hover transition'
                 onClick={handleGoUp}
