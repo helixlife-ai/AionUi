@@ -7,6 +7,11 @@ services:
     image: helix-aio.tencentcloudcr.com/application/agent-hub:latest
     container_name: agent-hub
     pull_policy: never
+    # The /agent_hub mount is shared with the documents app (file-browser, runs
+    # as uid 65532) and openclaw (uid 1000). No single gid covers all consumers,
+    # so we rely on world-writable mode (0777) + umask 0000 — acceptable on a
+    # single-device appliance where all apps are trusted (like a NAS shared dir).
+    user: "0"
     ports:
       - '25808:25808'
     volumes:
@@ -36,6 +41,14 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
+        # umask 0000 → new files 0666, dirs 0777 (world-writable). The /agent_hub
+        # mount is shared with file-browser (uid 65532) and openclaw (uid 1000);
+        # world-writable lets all of them read/write without gid juggling.
+        umask 0000
+        # Ensure the shared /agent_hub mount is world-writable so the documents
+        # app and openclaw can operate on files created here (or via command line).
+        # Safe to run every start — idempotent.
+        chmod -R a+rwX /agent_hub 2>/dev/null || true
         mkdir -p /root/.openclaw
         # Write the OpenClaw models provider config directly. `openclaw config patch`
         # is unreliable here (ordering race with gateway-created config, and the
