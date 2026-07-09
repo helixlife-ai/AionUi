@@ -1,21 +1,26 @@
-name: aionui
+name: agent-hub
 services:
-  aionui:
+  agent-hub:
     build:
       context: ..
       dockerfile: Dockerfile
-    image: helix-aio.tencentcloudcr.com/application/aionui-hub:latest
-    container_name: aionui-hub
+    image: helix-aio.tencentcloudcr.com/application/agent-hub:latest
+    container_name: agent-hub
     pull_policy: never
     ports:
       - '25808:25808'
     volumes:
       - ./data:/data
+      - ${APP_STORAGE_DIR:-/var/helix/app_storage}/documents/data/agent_hub:/agent_hub
       - ./openclaw-models.patch.json:/tmp/openclaw-models.patch.json:ro
+    working_dir: /agent_hub
     environment:
       - AIONUI_PORT=25808
       - AIONUI_DATA_DIR=/data
       - AIONUI_ALLOW_REMOTE=1
+      # File-picker root for the WebUI: browse is capped to this directory so
+      # users never see container internals (app/bin/boot/…). Mounted above.
+      - AIONUI_FS_ROOT=/agent_hub
       # Device serial number — the sole user identifier for the Agent Hub.
       - AIONUI_SERIAL_NUMBER=${SERIAL_NUMBER}
       # keybalance (helix) proxy — Anthropic-compatible. SN doubles as auth token.

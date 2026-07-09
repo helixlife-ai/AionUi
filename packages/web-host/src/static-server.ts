@@ -176,8 +176,11 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
       // identifier (AIONUI_SERIAL_NUMBER env var) without touching aioncore.
       if (req.method === 'GET' && (req.url === '/api/identity' || req.url === '/api/identity/')) {
         const sn = process.env.AIONUI_SERIAL_NUMBER ?? null;
+        // File-picker root: when set, the WebUI directory browser starts here
+        // and forbids navigating above it, so users never see container internals.
+        const fsRoot = process.env.AIONUI_FS_ROOT ?? null;
         res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ success: true, sn }));
+        res.end(JSON.stringify({ success: true, sn, fsRoot }));
         return;
       }
 
