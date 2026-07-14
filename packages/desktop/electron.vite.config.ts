@@ -6,6 +6,7 @@ import { sentryVitePlugin } from '@sentry/vite-plugin';
 import UnoCSS from 'unocss/vite';
 import unoConfig from '../../uno.config.ts';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
+import { safari15MarkdownCompatPlugin } from './safari15MarkdownCompatPlugin';
 
 // Read the real AionUi version from the repo-root package.json.
 // `packages/desktop/package.json` is a workspace-internal placeholder pinned
@@ -237,6 +238,8 @@ export default defineConfig(({ mode }) => {
       plugins: [
         UnoCSS(unoConfig),
         iconParkPlugin(),
+        // Remove Safari-15-incompatible lookbehind in GFM email autolink regex
+        safari15MarkdownCompatPlugin(),
         ...(enableSentrySourceMaps ? [sentryVitePlugin(sentryPluginOptions)] : []),
       ],
       build: {
