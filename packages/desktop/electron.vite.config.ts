@@ -240,7 +240,11 @@ export default defineConfig(({ mode }) => {
         ...(enableSentrySourceMaps ? [sentryVitePlugin(sentryPluginOptions)] : []),
       ],
       build: {
-        target: 'es2022',
+        // Default es2022 is fine for Electron Chromium. Agent Hub WebUI on
+        // macOS 12 (Safari 15 / older WebKit) cannot parse ES2022 `static { }`
+        // class blocks — Docker sets AIONUI_RENDERER_TARGET=safari15 so esbuild
+        // downlevels them (avoids SyntaxError: Unexpected token '{').
+        target: process.env.AIONUI_RENDERER_TARGET || 'es2022',
         sourcemap: enableSentrySourceMaps ? 'hidden' : isDevelopment,
         minify: !isDevelopment,
         reportCompressedSize: false,
