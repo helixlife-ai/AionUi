@@ -18,6 +18,7 @@ services:
       - ./data:/data
       - ${APP_STORAGE_DIR:-/var/helix/app_storage}/documents/data/agent_hub:/agent_hub
       - ./openclaw-models.patch.json:/tmp/openclaw-models.patch.json:ro
+      - ./codex-config.toml:/tmp/codex-config.toml:ro
     working_dir: /agent_hub
     environment:
       - AIONUI_PORT=25808
@@ -32,12 +33,18 @@ services:
       - ANTHROPIC_BASE_URL=https://paas-model.jova.bio/api/v1/helix
       - ANTHROPIC_AUTH_TOKEN=${SERIAL_NUMBER}
       - ANTHROPIC_API_KEY=${SERIAL_NUMBER}
-      - ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-reasoner
-      - ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-chat
-      - ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-chat
+      - ANTHROPIC_DEFAULT_OPUS_MODEL=agenthub-claude
+      - ANTHROPIC_DEFAULT_SONNET_MODEL=agenthub-claude
+      - ANTHROPIC_DEFAULT_HAIKU_MODEL=agenthub-claude
       - CLAUDE_CODE_MAX_OUTPUT_TOKENS=16000
       # OpenClaw models provider — same SN as auth token for helix proxy.
       - OPENCLAW_API_KEY=${SERIAL_NUMBER}
+      # Codex CLI — API key for the helix proxy (Responses API).
+      - OPENAI_API_KEY=${SERIAL_NUMBER}
+      # Codex CLI — helix proxy Responses API endpoint + model. Codex appends
+      # /responses to the base url. Override via env if a different endpoint is needed.
+      - CODEX_BASE_URL=${CODEX_BASE_URL:-https://paas-model.jova.bio/api/v1/helix/v1}
+      - CODEX_MODEL=${CODEX_MODEL:-agenthub-codex}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -67,6 +74,14 @@ services:
             cfg.models.providers = Object.assign({}, cfg.models.providers, patch.models.providers);
             fs.writeFileSync("/root/.openclaw/openclaw.json", JSON.stringify(cfg, null, 2) + "\n");
           ' 2>/dev/null || true
+        fi
+        # Resolve the Codex CLI config template. Placeholders __CODEX_BASE_URL__
+        # and __CODEX_MODEL__ are substituted from the container env at runtime.
+        # $$ escapes the $ from docker-compose interpolation so the shell expands it.
+        mkdir -p /root/.codex
+        if [ -f /tmp/codex-config.toml ]; then
+          sed "s|__CODEX_BASE_URL__|$${CODEX_BASE_URL:-}|g; s|__CODEX_MODEL__|$${CODEX_MODEL:-}|g" \
+            /tmp/codex-config.toml > /root/.codex/config.toml
         fi
         # Start the OpenClaw gateway in the background. The ACP OpenClaw agent
         # (`openclaw acp`) connects to this gateway on 127.0.0.1:18789; without
