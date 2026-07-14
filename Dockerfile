@@ -28,6 +28,8 @@ RUN npm install -g bun
 # no Electron native rebuild is needed for a renderer-only build.
 ENV CI=true
 ENV NODE_OPTIONS=--max-old-space-size=8192
+# Downlevel renderer JS for macOS 12 / Safari 15 WebKit (no `static { }` blocks).
+ENV AIONUI_RENDERER_TARGET=safari15
 
 # Copy workspace manifests first so `bun install` can resolve workspace:* deps.
 # Layer-caches the heavy install; source changes below don't invalidate it.
