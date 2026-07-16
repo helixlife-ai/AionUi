@@ -13,3 +13,16 @@ export function isAgentHubModelSelectorHidden(): boolean {
 export function isAgentHubPermissionSelectorHidden(): boolean {
   return false;
 }
+
+/**
+ * Agent Hub phase-1: hide the Settings → Agents tab.
+ * Set to `false` in phase-2 to restore the Agents settings entry.
+ */
+export function isAgentHubAgentsSettingsHidden(): boolean {
+  return true;
+}
+
+/** Default settings landing path when opening Settings from the sider / `#/settings`. */
+export function getAgentHubDefaultSettingsPath(): string {
+  return isAgentHubAgentsSettingsHidden() ? '/settings/capabilities' : '/settings/agent';
+}

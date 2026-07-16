@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Tooltip } from '@arco-design/web-react';
 import { getSiderTooltipProps } from '@/renderer/utils/ui/siderTooltip';
+import { isAgentHubAgentsSettingsHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 
 /** Builtin settings tab IDs in display order (must match router paths). */
 export const BUILTIN_TAB_IDS = [
@@ -47,9 +48,10 @@ export const LEGACY_ANCHOR_REMAP: Record<string, string> = {
  * Group headers displayed above specific builtin tabs.
  * The header is rendered once, immediately before the first item whose id matches.
  * Extension tabs anchored between these builtins inherit the enclosing group visually.
+ * When Agents is hidden (phase-1), AI Core header anchors on capabilities instead.
  */
 const GROUP_HEADER_BEFORE: Record<string, string> = {
-  agent: 'settings.groupAiCore',
+  ...(isAgentHubAgentsSettingsHidden() ? { capabilities: 'settings.groupAiCore' } : { agent: 'settings.groupAiCore' }),
   webui: 'settings.groupApp',
   about: 'settings.groupAbout',
 };
@@ -103,7 +105,10 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
     };
 
     // Start with ordered builtin IDs, hiding desktop-only tabs in browser mode
-    const result: SiderItem[] = BUILTIN_TAB_IDS.filter((id) => isDesktop || id !== 'pet').map((id) => builtinMap[id]);
+    // and the Agents tab when Agent Hub phase-1 policy is enabled.
+    const result: SiderItem[] = BUILTIN_TAB_IDS.filter(
+      (id) => (isDesktop || id !== 'pet') && !(id === 'agent' && isAgentHubAgentsSettingsHidden())
+    ).map((id) => builtinMap[id]);
 
     // Extension tabs with position anchoring
     const beforeMap = new Map<string, IExtensionSettingsTab[]>();

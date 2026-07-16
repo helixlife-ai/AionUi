@@ -5,6 +5,8 @@
  */
 
 import {
+  getAgentHubDefaultSettingsPath,
+  isAgentHubAgentsSettingsHidden,
   isAgentHubModelSelectorHidden,
   isAgentHubPermissionSelectorHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
@@ -17,5 +19,10 @@ describe('agentHubUiPolicy', () => {
 
   it('keeps permission selectors visible by default in Agent Hub builds', () => {
     expect(isAgentHubPermissionSelectorHidden()).toBe(false);
+  });
+
+  it('hides Agents settings tab in phase-1 and defaults settings landing to capabilities', () => {
+    expect(isAgentHubAgentsSettingsHidden()).toBe(true);
+    expect(getAgentHubDefaultSettingsPath()).toBe('/settings/capabilities');
   });
 });
