@@ -1,9 +1,6 @@
 name: agent-hub
 services:
   agent-hub:
-    build:
-      context: ..
-      dockerfile: Dockerfile
     image: helix-aio.tencentcloudcr.com/application/agent-hub:latest
     container_name: agent-hub
     pull_policy: never

@@ -1,6 +1,25 @@
 {
-  "name": "AgentHub",
   "version": "v0.1.0",
+  "name": "AgentHub",
   "desc": "内测初始版本",
-  "startup": true
+  "device_limit": [
+    {
+      "key": "any",
+      "operator": "==",
+      "value": [
+        {
+          "key": "device_model",
+          "operator": "==",
+          "value": "HLX-AIO-1P"
+        },
+        {
+          "key": "device_model",
+          "operator": "==",
+          "value": "HLX-AIO-1B"
+        }
+      ]
+    }
+  ],
+  "startup": true,
+  "force_update": true
 }
