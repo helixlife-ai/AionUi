@@ -76,7 +76,7 @@ jobs:
           username: ${{ secrets.COPY_SERVER_USER }}
           key: ${{ secrets.COPY_SERVER_SSH_KEY }}
           source: "aio_deploy/config.json,aio_deploy/docker-compose.yaml"
-          target: "/cfs/projects/docker/dev1/hardware-server/data/apps/aionui/${{ steps.tag.outputs.version }}/"
+          target: "/cfs/projects/docker/dev1/hardware-server/data/apps/AgentHub/${{ steps.tag.outputs.version }}/"
           strip_components: 1
 
       - name: Output summary
