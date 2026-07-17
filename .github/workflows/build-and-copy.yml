@@ -33,6 +33,13 @@ jobs:
           fi
           echo "Final version: $(cat $GITHUB_OUTPUT | grep version | cut -d'=' -f2)"
 
+      # ✅ Step 1: 把代理写入 GITHUB_ENV，后续 step 可引用
+      - name: Set proxy env
+        run: |
+          echo "HTTPS_PROXY=http://proxyuser:jlxkj123456@43.142.2.44:8980" >> $GITHUB_ENV
+          echo "HTTP_PROXY=http://proxyuser:jlxkj123456@43.142.2.44:8980" >> $GITHUB_ENV
+          echo "NO_PROXY=localhost,127.0.0.1,*.tencentcloudcr.com" >> $GITHUB_ENV
+
       - name: Login to Tencent Cloud Container Registry
         uses: docker/login-action@v3
         with:
@@ -42,6 +49,11 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            env.http_proxy=${{ env.HTTP_PROXY }}
+            env.https_proxy=${{ env.HTTPS_PROXY }}
+            env.no_proxy=${{ env.NO_PROXY }}
 
       - name: Extract metadata
         id: meta
