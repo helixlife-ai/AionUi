@@ -50,7 +50,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
         with:
           driver: docker-container
-          config-inline: |
+          buildkitd-config-inline: |
             [proxy]
             httpProxy = "http://proxyuser:jlxkj123456@43.142.2.44:8980"
             httpsProxy = "http://proxyuser:jlxkj123456@43.142.2.44:8980"
