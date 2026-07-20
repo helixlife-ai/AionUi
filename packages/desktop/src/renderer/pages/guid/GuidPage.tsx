@@ -532,6 +532,7 @@ const GuidPage: React.FC = () => {
             workspaceDir={guidInput.dir}
             onSelectWorkspace={(dir) => guidInput.setDir(dir)}
             onClearWorkspace={() => guidInput.setDir('')}
+            onAddWorkspaceFiles={guidInput.handleFilesUploaded}
           />
 
           {selectedAssistantPromptCategories.length > 0 ? (

@@ -42,6 +42,7 @@ type GuidInputCardProps = {
   workspaceDir: string;
   onSelectWorkspace: (dir: string) => void;
   onClearWorkspace: () => void;
+  onAddWorkspaceFiles: (paths: string[]) => void;
 };
 
 const GuidInputCard: React.FC<GuidInputCardProps> = ({
@@ -64,6 +65,7 @@ const GuidInputCard: React.FC<GuidInputCardProps> = ({
   workspaceDir,
   onSelectWorkspace,
   onClearWorkspace,
+  onAddWorkspaceFiles,
 }) => {
   const layout = useLayoutContext();
   const isMobile = layout?.isMobile ?? false;
@@ -140,6 +142,7 @@ const GuidInputCard: React.FC<GuidInputCardProps> = ({
         workspaceDir={workspaceDir}
         onSelectWorkspace={onSelectWorkspace}
         onClearWorkspace={onClearWorkspace}
+        onAddWorkspaceFiles={onAddWorkspaceFiles}
       />
     </div>
   );

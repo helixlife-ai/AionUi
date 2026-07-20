@@ -8,10 +8,15 @@ import { bridge } from '@office-ai/platform';
 import React, { useCallback, useEffect, useState } from 'react';
 import { SHOW_OPEN_REQUEST_EVENT } from '@/common/adapter/constant';
 import DirectorySelectionModal from '@renderer/components/settings/DirectorySelectionModal';
+import {
+  resolveDirectorySelectionMode,
+  type DirectorySelectionMode,
+} from '@/renderer/utils/file/directorySelectionMode';
 
 interface DirectorySelectionRequest {
   id: string;
   isFileMode?: boolean;
+  selectionMode?: DirectorySelectionMode;
   properties?: string[];
 }
 
@@ -50,15 +55,10 @@ export const useDirectorySelection = () => {
 
   useEffect(() => {
     const handleShowOpenRequest = (data: DirectorySelectionRequest) => {
-      // 判断是文件选择还是目录选择
-      let isFileMode = data.isFileMode === true;
+      const selectionMode = data.selectionMode ?? resolveDirectorySelectionMode(data.properties);
+      const isFileMode = selectionMode === 'file';
 
-      // 从 properties 自动推断
-      if (!isFileMode && data.properties) {
-        isFileMode = data.properties.includes('openFile') && !data.properties.includes('openDirectory');
-      }
-
-      setRequestData({ ...data, isFileMode });
+      setRequestData({ ...data, isFileMode, selectionMode });
       setVisible(true);
     };
 
@@ -74,6 +74,7 @@ export const useDirectorySelection = () => {
     <DirectorySelectionModal
       visible={visible}
       isFileMode={requestData?.isFileMode}
+      selectionMode={requestData?.selectionMode}
       onConfirm={handleConfirm}
       onCancel={handleCancel}
     />

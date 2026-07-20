@@ -11,13 +11,14 @@ import { useTranslation } from 'react-i18next';
 import { getBaseUrl } from '@/common/adapter/httpBridge';
 import { useAuth } from '@renderer/hooks/context/AuthContext';
 import { stripWindowsVerbatimPrefix } from '@/renderer/utils/file/fileSelection';
+import {
+  canSelectDirectoryItem,
+  mergeDirectorySelectionItems,
+  type DirectorySelectionItem,
+  type DirectorySelectionMode,
+} from '@/renderer/utils/file/directorySelectionMode';
 
-interface DirectoryItem {
-  name: string;
-  path: string;
-  isDirectory: boolean;
-  isFile?: boolean;
-}
+type DirectoryItem = DirectorySelectionItem;
 
 interface DirectoryData {
   items: DirectoryItem[];
@@ -28,17 +29,88 @@ interface DirectoryData {
 interface DirectorySelectionModalProps {
   visible: boolean;
   isFileMode?: boolean;
+  selectionMode?: DirectorySelectionMode;
   onConfirm: (paths: string[] | undefined) => void;
   onCancel: () => void;
+}
+
+type RawDirEntry = {
+  name?: string;
+  path?: string;
+  full_path?: string;
+  isDirectory?: boolean;
+  is_dir?: boolean;
+  isFile?: boolean;
+  is_file?: boolean;
+};
+
+function mapDirApiEntry(entry: RawDirEntry): DirectoryItem | null {
+  const name = typeof entry.name === 'string' ? entry.name : '';
+  const rawPath = typeof entry.full_path === 'string' ? entry.full_path : entry.path;
+  if (!name || typeof rawPath !== 'string' || !rawPath) {
+    return null;
+  }
+
+  const isDirectory = Boolean(entry.isDirectory ?? entry.is_dir);
+  const isFile = Boolean(entry.isFile ?? entry.is_file ?? !isDirectory);
+
+  return {
+    name,
+    path: stripWindowsVerbatimPrefix(rawPath),
+    isDirectory,
+    isFile,
+  };
+}
+
+async function fetchDirectoryFiles(dirPath: string): Promise<DirectoryItem[]> {
+  if (!dirPath) {
+    return [];
+  }
+
+  const response = await fetch(`${getBaseUrl()}/api/fs/dir`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dir: dirPath, root: dirPath }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const envelope = await response.json();
+  const data = envelope && typeof envelope === 'object' && 'data' in envelope ? envelope.data : envelope;
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return (data as RawDirEntry[])
+    .map(mapDirApiEntry)
+    .filter((item): item is DirectoryItem => Boolean(item?.isFile && !item.isDirectory));
 }
 
 const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
   visible,
   isFileMode = false,
+  selectionMode: selectionModeProp,
   onConfirm,
   onCancel,
 }) => {
   const { t } = useTranslation();
+  const selectionMode: DirectorySelectionMode = selectionModeProp ?? (isFileMode ? 'file' : 'directory');
+  const needsFiles = selectionMode === 'file' || selectionMode === 'hybrid';
+  const modalTitle =
+    selectionMode === 'hybrid'
+      ? `📁 ${t('fileSelection.selectFileOrDirectory')}`
+      : selectionMode === 'file'
+        ? `📄 ${t('fileSelection.selectFile')}`
+        : `📁 ${t('fileSelection.selectDirectory')}`;
+  const selectionHint =
+    selectionMode === 'hybrid'
+      ? t('fileSelection.pleaseSelectFileOrDirectory')
+      : selectionMode === 'file'
+        ? t('fileSelection.pleaseSelectFile')
+        : t('fileSelection.pleaseSelectDirectory');
   const { fsRoot } = useAuth();
   const [loading, setLoading] = useState(false);
   const [directoryData, setDirectoryData] = useState<DirectoryData>({ items: [], canGoUp: false });
@@ -58,9 +130,10 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
       setLoading(true);
       setError(null);
       try {
-        const showFiles = isFileMode ? 'true' : 'false';
+        // `/api/fs/browse` currently returns folders only even when showFiles=true.
+        // Keep it for navigation metadata, then merge files from `/api/fs/dir`.
         const response = await fetch(
-          `${getBaseUrl()}/api/fs/browse?path=${encodeURIComponent(dirPath)}&showFiles=${showFiles}`,
+          `${getBaseUrl()}/api/fs/browse?path=${encodeURIComponent(dirPath)}&showFiles=true`,
           {
             method: 'GET',
             credentials: 'include',
@@ -81,12 +154,24 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
         // Older backends return Windows verbatim paths (`\\?\C:\DEV`), which
         // break agent spawning when stored as a workspace (issue #3191).
         // 旧版后端会返回 `\\?\` 前缀的 Windows 路径，存为工作区后会导致 agent 启动失败。
+        const browseItems = (data.items as DirectoryItem[]).map((item) => ({
+          ...item,
+          path: stripWindowsVerbatimPrefix(item.path),
+          isFile: item.isFile ?? !item.isDirectory,
+        }));
+
+        let fileItems: DirectoryItem[] = [];
+        if (needsFiles && dirPath) {
+          try {
+            fileItems = await fetchDirectoryFiles(dirPath);
+          } catch (fileError) {
+            console.warn('[DirectorySelectionModal] Failed to load files for directory:', fileError);
+          }
+        }
+
         const normalized: DirectoryData = {
           ...data,
-          items: (data.items as DirectoryItem[]).map((item) => ({
-            ...item,
-            path: stripWindowsVerbatimPrefix(item.path),
-          })),
+          items: mergeDirectorySelectionItems(browseItems, fileItems),
           parentPath:
             typeof data.parentPath === 'string' ? stripWindowsVerbatimPrefix(data.parentPath) : data.parentPath,
         };
@@ -99,7 +184,7 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
         setLoading(false);
       }
     },
-    [isFileMode]
+    [needsFiles]
   );
 
   useEffect(() => {
@@ -109,20 +194,19 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
     }
   }, [visible, loadDirectory, fsRoot]);
 
+  const handleSelect = (path: string) => {
+    setSelectedPath(path);
+  };
+
   const handleItemClick = (item: DirectoryItem) => {
     if (item.isDirectory) {
       loadDirectory(item.path).catch((error) => console.error('Failed to load directory:', error));
+      return;
     }
-  };
 
-  // Double-click behavior removed - single click now handles directory navigation
-  // 移除双击行为 - 单击现在处理目录导航
-  const handleItemDoubleClick = (_item: DirectoryItem) => {
-    // No-op: single click already handles navigation
-  };
-
-  const handleSelect = (path: string) => {
-    setSelectedPath(path);
+    if (canSelectDirectoryItem(item, selectionMode)) {
+      handleSelect(item.path);
+    }
   };
 
   const handleGoUp = () => {
@@ -144,9 +228,7 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
     }
   };
 
-  const canSelect = (item: DirectoryItem) => {
-    return isFileMode ? item.isFile : item.isDirectory;
-  };
+  const canSelect = (item: DirectoryItem) => canSelectDirectoryItem(item, selectionMode);
 
   return (
     // This picker is opened *from* other modals (team/cron create dialogs sit at
@@ -154,7 +236,7 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
     // of them — it's the topmost layer while choosing a folder.
     <Modal
       visible={visible}
-      title={isFileMode ? '📄 ' + t('fileSelection.selectFile') : '📁 ' + t('fileSelection.selectDirectory')}
+      title={modalTitle}
       onCancel={onCancel}
       onOk={handleConfirm}
       okButtonProps={{ disabled: !selectedPath }}
@@ -168,9 +250,7 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
             className='text-t-secondary text-14px overflow-hidden text-ellipsis whitespace-nowrap max-w-[70vw]'
             title={selectedPath || currentPath}
           >
-            {selectedPath ||
-              currentPath ||
-              (isFileMode ? t('fileSelection.pleaseSelectFile') : t('fileSelection.pleaseSelectDirectory'))}
+            {selectedPath || currentPath || selectionHint}
           </div>
           <div className='flex gap-10px'>
             <Button onClick={onCancel}>{t('common.cancel')}</Button>
@@ -201,13 +281,17 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
                 </Button>
               </div>
             )}
-            {directoryData.items.map((item, index) => (
+            {!error && !loading && directoryData.items.length === 0 && (
+              <div className='p-16px text-center text-t-secondary text-13px'>
+                {t('fileSelection.emptyDirectory', { defaultValue: 'This folder is empty' })}
+              </div>
+            )}
+            {directoryData.items.map((item) => (
               <div
-                key={index}
+                key={item.path}
                 className='flex items-center justify-between p-10px border-b border-b-light cursor-pointer hover:bg-hover transition'
                 style={selectedPath === item.path ? { background: 'var(--brand-light)' } : {}}
                 onClick={() => handleItemClick(item)}
-                onDoubleClick={() => handleItemDoubleClick(item)}
               >
                 <div className='flex items-center flex-1 min-w-0'>
                   {item.isDirectory ? (
