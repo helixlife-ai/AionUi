@@ -19,8 +19,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   buildChannelAssistantBinding,
-  getDefaultChannelAssistant,
-  resolveChannelAssistantSelection,
+  initializeChannelAssistantState,
 } from './assistantBinding';
 
 /**
@@ -131,14 +130,12 @@ const DingTalkConfigForm: React.FC<DingTalkConfigFormProps> = ({ pluginStatus, m
           channel.getPlatformSettings.invoke({ platform: 'dingtalk' }),
         ]);
 
-        setAvailableAssistants(assistantList);
+        const { availableAssistants, selection, selectedAssistant: nextAssistant } = initializeChannelAssistantState(
+          assistantList,
+          saved.assistant ?? undefined
+        );
 
-        const selection = resolveChannelAssistantSelection(saved.assistant ?? undefined, assistantList);
-        const nextAssistant =
-          assistantList.find((assistant) => assistant.id === selection.assistantId) ||
-          (!selection.hasBrokenSavedAssistant ? getDefaultChannelAssistant(assistantList) : undefined) ||
-          null;
-
+        setAvailableAssistants(availableAssistants);
         setHasBrokenSavedAssistant(selection.hasBrokenSavedAssistant);
         setSelectedAssistant(nextAssistant);
       } catch (error) {

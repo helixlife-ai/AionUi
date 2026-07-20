@@ -26,3 +26,13 @@ export function isAgentHubAgentsSettingsHidden(): boolean {
 export function getAgentHubDefaultSettingsPath(): string {
   return isAgentHubAgentsSettingsHidden() ? '/settings/capabilities' : '/settings/agent';
 }
+
+/**
+ * Agent Hub: channel types hidden from Settings → Channels.
+ * Remove an id from the set (or return false) to restore Telegram / DingTalk.
+ */
+const HIDDEN_CHANNEL_TYPES = new Set(['telegram', 'dingtalk']);
+
+export function isAgentHubChannelTypeHidden(channelType: string): boolean {
+  return HIDDEN_CHANNEL_TYPES.has(channelType);
+}

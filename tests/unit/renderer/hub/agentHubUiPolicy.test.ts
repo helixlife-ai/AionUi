@@ -7,6 +7,7 @@
 import {
   getAgentHubDefaultSettingsPath,
   isAgentHubAgentsSettingsHidden,
+  isAgentHubChannelTypeHidden,
   isAgentHubModelSelectorHidden,
   isAgentHubPermissionSelectorHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
@@ -24,5 +25,12 @@ describe('agentHubUiPolicy', () => {
   it('hides Agents settings tab in phase-1 and defaults settings landing to capabilities', () => {
     expect(isAgentHubAgentsSettingsHidden()).toBe(true);
     expect(getAgentHubDefaultSettingsPath()).toBe('/settings/capabilities');
+  });
+
+  it('hides Telegram and DingTalk channel configs in Agent Hub builds', () => {
+    expect(isAgentHubChannelTypeHidden('telegram')).toBe(true);
+    expect(isAgentHubChannelTypeHidden('dingtalk')).toBe(true);
+    expect(isAgentHubChannelTypeHidden('lark')).toBe(false);
+    expect(isAgentHubChannelTypeHidden('weixin')).toBe(false);
   });
 });

@@ -480,7 +480,7 @@
   "webui.resetPasswordWarning": "请保管好重置之后的密码！",
   "webui.featureRemoteDesc": "启用 WebUI 后，你可以通过手机或远程浏览器访问 Agent Hub。",
   "webui.featureChannelsTitle": "Messaging Control",
-  "webui.featureChannelsDesc": "连接 Telegram、Lark、钉钉、微信，在即时通讯软件中与 Agent Hub交互。",
+  "webui.featureChannelsDesc": "连接 Lark、微信，在即时通讯软件中与 Agent Hub 交互。",
   "webui.goToChannels": "前往 Channels",
   "assistant.telegramConfig": "Telegram 机器人配置",
   "assistant.botToken": "Bot Token",
