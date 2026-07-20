@@ -37,7 +37,7 @@ jobs:
         run: |
           echo "HTTPS_PROXY=http://proxyuser:jlxkj123456@43.142.2.44:8980" >> $GITHUB_ENV
           echo "HTTP_PROXY=http://proxyuser:jlxkj123456@43.142.2.44:8980" >> $GITHUB_ENV
-          echo "NO_PROXY=localhost,127.0.0.1,github.com,*.github.com,*.githubusercontent.com,ghcr.io,docker.io,*.docker.io,registry-1.docker.io" >> $GITHUB_ENV
+          echo "NO_PROXY=localhost,127.0.0.1,github.com,*.github.com,*.githubusercontent.com,ghcr.io,docker.io,*.docker.io,registry-1.docker.io,helix-aio.tencentcloudcr.com" >> $GITHUB_ENV
 
       - name: Login to Tencent Cloud Container Registry
         uses: docker/login-action@v3
@@ -52,7 +52,7 @@ jobs:
           driver-opts: |
             env.http_proxy=${{ env.HTTP_PROXY }}
             env.https_proxy=${{ env.HTTPS_PROXY }}
-            "env.no_proxy=localhost,127.0.0.1,github.com,*.github.com,*.githubusercontent.com,ghcr.io,docker.io,*.docker.io,registry-1.docker.io"
+            env.no_proxy=localhost,127.0.0.1,github.com,*.github.com,*.githubusercontent.com,ghcr.io,docker.io,*.docker.io,registry-1.docker.io,helix-aio.tencentcloudcr.com
 
       - name: Extract metadata
         id: meta
