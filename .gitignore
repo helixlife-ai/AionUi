@@ -67,6 +67,9 @@ typings/
 # dotenv environment variables file
 .env
 .env.test
+aio_deploy/.env.deploy
+aio_deploy/.env.deploy.example
+aio_deploy/deploy-to-aio.sh
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

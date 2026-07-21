@@ -12,8 +12,8 @@ import { getBaseUrl } from '@/common/adapter/httpBridge';
 import { useAuth } from '@renderer/hooks/context/AuthContext';
 import { stripWindowsVerbatimPrefix } from '@/renderer/utils/file/fileSelection';
 import {
+  buildBrowseDirectoryUrl,
   canSelectDirectoryItem,
-  mergeDirectorySelectionItems,
   type DirectorySelectionItem,
   type DirectorySelectionMode,
 } from '@/renderer/utils/file/directorySelectionMode';
@@ -32,61 +32,6 @@ interface DirectorySelectionModalProps {
   selectionMode?: DirectorySelectionMode;
   onConfirm: (paths: string[] | undefined) => void;
   onCancel: () => void;
-}
-
-type RawDirEntry = {
-  name?: string;
-  path?: string;
-  full_path?: string;
-  isDirectory?: boolean;
-  is_dir?: boolean;
-  isFile?: boolean;
-  is_file?: boolean;
-};
-
-function mapDirApiEntry(entry: RawDirEntry): DirectoryItem | null {
-  const name = typeof entry.name === 'string' ? entry.name : '';
-  const rawPath = typeof entry.full_path === 'string' ? entry.full_path : entry.path;
-  if (!name || typeof rawPath !== 'string' || !rawPath) {
-    return null;
-  }
-
-  const isDirectory = Boolean(entry.isDirectory ?? entry.is_dir);
-  const isFile = Boolean(entry.isFile ?? entry.is_file ?? !isDirectory);
-
-  return {
-    name,
-    path: stripWindowsVerbatimPrefix(rawPath),
-    isDirectory,
-    isFile,
-  };
-}
-
-async function fetchDirectoryFiles(dirPath: string): Promise<DirectoryItem[]> {
-  if (!dirPath) {
-    return [];
-  }
-
-  const response = await fetch(`${getBaseUrl()}/api/fs/dir`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ dir: dirPath, root: dirPath }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  const envelope = await response.json();
-  const data = envelope && typeof envelope === 'object' && 'data' in envelope ? envelope.data : envelope;
-  if (!Array.isArray(data)) {
-    return [];
-  }
-
-  return (data as RawDirEntry[])
-    .map(mapDirApiEntry)
-    .filter((item): item is DirectoryItem => Boolean(item?.isFile && !item.isDirectory));
 }
 
 const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
@@ -130,15 +75,13 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
       setLoading(true);
       setError(null);
       try {
-        // `/api/fs/browse` currently returns folders only even when showFiles=true.
-        // Keep it for navigation metadata, then merge files from `/api/fs/dir`.
-        const response = await fetch(
-          `${getBaseUrl()}/api/fs/browse?path=${encodeURIComponent(dirPath)}&showFiles=true`,
-          {
-            method: 'GET',
-            credentials: 'include',
-          }
-        );
+        // Use shallow `/api/fs/browse` only. `/api/fs/dir` is depth-2 and much
+        // slower on large Docker-mounted trees (e.g. 一体机 `/agent_hub`).
+        // AionCore expects `show_files`, not camelCase `showFiles`.
+        const response = await fetch(buildBrowseDirectoryUrl(getBaseUrl(), dirPath, needsFiles), {
+          method: 'GET',
+          credentials: 'include',
+        });
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
           setError(errorData.error || `HTTP ${response.status}`);
@@ -160,18 +103,9 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
           isFile: item.isFile ?? !item.isDirectory,
         }));
 
-        let fileItems: DirectoryItem[] = [];
-        if (needsFiles && dirPath) {
-          try {
-            fileItems = await fetchDirectoryFiles(dirPath);
-          } catch (fileError) {
-            console.warn('[DirectorySelectionModal] Failed to load files for directory:', fileError);
-          }
-        }
-
         const normalized: DirectoryData = {
           ...data,
-          items: mergeDirectorySelectionItems(browseItems, fileItems),
+          items: browseItems,
           parentPath:
             typeof data.parentPath === 'string' ? stripWindowsVerbatimPrefix(data.parentPath) : data.parentPath,
         };

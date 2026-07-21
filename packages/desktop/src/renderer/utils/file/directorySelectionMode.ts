@@ -43,28 +43,17 @@ export function canSelectDirectoryItem(
   return item.isDirectory;
 }
 
-/** Browse historically returns folders only; merge in file entries from `/api/fs/dir`. */
-export function mergeDirectorySelectionItems(
-  browseItems: DirectorySelectionItem[],
-  fileItems: DirectorySelectionItem[]
-): DirectorySelectionItem[] {
-  const byPath = new Map<string, DirectorySelectionItem>();
-
-  for (const item of browseItems) {
-    byPath.set(item.path, item);
+/**
+ * Build `/api/fs/browse` URL.
+ * AionCore reads snake_case `show_files` (camelCase `showFiles` is ignored).
+ */
+export function buildBrowseDirectoryUrl(baseUrl: string, dirPath: string, showFiles: boolean): string {
+  const params = new URLSearchParams();
+  params.set('path', dirPath);
+  if (showFiles) {
+    params.set('show_files', 'true');
+    // Keep camelCase for older proxies/backends that may still read it.
+    params.set('showFiles', 'true');
   }
-
-  for (const item of fileItems) {
-    if (!item.isFile || item.isDirectory) {
-      continue;
-    }
-    byPath.set(item.path, item);
-  }
-
-  return Array.from(byPath.values()).sort((left, right) => {
-    if (left.isDirectory !== right.isDirectory) {
-      return left.isDirectory ? -1 : 1;
-    }
-    return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
-  });
+  return `${baseUrl}/api/fs/browse?${params.toString()}`;
 }

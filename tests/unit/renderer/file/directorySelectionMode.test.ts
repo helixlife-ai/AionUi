@@ -5,8 +5,8 @@
  */
 
 import {
+  buildBrowseDirectoryUrl,
   canSelectDirectoryItem,
-  mergeDirectorySelectionItems,
   resolveDirectorySelectionMode,
 } from '@/renderer/utils/file/directorySelectionMode';
 import { describe, expect, it } from 'vitest';
@@ -30,18 +30,17 @@ describe('directorySelectionMode', () => {
     expect(canSelectDirectoryItem({ isDirectory: false, isFile: true }, 'file')).toBe(true);
   });
 
-  it('merges browse folders with dir API files and sorts directories first', () => {
-    const merged = mergeDirectorySelectionItems(
-      [
-        { name: 'pdf', path: '/ws/pdf', isDirectory: true, isFile: false },
-        { name: 'notes', path: '/ws/notes', isDirectory: true, isFile: false },
-      ],
-      [
-        { name: 'a.pdf', path: '/ws/a.pdf', isDirectory: false, isFile: true },
-        { name: 'z.txt', path: '/ws/z.txt', isDirectory: false, isFile: true },
-      ]
+  it('builds browse URL with snake_case show_files for AionCore', () => {
+    // baseUrl is only a unit-test fixture; runtime uses getBaseUrl() from the current host.
+    const url = buildBrowseDirectoryUrl('http://example.test', '/agent_hub', true);
+    expect(url).toBe(
+      'http://example.test/api/fs/browse?path=%2Fagent_hub&show_files=true&showFiles=true'
     );
+  });
 
-    expect(merged.map((item) => item.name)).toEqual(['notes', 'pdf', 'a.pdf', 'z.txt']);
+  it('omits show_files when listing directories only', () => {
+    const url = buildBrowseDirectoryUrl('http://localhost', '/tmp', false);
+    expect(url).toBe('http://localhost/api/fs/browse?path=%2Ftmp');
+    expect(url).not.toContain('show_files');
   });
 });
