@@ -20,7 +20,10 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Tooltip } from '@arco-design/web-react';
 import { getSiderTooltipProps } from '@/renderer/utils/ui/siderTooltip';
-import { isAgentHubAgentsSettingsHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
+import {
+  isAgentHubAgentsSettingsHidden,
+  isAgentHubPetSettingsHidden,
+} from '@/renderer/utils/hub/agentHubUiPolicy';
 
 /** Builtin settings tab IDs in display order (must match router paths). */
 export const BUILTIN_TAB_IDS = [
@@ -105,9 +108,12 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
     };
 
     // Start with ordered builtin IDs, hiding desktop-only tabs in browser mode
-    // and the Agents tab when Agent Hub phase-1 policy is enabled.
+    // and Agent Hub policy-gated tabs (Agents / Pet).
     const result: SiderItem[] = BUILTIN_TAB_IDS.filter(
-      (id) => (isDesktop || id !== 'pet') && !(id === 'agent' && isAgentHubAgentsSettingsHidden())
+      (id) =>
+        (isDesktop || id !== 'pet') &&
+        !(id === 'agent' && isAgentHubAgentsSettingsHidden()) &&
+        !(id === 'pet' && isAgentHubPetSettingsHidden())
     ).map((id) => builtinMap[id]);
 
     // Extension tabs with position anchoring

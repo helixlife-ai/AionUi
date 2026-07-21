@@ -11,6 +11,7 @@ import { TEAM_MODE_ENABLED } from '@/common/config/constants';
 import {
   getAgentHubDefaultSettingsPath,
   isAgentHubAgentsSettingsHidden,
+  isAgentHubPetSettingsHidden,
 } from '@renderer/utils/hub/agentHubUiPolicy';
 const Conversation = React.lazy(() => import('@renderer/pages/conversation'));
 const Guid = React.lazy(() => import('@renderer/pages/guid'));
@@ -40,6 +41,7 @@ const ProtectedLayout: React.FC<{ layout: React.ReactElement }> = ({ layout }) =
 
 const DEFAULT_SETTINGS_PATH = getAgentHubDefaultSettingsPath();
 const AGENTS_SETTINGS_HIDDEN = isAgentHubAgentsSettingsHidden();
+const PET_SETTINGS_HIDDEN = isAgentHubPetSettingsHidden();
 
 const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => (
   <HashRouter>
@@ -76,7 +78,11 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => (
         <Route path='/settings/appearance' element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
         <Route path='/settings/display' element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
         <Route path='/settings/webui' element={withRouteFallback(WebuiSettings)} />
-        <Route path='/settings/pet' element={withRouteFallback(PetSettings)} />
+        {PET_SETTINGS_HIDDEN ? (
+          <Route path='/settings/pet' element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
+        ) : (
+          <Route path='/settings/pet' element={withRouteFallback(PetSettings)} />
+        )}
         <Route path='/settings/system' element={withRouteFallback(SystemSettings)} />
         <Route path='/settings/about' element={withRouteFallback(SystemSettings)} />
         <Route path='/settings/ext/:tabId' element={withRouteFallback(ExtensionSettingsPage)} />

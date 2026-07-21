@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/** Agent Hub: hide end-user model pickers on guid and conversation surfaces. */
+/** Agent Hub: hide end-user model pickers on guid and conversation surfaces. 隐藏模型选择器 */
 export function isAgentHubModelSelectorHidden(): boolean {
   return true;
 }
 
-/** Agent Hub: hide permission-mode pickers (e.g. 默认 / plan / yolo) on guid and conversation surfaces. */
+/** Agent Hub: hide permission-mode pickers (e.g. 默认 / plan / yolo) on guid and conversation surfaces. 隐藏权限选择器 */
 export function isAgentHubPermissionSelectorHidden(): boolean {
   return false;
 }
@@ -17,8 +17,17 @@ export function isAgentHubPermissionSelectorHidden(): boolean {
 /**
  * Agent Hub phase-1: hide the Settings → Agents tab.
  * Set to `false` in phase-2 to restore the Agents settings entry.
+ * 隐藏设置中的Agents设置入口
  */
 export function isAgentHubAgentsSettingsHidden(): boolean {
+  return true;
+}
+
+/**
+ * Agent Hub: hide Settings → Desktop Pet (and deep-link `/settings/pet`).
+ * Pet is desktop-only and not needed for Agent Hub / WebUI clients.桌面宠物
+ */
+export function isAgentHubPetSettingsHidden(): boolean {
   return true;
 }
 

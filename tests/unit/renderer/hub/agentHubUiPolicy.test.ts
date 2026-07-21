@@ -10,6 +10,7 @@ import {
   isAgentHubChannelTypeHidden,
   isAgentHubModelSelectorHidden,
   isAgentHubPermissionSelectorHidden,
+  isAgentHubPetSettingsHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { describe, expect, it } from 'vitest';
 
@@ -25,6 +26,10 @@ describe('agentHubUiPolicy', () => {
   it('hides Agents settings tab in phase-1 and defaults settings landing to capabilities', () => {
     expect(isAgentHubAgentsSettingsHidden()).toBe(true);
     expect(getAgentHubDefaultSettingsPath()).toBe('/settings/capabilities');
+  });
+
+  it('hides Desktop Pet settings tab in Agent Hub builds', () => {
+    expect(isAgentHubPetSettingsHidden()).toBe(true);
   });
 
   it('hides Telegram and DingTalk channel configs in Agent Hub builds', () => {
