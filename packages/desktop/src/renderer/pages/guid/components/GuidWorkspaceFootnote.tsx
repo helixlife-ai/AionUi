@@ -17,6 +17,7 @@ type GuidWorkspaceFootnoteProps = {
   workspaceDir: string;
   onSelectWorkspace: (dir: string) => void;
   onClearWorkspace: () => void;
+  onAddWorkspaceFiles: (paths: string[]) => void;
 };
 
 const FolderIcon = ({ size = 12 }: { size?: number }) => (
@@ -51,6 +52,7 @@ const GuidWorkspaceFootnote: React.FC<GuidWorkspaceFootnoteProps> = ({
   workspaceDir,
   onSelectWorkspace,
   onClearWorkspace,
+  onAddWorkspaceFiles,
 }) => {
   const { t } = useTranslation();
   const recentWorkspaces = getRecentWorkspaces();
@@ -64,17 +66,30 @@ const GuidWorkspaceFootnote: React.FC<GuidWorkspaceFootnoteProps> = ({
   const handleBrowseWorkspace = useCallback(() => {
     setOpen(false);
     ipcBridge.dialog.showOpen
-      .invoke({ properties: ['openDirectory', 'createDirectory'] })
-      .then((dirs) => {
-        if (dirs && dirs[0]) {
-          addRecentWorkspace(dirs[0]);
-          onSelectWorkspace(dirs[0]);
+      .invoke({ properties: ['openFile', 'openDirectory', 'createDirectory'] })
+      .then(async (paths) => {
+        const selectedPath = paths?.[0];
+        if (!selectedPath) {
+          return;
         }
+
+        try {
+          const metadata = await ipcBridge.fs.getFileMetadata.invoke({ path: selectedPath });
+          if (metadata?.isDirectory) {
+            addRecentWorkspace(selectedPath);
+            onSelectWorkspace(selectedPath);
+            return;
+          }
+        } catch (error) {
+          console.error('[GuidWorkspaceFootnote] Failed to inspect selected path:', error);
+        }
+
+        onAddWorkspaceFiles([selectedPath]);
       })
       .catch((error) => {
         console.error('Failed to open directory dialog:', error);
       });
-  }, [onSelectWorkspace]);
+  }, [onAddWorkspaceFiles, onSelectWorkspace]);
 
   const handleSelectPath = useCallback(
     (path: string) => {

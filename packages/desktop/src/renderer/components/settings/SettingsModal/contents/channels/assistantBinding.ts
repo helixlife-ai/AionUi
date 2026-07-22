@@ -6,6 +6,7 @@
 
 import { isAionrsAssistant, type Assistant } from '@/common/types/agent/assistantTypes';
 import type { IChannelAssistantBindingRead, IChannelAssistantBindingWrite } from '@/common/types/channel/channel';
+import { getAgentHubConversationAssistantCatalog } from '@/renderer/utils/hub/agentHubAssistantCatalog';
 
 /**
  * Channel settings UI consumes backend-normalized assistant bindings.
@@ -19,6 +20,35 @@ export type ResolvedChannelAssistantSelection = {
   assistantId?: string;
   hasBrokenSavedAssistant: boolean;
 };
+
+export type InitializedChannelAssistantState = {
+  availableAssistants: Assistant[];
+  selection: ResolvedChannelAssistantSelection;
+  selectedAssistant: Assistant | null;
+};
+
+/** Channel pickers reuse the same assistant catalog as Guid agentSelection. */
+export function filterChannelAssistantOptions(assistants: Assistant[]): Assistant[] {
+  return getAgentHubConversationAssistantCatalog(assistants);
+}
+
+export function initializeChannelAssistantState(
+  assistantList: Assistant[],
+  saved: ChannelAssistantBinding
+): InitializedChannelAssistantState {
+  const availableAssistants = filterChannelAssistantOptions(assistantList);
+  const selection = resolveChannelAssistantSelection(saved ?? undefined, availableAssistants);
+  const selectedAssistant =
+    availableAssistants.find((assistant) => assistant.id === selection.assistantId) ||
+    (!selection.hasBrokenSavedAssistant ? getDefaultChannelAssistant(availableAssistants) : undefined) ||
+    null;
+
+  return {
+    availableAssistants,
+    selection,
+    selectedAssistant,
+  };
+}
 
 export function getDefaultChannelAssistant(assistants: Assistant[]): Assistant | undefined {
   return (

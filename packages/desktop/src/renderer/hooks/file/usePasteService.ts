@@ -2,9 +2,9 @@ import type { FileMetadata } from '@/renderer/services/FileService';
 import type { UploadSource } from '@/renderer/hooks/file/useUploadState';
 import type { ImageCounter } from '@/renderer/services/PasteService';
 import { PasteService } from '@/renderer/services/PasteService';
+import { showFileAttachError } from '@/renderer/utils/file/fileAttachErrors';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Message } from '@arco-design/web-react';
 import { uuid } from '@renderer/utils/common';
 
 interface UsePasteServiceProps {
@@ -67,7 +67,7 @@ export const usePasteService = ({
         }
         return handled;
       } catch (err) {
-        Message.error(t('common.fileAttach.failed'));
+        showFileAttachError(t, err);
         return false;
       }
     },

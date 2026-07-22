@@ -1,6 +1,9 @@
 {
   "selectFile": "选择文件",
   "selectDirectory": "选择目录",
+  "selectFileOrDirectory": "选择文件或目录",
   "pleaseSelectFile": "请选择一个文件",
-  "pleaseSelectDirectory": "请选择一个目录"
+  "pleaseSelectDirectory": "请选择一个目录",
+  "pleaseSelectFileOrDirectory": "请选择一个文件或目录",
+  "emptyDirectory": "此文件夹为空"
 }

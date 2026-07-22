@@ -480,7 +480,7 @@
   "webui.resetPasswordWarning": "Please keep the reset password safe!",
   "webui.featureRemoteDesc": "Enable WebUI so your phone or remote browser can access AionUi.",
   "webui.featureChannelsTitle": "Messaging Control",
-  "webui.featureChannelsDesc": "Connect Telegram, Lark, DingTalk, and WeChat to interact with AionUi from IM apps.",
+  "webui.featureChannelsDesc": "Connect Lark and WeChat to interact with Agent Hub from IM apps.",
   "webui.goToChannels": "Go to Channels",
   "assistant.telegramConfig": "Telegram Bot Configuration",
   "assistant.botToken": "Bot Token",

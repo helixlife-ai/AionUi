@@ -10,6 +10,23 @@ import { trackUpload, type UploadSource } from '@/renderer/hooks/file/useUploadS
 /** Sentinel error message used when an upload is cancelled by the caller. */
 export const UPLOAD_ABORTED_ERROR = 'Upload aborted';
 
+/** Sentinel when the server (or client pre-check) rejects an oversized upload. */
+export const FILE_TOO_LARGE_ERROR = 'FILE_TOO_LARGE';
+
+/** Sentinel when the client rejects a file type outside the attach allow-list. */
+export const FILE_UNSUPPORTED_ERROR = 'FILE_UNSUPPORTED';
+
+/** Backend upload limit for conversation attachments (HTTP 413). */
+export const MAX_UPLOAD_FILE_SIZE_MB = 30;
+export const MAX_UPLOAD_FILE_SIZE_BYTES = MAX_UPLOAD_FILE_SIZE_MB * 1024 * 1024;
+
+/** True when an attachment should be rejected for exceeding the upload limit. */
+export function isUploadFileTooLarge(size: number): boolean {
+  // Treat 30MB exactly as over-limit so "30mb.pdf"-class files are blocked client-side
+  // before a long upload that often ends as proxy 502 instead of HTTP 413.
+  return size >= MAX_UPLOAD_FILE_SIZE_BYTES;
+}
+
 export interface UploadFileOptions {
   /** Cancel the upload from the outside. Closing the XHR also frees the backend connection. */
   signal?: AbortSignal;
@@ -36,6 +53,10 @@ export async function uploadFileViaHttp(
   file_name?: string,
   options?: UploadFileOptions
 ): Promise<string> {
+  if (isUploadFileTooLarge(file.size)) {
+    return Promise.reject(new Error(FILE_TOO_LARGE_ERROR));
+  }
+
   const formData = new FormData();
   formData.append('file', file);
   if (file_name) {
@@ -87,8 +108,8 @@ export async function uploadFileViaHttp(
 
     xhr.addEventListener('load', () => {
       detachSignal();
-      if (xhr.status === 413) {
-        reject(new Error('FILE_TOO_LARGE'));
+      if (xhr.status === 413 || (xhr.status === 502 && isUploadFileTooLarge(file.size))) {
+        reject(new Error(FILE_TOO_LARGE_ERROR));
         return;
       }
       if (xhr.status < 200 || xhr.status >= 300) {
@@ -170,7 +191,7 @@ export const textExts = [
   '.config',
 ];
 
-/** 所有支持的文件扩展名（预先设计，当前实际接受所有文件类型） */
+/** 所有支持的附件扩展名（会话/首页上传白名单）。 */
 export const allSupportedExts = [...imageExts, ...documentExts, ...textExts];
 
 // 文件元数据接口
@@ -183,16 +204,15 @@ export interface FileMetadata {
 }
 
 /**
- * 检查文件是否被支持
- * 注意：当前实现为预先设计的架构，支持所有文件类型
- * supportedExts 参数预留给将来的文件类型过滤功能
- *
- * @param _file_name 文件名（预留参数）
- * @param _supportedExts 支持的文件扩展名数组（预留参数）
- * @returns 总是返回 true，表示支持所有文件类型
+ * 检查文件是否被支持。
+ * 空的 supportedExts 表示不限制类型（允许全部）。
  */
-export function isSupportedFile(_file_name: string, _supportedExts: string[]): boolean {
-  return true; // 预先设计：当前支持所有文件类型
+export function isSupportedFile(file_name: string, supportedExts: string[]): boolean {
+  if (!supportedExts || supportedExts.length === 0) {
+    return true;
+  }
+  const ext = getFileExtension(file_name);
+  return Boolean(ext) && supportedExts.includes(ext);
 }
 
 // 获取文件扩展名
@@ -221,12 +241,6 @@ export function getCleanFileNames(file_paths: string[]): string[] {
 
 /**
  * 过滤支持的文件
- * 注意：由于 isSupportedFile 当前总是返回 true，此函数实际不会过滤任何文件
- * 这是预先设计的架构，为将来的文件类型过滤功能预留
- *
- * @param files 文件元数据数组
- * @param supportedExts 支持的文件扩展名数组（预留参数）
- * @returns 当前返回所有文件，未进行过滤
  */
 export function filterSupportedFiles(files: FileMetadata[], supportedExts: string[]): FileMetadata[] {
   return files.filter((file) => isSupportedFile(file.name, supportedExts));
@@ -269,9 +283,6 @@ export function formatFileSize(bytes: number): string {
 
 /**
  * 检查是否为图片文件
- * 注意：由于 isSupportedFile 当前总是返回 true，此函数实际总是返回 true
- * 预先设计的架构，为将来的文件类型判断功能预留
- * 当前未被使用，保留供将来扩展
  */
 export function isImageFile(file_name: string): boolean {
   return isSupportedFile(file_name, imageExts);
@@ -279,9 +290,6 @@ export function isImageFile(file_name: string): boolean {
 
 /**
  * 检查是否为文档文件
- * 注意：由于 isSupportedFile 当前总是返回 true，此函数实际总是返回 true
- * 预先设计的架构，为将来的文件类型判断功能预留
- * 当前未被使用，保留供将来扩展
  */
 export function isDocumentFile(file_name: string): boolean {
   return isSupportedFile(file_name, documentExts);
@@ -289,9 +297,6 @@ export function isDocumentFile(file_name: string): boolean {
 
 /**
  * 检查是否为文本文件
- * 注意：由于 isSupportedFile 当前总是返回 true，此函数实际总是返回 true
- * 预先设计的架构，为将来的文件类型判断功能预留
- * 当前未被使用，保留供将来扩展
  */
 export function isTextFile(file_name: string): boolean {
   return isSupportedFile(file_name, textExts);
@@ -319,10 +324,19 @@ class FileServiceClass {
       // In Electron environment, dragged files have additional path property
       const electronFile = file as File & { path?: string };
 
+      if (!isSupportedFile(file.name, allSupportedExts)) {
+        throw new Error(FILE_UNSUPPORTED_ERROR);
+      }
+
       let file_path = electronFile.path || '';
 
       // If no valid path (WebUI or some dragged files may not have paths), upload via HTTP multipart
       if (!file_path) {
+        // Reject before creating the progress tracker so oversized files never
+        // flash an "uploading..." bar and then silently disappear on 502.
+        if (isUploadFileTooLarge(file.size)) {
+          throw new Error(FILE_TOO_LARGE_ERROR);
+        }
         // Each upload owns its own AbortController; the tracker exposes an `abort()`
         // that triggers the signal so user-driven cancel and conversation-switch
         // bulk-abort go through the same path.
@@ -338,16 +352,13 @@ class FileServiceClass {
             signal: controller.signal,
           });
         } catch (error) {
-          // Re-throw size errors so caller can show user-facing toast
-          if (error instanceof Error && error.message === 'FILE_TOO_LARGE') {
-            throw error;
-          }
           if (error instanceof Error && error.message === UPLOAD_ABORTED_ERROR) {
             // User-initiated abort: drop this file silently (the UI already reflects it).
             continue;
           }
+          // Surface size-limit and network failures to callers (do not swallow 502).
           console.error('Failed to upload dragged file:', error);
-          continue;
+          throw error;
         } finally {
           tracker.finish();
         }

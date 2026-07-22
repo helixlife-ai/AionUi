@@ -9,10 +9,11 @@ import type { IMcpServer } from '@/common/config/storage';
 import AgentModeSelector from '@/renderer/components/agent/AgentModeSelector';
 import type { AgentModeOption } from '@/renderer/utils/model/agentTypes';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
-import { getCleanFileNames, FileService } from '@/renderer/services/FileService';
+import { getCleanFileNames, FileService, allSupportedExts, isSupportedFile, FILE_UNSUPPORTED_ERROR } from '@/renderer/services/FileService';
 import { iconColors } from '@/renderer/styles/colors';
 import { isElectronDesktop } from '@/renderer/utils/platform';
-import { Button, Checkbox, Dropdown, Menu, Message, Tooltip } from '@arco-design/web-react';
+import { showFileAttachError } from '@/renderer/utils/file/fileAttachErrors';
+import { Button, Checkbox, Dropdown, Menu, Tooltip } from '@arco-design/web-react';
 import { ArrowUp, Lightning, Plus, Shield, UploadOne } from '@icon-park/react';
 import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -90,8 +91,8 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
         if (processed.length > 0) {
           onFilesUploaded(processed.map((f) => f.path));
         }
-      } catch {
-        Message.error(t('common.fileAttach.failed'));
+      } catch (error) {
+        showFileAttachError(t, error);
       } finally {
         setUploading(false);
       }
@@ -120,8 +121,15 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
           ipcBridge.dialog.showOpen
             .invoke({ properties: ['openFile', 'multiSelections'] })
             .then((uploadedFiles) => {
-              if (uploadedFiles && uploadedFiles.length > 0) {
-                onFilesUploaded(uploadedFiles);
+              if (!uploadedFiles || uploadedFiles.length === 0) return;
+              const supported = uploadedFiles.filter((path) =>
+                isSupportedFile(path.split(/[\\/]/).pop() || path, allSupportedExts)
+              );
+              if (supported.length > 0) {
+                onFilesUploaded(supported);
+              }
+              if (supported.length < uploadedFiles.length) {
+                showFileAttachError(t, new Error(FILE_UNSUPPORTED_ERROR));
               }
             })
             .catch((error) => {

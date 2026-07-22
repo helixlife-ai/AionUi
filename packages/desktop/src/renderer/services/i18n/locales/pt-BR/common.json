@@ -123,6 +123,8 @@
   "fileAttach.addFiles": "Adicionar arquivos",
   "fileAttach.myDevice": "Upload do dispositivo",
   "fileAttach.failed": "Falha no upload",
+  "fileAttach.tooLarge": "O arquivo enviado excede {{maxSizeMb}}MB",
+  "fileAttach.unsupported": "Formato de arquivo não suportado",
   "fileAttach.uploading": "Enviando...",
   "fileAttach.uploadSuccess": "Upload bem-sucedido",
   "fileAttach.cancelUpload": "Cancelar upload",
