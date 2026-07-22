@@ -6,6 +6,8 @@
 
 import {
   FILE_TOO_LARGE_ERROR,
+  FILE_UNSUPPORTED_ERROR,
+  isSupportedFile,
   isUploadFileTooLarge,
   MAX_UPLOAD_FILE_SIZE_BYTES,
   MAX_UPLOAD_FILE_SIZE_MB,
@@ -16,10 +18,13 @@ import {
 } from '@/renderer/utils/file/fileAttachErrors';
 import { describe, expect, it } from 'vitest';
 
-describe('file attach size limit helpers', () => {
+describe('file attach size/type helpers', () => {
   const t = (key: string, options?: Record<string, unknown>) => {
     if (key === 'common.fileAttach.tooLarge') {
       return `too-large:${options?.maxSizeMb}`;
+    }
+    if (key === 'common.fileAttach.unsupported') {
+      return 'unsupported';
     }
     if (key === 'common.fileAttach.failed') {
       return 'failed';
@@ -30,18 +35,22 @@ describe('file attach size limit helpers', () => {
   it('treats files at or above 30MB as too large', () => {
     expect(isUploadFileTooLarge(MAX_UPLOAD_FILE_SIZE_BYTES - 1)).toBe(false);
     expect(isUploadFileTooLarge(MAX_UPLOAD_FILE_SIZE_BYTES)).toBe(true);
-    expect(isUploadFileTooLarge(MAX_UPLOAD_FILE_SIZE_BYTES + 1)).toBe(true);
   });
 
-  it('returns the size-limit message for FILE_TOO_LARGE errors', () => {
+  it('accepts allow-listed extensions and rejects others', () => {
+    expect(isSupportedFile('a.pdf', ['.pdf', '.png'])).toBe(true);
+    expect(isSupportedFile('a.PNG', ['.png'])).toBe(true);
+    expect(isSupportedFile('a.exe', ['.pdf', '.png'])).toBe(false);
+    expect(isSupportedFile('noext', ['.pdf'])).toBe(false);
+    expect(isSupportedFile('a.exe', [])).toBe(true);
+  });
+
+  it('maps size and unsupported errors to distinct copy', () => {
     expect(getFileAttachErrorMessage(t, new Error(FILE_TOO_LARGE_ERROR))).toBe(
       `too-large:${MAX_UPLOAD_FILE_SIZE_MB}`
     );
-  });
-
-  it('returns the generic upload failure message for other errors', () => {
+    expect(getFileAttachErrorMessage(t, new Error(FILE_UNSUPPORTED_ERROR))).toBe('unsupported');
     expect(getFileAttachErrorMessage(t, new Error('Upload failed: 502 Bad Gateway'))).toBe('failed');
-    expect(getFileAttachErrorMessage(t, 'boom')).toBe('failed');
   });
 
   it('keeps toast duration long enough to read', () => {

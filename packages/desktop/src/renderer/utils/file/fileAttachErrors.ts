@@ -5,17 +5,24 @@
  */
 
 import { Message } from '@arco-design/web-react';
-import { FILE_TOO_LARGE_ERROR, MAX_UPLOAD_FILE_SIZE_MB } from '@/renderer/services/FileService';
+import {
+  FILE_TOO_LARGE_ERROR,
+  FILE_UNSUPPORTED_ERROR,
+  MAX_UPLOAD_FILE_SIZE_MB,
+} from '@/renderer/services/FileService';
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 /** Keep the toast long enough that users can read it (default Message is easy to miss). */
 export const FILE_ATTACH_ERROR_TOAST_DURATION_MS = 5000;
 
-/** Map upload failures to the correct toast copy (size limit vs generic failure). */
+/** Map upload failures to the correct toast copy (size / type / generic). */
 export function getFileAttachErrorMessage(t: TranslateFn, error: unknown): string {
   if (error instanceof Error && error.message === FILE_TOO_LARGE_ERROR) {
     return t('common.fileAttach.tooLarge', { maxSizeMb: MAX_UPLOAD_FILE_SIZE_MB });
+  }
+  if (error instanceof Error && error.message === FILE_UNSUPPORTED_ERROR) {
+    return t('common.fileAttach.unsupported');
   }
   return t('common.fileAttach.failed');
 }

@@ -7,6 +7,7 @@
 import type { FileMetadata } from './FileService';
 import {
   FILE_TOO_LARGE_ERROR,
+  FILE_UNSUPPORTED_ERROR,
   getFileExtension,
   isUploadFileTooLarge,
   UPLOAD_ABORTED_ERROR,
@@ -186,6 +187,7 @@ class PasteServiceClass {
       // 处理文件，跳过文本处理
       const fileList: FileMetadata[] = [];
       const usedFileNames = new Set<string>();
+      let hasUnsupported = false;
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const file_path = (file as File & { path?: string }).path;
@@ -249,7 +251,7 @@ class PasteServiceClass {
               console.error('创建临时文件失败:', error);
             }
           } else {
-            // 不支持的文件类型，跳过但不报错（让后续过滤处理）
+            hasUnsupported = true;
             console.warn(`Unsupported image type: ${file.type}, extension: ${fileExt}`);
           }
         } else if (file_path) {
@@ -266,7 +268,7 @@ class PasteServiceClass {
               lastModified: file.lastModified,
             });
           } else {
-            // 不支持的文件类型
+            hasUnsupported = true;
             console.warn(`Unsupported file type: ${file.name}, extension: ${fileExt}`);
           }
         } else if (!file.type.startsWith('image/')) {
@@ -316,6 +318,7 @@ class PasteServiceClass {
               console.error('创建临时文件失败:', error);
             }
           } else {
+            hasUnsupported = true;
             console.warn(`Unsupported file type: ${file.name}, extension: ${fileExt}`);
           }
         }
@@ -324,6 +327,9 @@ class PasteServiceClass {
       // 处理完文件后，总是返回 true（阻止文本插入）
       if (fileList.length > 0) {
         onFilesAdded(fileList);
+      }
+      if (hasUnsupported) {
+        throw new Error(FILE_UNSUPPORTED_ERROR);
       }
       return true; // 阻止默认行为，不插入文件名文本
     }

@@ -123,6 +123,7 @@
   "fileAttach.myDevice": "Mein Gerät",
   "fileAttach.failed": "Hochladen fehlgeschlagen",
   "fileAttach.tooLarge": "Die hochgeladene Datei überschreitet {{maxSizeMb}}MB",
+  "fileAttach.unsupported": "Nicht unterstütztes Dateiformat",
   "fileAttach.uploading": "Wird hochgeladen...",
   "fileAttach.uploadSuccess": "Erfolgreich hochgeladen",
   "fileAttach.cancelUpload": "Upload abbrechen",

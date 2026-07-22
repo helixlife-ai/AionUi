@@ -123,6 +123,7 @@
   "fileAttach.addFiles": "Додати файли",
   "fileAttach.myDevice": "Мій пристрій",
   "fileAttach.tooLarge": "Завантажений файл перевищує {{maxSizeMb}}МБ",
+  "fileAttach.unsupported": "Непідтримуваний формат файлу",
   "fileAttach.failed": "Помилка завантаження",
   "fileAttach.uploading": "Завантаження...",
   "fileAttach.uploadSuccess": "Завантажено успішно",

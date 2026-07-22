@@ -124,6 +124,7 @@
   "fileAttach.myDevice": "Cihazım",
   "fileAttach.failed": "Yükleme başarısız",
   "fileAttach.tooLarge": "Yüklenen dosya {{maxSizeMb}}MB sınırını aşıyor",
+  "fileAttach.unsupported": "Desteklenmeyen dosya biçimi",
   "fileAttach.uploading": "Yükleniyor...",
   "fileAttach.uploadSuccess": "Yükleme başarılı",
   "fileAttach.cancelUpload": "Yüklemeyi iptal et",

@@ -124,6 +124,7 @@
   "fileAttach.myDevice": "آپلود از دستگاه",
   "fileAttach.failed": "آپلود ناموفق بود",
   "fileAttach.tooLarge": "فایل آپلودشده از {{maxSizeMb}} مگابایت بیشتر است",
+  "fileAttach.unsupported": "فرمت فایل پشتیبانی نمی‌شود",
   "fileAttach.uploading": "در حال آپلود...",
   "fileAttach.uploadSuccess": "آپلود موفقیت‌آمیز بود",
   "fileAttach.cancelUpload": "لغو آپلود",
