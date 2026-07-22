@@ -6,7 +6,7 @@
 
 import { Button, Modal, Spin } from '@arco-design/web-react';
 import { IconFile, IconFolder, IconUp } from '@arco-design/web-react/icon';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getBaseUrl } from '@/common/adapter/httpBridge';
 import { useAuth } from '@renderer/hooks/context/AuthContext';
@@ -14,6 +14,8 @@ import { stripWindowsVerbatimPrefix } from '@/renderer/utils/file/fileSelection'
 import {
   buildBrowseDirectoryUrl,
   canSelectDirectoryItem,
+  filterBrowseItemsForMode,
+  mapBrowseDirectoryItem,
   type DirectorySelectionItem,
   type DirectorySelectionMode,
 } from '@/renderer/utils/file/directorySelectionMode';
@@ -43,7 +45,6 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const selectionMode: DirectorySelectionMode = selectionModeProp ?? (isFileMode ? 'file' : 'directory');
-  const needsFiles = selectionMode === 'file' || selectionMode === 'hybrid';
   const modalTitle =
     selectionMode === 'hybrid'
       ? `📁 ${t('fileSelection.selectFileOrDirectory')}`
@@ -62,6 +63,8 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
   const [selectedPath, setSelectedPath] = useState<string>('');
   const [currentPath, setCurrentPath] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const loadAbortRef = useRef<AbortController | null>(null);
+  const loadSeqRef = useRef(0);
 
   // When fsRoot is set (WebUI container mode), the picker is capped to that
   // directory: it starts there and the up-arrow is hidden at the root so users
@@ -72,22 +75,35 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
 
   const loadDirectory = useCallback(
     async (dirPath = '') => {
+      loadAbortRef.current?.abort();
+      const controller = new AbortController();
+      loadAbortRef.current = controller;
+      const loadSeq = ++loadSeqRef.current;
+
       setLoading(true);
       setError(null);
       try {
-        // Use shallow `/api/fs/browse` only. `/api/fs/dir` is depth-2 and much
-        // slower on large Docker-mounted trees (e.g. 一体机 `/agent_hub`).
-        // AionCore expects `show_files`, not camelCase `showFiles`.
-        const response = await fetch(buildBrowseDirectoryUrl(getBaseUrl(), dirPath, needsFiles), {
+        // Always request files via show_files=true (never use heavy /api/fs/dir).
+        // Directory-only mode filters files client-side so a folders-only browse
+        // response/cache cannot blank a file picker.
+        const response = await fetch(buildBrowseDirectoryUrl(getBaseUrl(), dirPath), {
           method: 'GET',
           credentials: 'include',
+          cache: 'no-store',
+          signal: controller.signal,
         });
+        if (controller.signal.aborted || loadSeq !== loadSeqRef.current) {
+          return;
+        }
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
           setError(errorData.error || `HTTP ${response.status}`);
           return;
         }
         const envelope = await response.json();
+        if (controller.signal.aborted || loadSeq !== loadSeqRef.current) {
+          return;
+        }
         // Backend wraps the payload in { success, data, ... }.
         const data = envelope && typeof envelope === 'object' && 'data' in envelope ? envelope.data : envelope;
         if (!data || !Array.isArray(data.items)) {
@@ -97,35 +113,44 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
         // Older backends return Windows verbatim paths (`\\?\C:\DEV`), which
         // break agent spawning when stored as a workspace (issue #3191).
         // 旧版后端会返回 `\\?\` 前缀的 Windows 路径，存为工作区后会导致 agent 启动失败。
-        const browseItems = (data.items as DirectoryItem[]).map((item) => ({
-          ...item,
-          path: stripWindowsVerbatimPrefix(item.path),
-          isFile: item.isFile ?? !item.isDirectory,
-        }));
+        const browseItems = (data.items as Parameters<typeof mapBrowseDirectoryItem>[0][])
+          .map((item) => mapBrowseDirectoryItem(item, stripWindowsVerbatimPrefix))
+          .filter((item): item is DirectoryItem => Boolean(item));
 
         const normalized: DirectoryData = {
           ...data,
-          items: browseItems,
+          items: filterBrowseItemsForMode(browseItems, selectionMode),
           parentPath:
             typeof data.parentPath === 'string' ? stripWindowsVerbatimPrefix(data.parentPath) : data.parentPath,
         };
         setDirectoryData(normalized);
         setCurrentPath(dirPath);
       } catch (err) {
+        if (controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) {
+          return;
+        }
         console.error('Failed to load directory:', err);
         setError(err instanceof Error ? err.message : 'Failed to load directory');
       } finally {
-        setLoading(false);
+        if (loadSeq === loadSeqRef.current) {
+          setLoading(false);
+        }
       }
     },
-    [needsFiles]
+    [selectionMode]
   );
 
   useEffect(() => {
     if (visible) {
       setSelectedPath('');
       loadDirectory(fsRoot ?? '').catch((error) => console.error('Failed to load initial directory:', error));
+    } else {
+      loadAbortRef.current?.abort();
     }
+
+    return () => {
+      loadAbortRef.current?.abort();
+    };
   }, [visible, loadDirectory, fsRoot]);
 
   const handleSelect = (path: string) => {

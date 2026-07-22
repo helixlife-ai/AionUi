@@ -7,6 +7,8 @@
 import {
   buildBrowseDirectoryUrl,
   canSelectDirectoryItem,
+  filterBrowseItemsForMode,
+  mapBrowseDirectoryItem,
   resolveDirectorySelectionMode,
 } from '@/renderer/utils/file/directorySelectionMode';
 import { describe, expect, it } from 'vitest';
@@ -30,17 +32,40 @@ describe('directorySelectionMode', () => {
     expect(canSelectDirectoryItem({ isDirectory: false, isFile: true }, 'file')).toBe(true);
   });
 
-  it('builds browse URL with snake_case show_files for AionCore', () => {
-    // baseUrl is only a unit-test fixture; runtime uses getBaseUrl() from the current host.
-    const url = buildBrowseDirectoryUrl('http://example.test', '/agent_hub', true);
+  it('always builds browse URL with show_files for AionCore', () => {
+    const url = buildBrowseDirectoryUrl('http://example.test', '/agent_hub');
     expect(url).toBe(
       'http://example.test/api/fs/browse?path=%2Fagent_hub&show_files=true&showFiles=true'
     );
   });
 
-  it('omits show_files when listing directories only', () => {
-    const url = buildBrowseDirectoryUrl('http://localhost', '/tmp', false);
-    expect(url).toBe('http://localhost/api/fs/browse?path=%2Ftmp');
-    expect(url).not.toContain('show_files');
+  it('maps camelCase and snake_case browse entries', () => {
+    expect(
+      mapBrowseDirectoryItem({
+        name: 'a.pdf',
+        path: '/ws/a.pdf',
+        isDirectory: false,
+        isFile: true,
+      })
+    ).toEqual({ name: 'a.pdf', path: '/ws/a.pdf', isDirectory: false, isFile: true });
+
+    expect(
+      mapBrowseDirectoryItem({
+        name: 'docs',
+        path: '/ws/docs',
+        is_directory: true,
+        is_file: false,
+      })
+    ).toEqual({ name: 'docs', path: '/ws/docs', isDirectory: true, isFile: false });
+  });
+
+  it('filters files out only in directory selection mode', () => {
+    const items = [
+      { name: 'docs', path: '/ws/docs', isDirectory: true, isFile: false },
+      { name: 'a.pdf', path: '/ws/a.pdf', isDirectory: false, isFile: true },
+    ];
+    expect(filterBrowseItemsForMode(items, 'directory').map((item) => item.name)).toEqual(['docs']);
+    expect(filterBrowseItemsForMode(items, 'file').map((item) => item.name)).toEqual(['docs', 'a.pdf']);
+    expect(filterBrowseItemsForMode(items, 'hybrid').map((item) => item.name)).toEqual(['docs', 'a.pdf']);
   });
 });
