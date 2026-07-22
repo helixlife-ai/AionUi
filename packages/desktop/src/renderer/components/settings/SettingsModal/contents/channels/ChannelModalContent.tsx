@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { useSettingsViewMode } from '../../settingsViewContext';
 import ChannelItem from './ChannelItem';
 import type { ChannelConfig } from './types';
+import { isAgentHubChannelTypeHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import DingTalkConfigForm from './DingTalkConfigForm';
 import DiscordConfigForm from './DiscordConfigForm';
 import LarkConfigForm from './LarkConfigForm';
@@ -892,7 +893,7 @@ const ChannelModalContent: React.FC = () => {
       weixinChannel,
       wecomChannel,
       ...extensionChannels,
-    ];
+    ].filter((ch) => !isAgentHubChannelTypeHidden(String(ch.id)));
   }, [
     pluginStatus,
     slackPluginStatus,
@@ -939,7 +940,7 @@ const ChannelModalContent: React.FC = () => {
     return undefined;
   };
   const channelGuideText = t('settings.webui.featureChannelsDesc', {
-    defaultValue: 'Connect Telegram, Lark, and DingTalk to interact with AionUi from IM apps.',
+    defaultValue: 'Connect Lark and WeChat to interact with Agent Hub from IM apps.',
   });
   const channelSetupSteps = [
     t('settings.channels.selectFirst', {

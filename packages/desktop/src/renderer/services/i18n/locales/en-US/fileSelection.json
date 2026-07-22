@@ -11,5 +11,8 @@
     "up": "Up",
     "go": "Go",
     "empty": "Nothing here"
-  }
+  },
+  "selectFileOrDirectory": "Select File or Directory",
+  "pleaseSelectFileOrDirectory": "Please select a file or directory",
+  "emptyDirectory": "This folder is empty"
 }

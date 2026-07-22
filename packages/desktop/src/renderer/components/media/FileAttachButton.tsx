@@ -6,13 +6,14 @@
 
 import type { IConversationMcpStatus, IConversationMcpStatusKind } from '@/common/config/storage';
 import { ipcBridge } from '@/common';
-import { Button, Message, Trigger } from '@arco-design/web-react';
+import { Button, Trigger } from '@arco-design/web-react';
 import { FolderOpen, Lightning, Paperclip, Plus, Right, Shield } from '@icon-park/react';
 import { useConversationContextSafe } from '@/renderer/hooks/context/ConversationContext';
 import { iconColors } from '@/renderer/styles/colors';
 import { isElectronDesktop } from '@/renderer/utils/platform';
 import { FileService } from '@/renderer/services/FileService';
 import type { FileMetadata } from '@/renderer/services/FileService';
+import { showFileAttachError } from '@/renderer/utils/file/fileAttachErrors';
 import { emitter } from '@/renderer/utils/emitter';
 import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -117,8 +118,8 @@ const FileAttachButton: React.FC<FileAttachButtonProps> = ({
       try {
         const processed = await FileService.processDroppedFiles(fileList, conversationContext?.conversation_id);
         if (processed.length > 0) onLocalFilesAdded(processed);
-      } catch {
-        Message.error(t('common.fileAttach.failed'));
+      } catch (error) {
+        showFileAttachError(t, error);
       } finally {
         setUploading(false);
       }

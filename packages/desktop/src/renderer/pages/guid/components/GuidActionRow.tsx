@@ -1,3 +1,4 @@
+import { showFileAttachError } from '@/renderer/utils/file/fileAttachErrors';
 /**
  * @license
  * Copyright 2025 AionUi (aionui.com)
@@ -17,7 +18,7 @@ import type {
 import type { AgentModeOption } from '@/renderer/utils/model/agentTypes';
 import type { AgentRuntimeDerivedOption } from '@/renderer/utils/model/agentRuntimeCatalog';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
-import { getCleanFileNames, FileService } from '@/renderer/services/FileService';
+import { getCleanFileNames, FileService, allSupportedExts, isSupportedFile, FILE_UNSUPPORTED_ERROR } from '@/renderer/services/FileService';
 import { iconColors } from '@/renderer/styles/colors';
 import { isElectronDesktop } from '@/renderer/utils/platform';
 import type { AcpModelInfo } from '../types';
@@ -181,8 +182,8 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
         if (processed.length > 0) {
           onFilesUploaded(processed.map((f) => f.path));
         }
-      } catch {
-        Message.error(t('common.fileAttach.failed'));
+      } catch (error) {
+        showFileAttachError(t, error);
       } finally {
         setUploading(false);
       }

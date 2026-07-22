@@ -6,9 +6,9 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Message } from '@arco-design/web-react';
 import type { FileMetadata } from '@renderer/services/FileService';
-import { isSupportedFile, FileService } from '@renderer/services/FileService';
+import { FILE_UNSUPPORTED_ERROR, isSupportedFile, FileService } from '@renderer/services/FileService';
+import { showFileAttachError } from '@/renderer/utils/file/fileAttachErrors';
 
 export interface UseDragUploadOptions {
   supportedExts?: string[];
@@ -73,13 +73,15 @@ export const useDragUpload = ({ supportedExts = [], onFilesAdded, conversation_i
 
         // 第一步：先校验文件类型，筛选出支持的文件
         const validFiles: File[] = [];
+        let hasUnsupported = false;
 
         for (let i = 0; i < droppedFiles.length; i++) {
           const file = droppedFiles[i];
           if (supportedExts.length === 0 || isSupportedFile(file.name, supportedExts)) {
             validFiles.push(file);
+          } else {
+            hasUnsupported = true;
           }
-          // 注意：不支持的文件会被静默过滤，与原逻辑保持一致
         }
 
         // 第二步：只处理校验通过的文件
@@ -95,9 +97,13 @@ export const useDragUpload = ({ supportedExts = [], onFilesAdded, conversation_i
             onFilesAdded(processedFiles);
           }
         }
+
+        if (hasUnsupported) {
+          showFileAttachError(t, new Error(FILE_UNSUPPORTED_ERROR));
+        }
       } catch (err) {
         console.error('Failed to process dropped files:', err);
-        Message.error(t('conversation.workspace.dragFailed', 'Failed to process dropped files'));
+        showFileAttachError(t, err);
       }
     },
     [conversation_id, onFilesAdded, supportedExts, t]

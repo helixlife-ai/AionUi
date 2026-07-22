@@ -1,8 +1,8 @@
 {
   "selectFile": "Вибрати файл",
-  "selectDirectory": "Вибрати директорію",
-  "pleaseSelectFile": "Будь ласка, виберіть файл",
-  "pleaseSelectDirectory": "Будь ласка, виберіть директорію",
+  "selectDirectory": "Вибрати каталог",
+  "pleaseSelectFile": "Виберіть файл",
+  "pleaseSelectDirectory": "Виберіть каталог",
   "webFsPicker": {
     "loadFailed": "Не вдалося відкрити цей каталог",
     "titleDirectory": "Виберіть папку на сервері",
@@ -11,5 +11,8 @@
     "up": "Вгору",
     "go": "Перейти",
     "empty": "Тут порожньо"
-  }
+  },
+  "selectFileOrDirectory": "Вибрати файл або каталог",
+  "pleaseSelectFileOrDirectory": "Виберіть файл або каталог",
+  "emptyDirectory": "Ця папка порожня"
 }

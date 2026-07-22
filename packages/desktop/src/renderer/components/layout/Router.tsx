@@ -1,3 +1,9 @@
+/**
+ * @license
+ * Copyright 2025 AionUi (aionui.com)
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import React, { Suspense } from 'react';
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import AppLoader from '@renderer/components/layout/AppLoader';
@@ -5,6 +11,11 @@ import DocumentTitle from '@renderer/components/layout/DocumentTitle';
 import { useCrossSessionRateLimitNotice } from '@/renderer/hooks/system/useCrossSessionRateLimitNotice';
 import { useAuth } from '@renderer/hooks/context/AuthContext';
 import { TEAM_MODE_ENABLED } from '@/common/config/constants';
+import {
+  getAgentHubDefaultSettingsPath,
+  isAgentHubAgentsSettingsHidden,
+  isAgentHubPetSettingsHidden,
+} from '@renderer/utils/hub/agentHubUiPolicy';
 const Conversation = React.lazy(() => import('@renderer/pages/conversation'));
 const Guid = React.lazy(() => import('@renderer/pages/guid'));
 const AgentSettings = React.lazy(() => import('@renderer/pages/settings/AgentSettings'));
@@ -51,6 +62,10 @@ const ProtectedLayout: React.FC<{ layout: React.ReactElement }> = ({ layout }) =
   return React.cloneElement(layout);
 };
 
+const DEFAULT_SETTINGS_PATH = getAgentHubDefaultSettingsPath();
+const AGENTS_SETTINGS_HIDDEN = isAgentHubAgentsSettingsHidden();
+const PET_SETTINGS_HIDDEN = isAgentHubPetSettingsHidden();
+
 const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
 
   return (
@@ -71,8 +86,8 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
           {/* Assistants moved out of Settings to a top-level entry; keep a redirect
               so old deep links / back-nav still land on the new page. */}
           <Route path='/settings/assistants' element={<Navigate to='/assistants' replace />} />
-          <Route path='/settings/agent' element={withRouteFallback(AgentSettings)} />
-          <Route path='/settings/agent/:id/repair' element={withRouteFallback(AgentRepairPage)} />
+          <Route path='/settings/agent' element={AGENTS_SETTINGS_HIDDEN ? <Navigate to={DEFAULT_SETTINGS_PATH} replace /> : withRouteFallback(AgentSettings)} />
+          <Route path='/settings/agent/:id/repair' element={AGENTS_SETTINGS_HIDDEN ? <Navigate to={DEFAULT_SETTINGS_PATH} replace /> : withRouteFallback(AgentRepairPage)} />
           {/* Skills and Tools are top-level settings entries. */}
           <Route path='/settings/skills' element={withRouteFallback(SkillsSettings)} />
           <Route path='/settings/skills/import-history' element={withRouteFallback(SkillsSettings)} />
@@ -88,12 +103,12 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
           <Route path='/settings/appearance' element={withRouteFallback(AppearanceSettings)} />
           <Route path='/settings/display' element={<Navigate to='/settings/appearance' replace />} />
           <Route path='/settings/webui' element={withRouteFallback(WebuiSettings)} />
-          <Route path='/settings/pet' element={withRouteFallback(PetSettings)} />
+          <Route path='/settings/pet' element={PET_SETTINGS_HIDDEN ? <Navigate to={DEFAULT_SETTINGS_PATH} replace /> : withRouteFallback(PetSettings)} />
           <Route path='/settings/archived' element={withRouteFallback(ArchivedSettings)} />
           <Route path='/settings/system' element={withRouteFallback(SystemSettings)} />
           <Route path='/settings/about' element={withRouteFallback(SystemSettings)} />
           <Route path='/settings/ext/:tabId' element={withRouteFallback(ExtensionSettingsPage)} />
-          <Route path='/settings' element={<Navigate to='/settings/agent' replace />} />
+          <Route path='/settings' element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
           <Route path='/test/components' element={withRouteFallback(ComponentsShowcase)} />
           <Route path='/scheduled' element={withRouteFallback(ScheduledTasksPage)} />
           <Route path='/scheduled/:job_id' element={withRouteFallback(TaskDetailPage)} />

@@ -11,5 +11,8 @@
     "up": "上級",
     "go": "前往",
     "empty": "這裡空空如也"
-  }
+  },
+  "selectFileOrDirectory": "選擇檔案或目錄",
+  "pleaseSelectFileOrDirectory": "請選擇一個檔案或目錄",
+  "emptyDirectory": "此資料夾為空"
 }

@@ -11,5 +11,8 @@
     "up": "بالا",
     "go": "برو",
     "empty": "اینجا چیزی نیست"
-  }
+  },
+  "selectFileOrDirectory": "انتخاب فایل یا پوشه",
+  "pleaseSelectFileOrDirectory": "لطفاً یک فایل یا پوشه انتخاب کنید",
+  "emptyDirectory": "این پوشه خالی است"
 }

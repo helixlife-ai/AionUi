@@ -1,8 +1,8 @@
 {
-  "selectFile": "Selecionar Arquivo",
-  "selectDirectory": "Selecionar Diretório",
-  "pleaseSelectFile": "Por favor, selecione um arquivo",
-  "pleaseSelectDirectory": "Por favor, selecione um diretório",
+  "selectFile": "Selecionar arquivo",
+  "selectDirectory": "Selecionar diretório",
+  "pleaseSelectFile": "Selecione um arquivo",
+  "pleaseSelectDirectory": "Selecione um diretório",
   "webFsPicker": {
     "loadFailed": "Não foi possível abrir este diretório",
     "titleDirectory": "Selecione uma pasta no servidor",
@@ -11,5 +11,8 @@
     "up": "Acima",
     "go": "Ir",
     "empty": "Nada aqui"
-  }
+  },
+  "selectFileOrDirectory": "Selecionar arquivo ou diretório",
+  "pleaseSelectFileOrDirectory": "Selecione um arquivo ou diretório",
+  "emptyDirectory": "Esta pasta está vazia"
 }

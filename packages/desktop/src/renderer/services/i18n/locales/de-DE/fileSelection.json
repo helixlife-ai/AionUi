@@ -1,8 +1,8 @@
 {
   "selectFile": "Datei auswählen",
   "selectDirectory": "Verzeichnis auswählen",
-  "pleaseSelectFile": "Bitte wähle eine Datei aus",
-  "pleaseSelectDirectory": "Bitte wähle ein Verzeichnis aus",
+  "pleaseSelectFile": "Bitte wählen Sie eine Datei",
+  "pleaseSelectDirectory": "Bitte wählen Sie ein Verzeichnis",
   "webFsPicker": {
     "loadFailed": "Dieses Verzeichnis kann nicht geöffnet werden",
     "titleDirectory": "Ordner auf dem Server auswählen",
@@ -11,5 +11,8 @@
     "up": "Nach oben",
     "go": "Los",
     "empty": "Hier ist nichts"
-  }
+  },
+  "selectFileOrDirectory": "Datei oder Verzeichnis auswählen",
+  "pleaseSelectFileOrDirectory": "Bitte wählen Sie eine Datei oder ein Verzeichnis",
+  "emptyDirectory": "Dieser Ordner ist leer"
 }
