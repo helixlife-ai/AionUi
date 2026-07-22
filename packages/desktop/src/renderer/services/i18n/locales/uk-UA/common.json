@@ -122,7 +122,7 @@
   },
   "fileAttach.addFiles": "Додати файли",
   "fileAttach.myDevice": "Мій пристрій",
-  "fileAttach.tooLarge": "Файл перевищує ліміт {{max}} МБ",
+  "fileAttach.tooLarge": "Завантажений файл перевищує {{maxSizeMb}}МБ",
   "fileAttach.failed": "Помилка завантаження",
   "fileAttach.uploading": "Завантаження...",
   "fileAttach.uploadSuccess": "Завантажено успішно",

@@ -122,6 +122,7 @@
   "fileAttach.addFiles": "Agregar archivos",
   "fileAttach.myDevice": "Subir desde el dispositivo",
   "fileAttach.failed": "Error al subir",
+  "fileAttach.tooLarge": "El archivo subido supera los {{maxSizeMb}}MB",
   "fileAttach.uploading": "Subiendo...",
   "fileAttach.uploadSuccess": "Subida exitosa",
   "fileAttach.cancelUpload": "Cancelar subida",

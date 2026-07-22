@@ -10,6 +10,20 @@ import { trackUpload, type UploadSource } from '@/renderer/hooks/file/useUploadS
 /** Sentinel error message used when an upload is cancelled by the caller. */
 export const UPLOAD_ABORTED_ERROR = 'Upload aborted';
 
+/** Sentinel when the server (or client pre-check) rejects an oversized upload. */
+export const FILE_TOO_LARGE_ERROR = 'FILE_TOO_LARGE';
+
+/** Backend upload limit for conversation attachments (HTTP 413). */
+export const MAX_UPLOAD_FILE_SIZE_MB = 30;
+export const MAX_UPLOAD_FILE_SIZE_BYTES = MAX_UPLOAD_FILE_SIZE_MB * 1024 * 1024;
+
+/** True when an attachment should be rejected for exceeding the upload limit. */
+export function isUploadFileTooLarge(size: number): boolean {
+  // Treat 30MB exactly as over-limit so "30mb.pdf"-class files are blocked client-side
+  // before a long upload that often ends as proxy 502 instead of HTTP 413.
+  return size >= MAX_UPLOAD_FILE_SIZE_BYTES;
+}
+
 export interface UploadFileOptions {
   /** Cancel the upload from the outside. Closing the XHR also frees the backend connection. */
   signal?: AbortSignal;
@@ -36,6 +50,10 @@ export async function uploadFileViaHttp(
   file_name?: string,
   options?: UploadFileOptions
 ): Promise<string> {
+  if (isUploadFileTooLarge(file.size)) {
+    return Promise.reject(new Error(FILE_TOO_LARGE_ERROR));
+  }
+
   const formData = new FormData();
   formData.append('file', file);
   if (file_name) {
@@ -87,8 +105,8 @@ export async function uploadFileViaHttp(
 
     xhr.addEventListener('load', () => {
       detachSignal();
-      if (xhr.status === 413) {
-        reject(new Error('FILE_TOO_LARGE'));
+      if (xhr.status === 413 || (xhr.status === 502 && isUploadFileTooLarge(file.size))) {
+        reject(new Error(FILE_TOO_LARGE_ERROR));
         return;
       }
       if (xhr.status < 200 || xhr.status >= 300) {
@@ -323,6 +341,11 @@ class FileServiceClass {
 
       // If no valid path (WebUI or some dragged files may not have paths), upload via HTTP multipart
       if (!file_path) {
+        // Reject before creating the progress tracker so oversized files never
+        // flash an "uploading..." bar and then silently disappear on 502.
+        if (isUploadFileTooLarge(file.size)) {
+          throw new Error(FILE_TOO_LARGE_ERROR);
+        }
         // Each upload owns its own AbortController; the tracker exposes an `abort()`
         // that triggers the signal so user-driven cancel and conversation-switch
         // bulk-abort go through the same path.
@@ -338,16 +361,13 @@ class FileServiceClass {
             signal: controller.signal,
           });
         } catch (error) {
-          // Re-throw size errors so caller can show user-facing toast
-          if (error instanceof Error && error.message === 'FILE_TOO_LARGE') {
-            throw error;
-          }
           if (error instanceof Error && error.message === UPLOAD_ABORTED_ERROR) {
             // User-initiated abort: drop this file silently (the UI already reflects it).
             continue;
           }
+          // Surface size-limit and network failures to callers (do not swallow 502).
           console.error('Failed to upload dragged file:', error);
-          continue;
+          throw error;
         } finally {
           tracker.finish();
         }

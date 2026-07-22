@@ -122,6 +122,7 @@
   "fileAttach.addFiles": "Dateien hinzufügen",
   "fileAttach.myDevice": "Mein Gerät",
   "fileAttach.failed": "Hochladen fehlgeschlagen",
+  "fileAttach.tooLarge": "Die hochgeladene Datei überschreitet {{maxSizeMb}}MB",
   "fileAttach.uploading": "Wird hochgeladen...",
   "fileAttach.uploadSuccess": "Erfolgreich hochgeladen",
   "fileAttach.cancelUpload": "Upload abbrechen",

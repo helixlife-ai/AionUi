@@ -12,7 +12,8 @@ import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { getCleanFileNames, FileService } from '@/renderer/services/FileService';
 import { iconColors } from '@/renderer/styles/colors';
 import { isElectronDesktop } from '@/renderer/utils/platform';
-import { Button, Checkbox, Dropdown, Menu, Message, Tooltip } from '@arco-design/web-react';
+import { showFileAttachError } from '@/renderer/utils/file/fileAttachErrors';
+import { Button, Checkbox, Dropdown, Menu, Tooltip } from '@arco-design/web-react';
 import { ArrowUp, Lightning, Plus, Shield, UploadOne } from '@icon-park/react';
 import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -90,8 +91,8 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
         if (processed.length > 0) {
           onFilesUploaded(processed.map((f) => f.path));
         }
-      } catch {
-        Message.error(t('common.fileAttach.failed'));
+      } catch (error) {
+        showFileAttachError(t, error);
       } finally {
         setUploading(false);
       }

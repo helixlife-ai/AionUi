@@ -5,7 +5,13 @@
  */
 
 import type { FileMetadata } from './FileService';
-import { getFileExtension, UPLOAD_ABORTED_ERROR, uploadFileViaHttp } from './FileService';
+import {
+  FILE_TOO_LARGE_ERROR,
+  getFileExtension,
+  isUploadFileTooLarge,
+  UPLOAD_ABORTED_ERROR,
+  uploadFileViaHttp,
+} from './FileService';
 import { trackUpload, type UploadSource } from '@/renderer/hooks/file/useUploadState';
 
 /**
@@ -24,6 +30,9 @@ async function createTempFile(
   conversation_id?: string,
   source: UploadSource = 'sendbox'
 ): Promise<string | null> {
+  if (isUploadFileTooLarge(data.byteLength)) {
+    throw new Error(FILE_TOO_LARGE_ERROR);
+  }
   const arrayBuf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
   const blob = new Blob([arrayBuf], { type: contentType });
   const file = new File([blob], file_name, { type: contentType });
@@ -234,7 +243,7 @@ class PasteServiceClass {
                 });
               }
             } catch (error) {
-              if (error instanceof Error && error.message === 'FILE_TOO_LARGE') {
+              if (error instanceof Error && error.message === FILE_TOO_LARGE_ERROR) {
                 throw error;
               }
               console.error('创建临时文件失败:', error);
@@ -301,7 +310,7 @@ class PasteServiceClass {
                 });
               }
             } catch (error) {
-              if (error instanceof Error && error.message === 'FILE_TOO_LARGE') {
+              if (error instanceof Error && error.message === FILE_TOO_LARGE_ERROR) {
                 throw error;
               }
               console.error('创建临时文件失败:', error);

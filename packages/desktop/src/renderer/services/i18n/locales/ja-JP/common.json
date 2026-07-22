@@ -123,6 +123,7 @@
   "fileAttach.addFiles": "ファイルを追加",
   "fileAttach.myDevice": "マイデバイス",
   "fileAttach.failed": "アップロードに失敗しました",
+  "fileAttach.tooLarge": "アップロードファイルが{{maxSizeMb}}MBを超えています",
   "fileAttach.uploading": "アップロード中...",
   "fileAttach.uploadSuccess": "アップロード成功",
   "fileAttach.cancelUpload": "アップロードをキャンセル",

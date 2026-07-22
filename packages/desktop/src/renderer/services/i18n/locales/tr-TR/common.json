@@ -123,6 +123,7 @@
   "fileAttach.addFiles": "Dosya ekle",
   "fileAttach.myDevice": "Cihazım",
   "fileAttach.failed": "Yükleme başarısız",
+  "fileAttach.tooLarge": "Yüklenen dosya {{maxSizeMb}}MB sınırını aşıyor",
   "fileAttach.uploading": "Yükleniyor...",
   "fileAttach.uploadSuccess": "Yükleme başarılı",
   "fileAttach.cancelUpload": "Yüklemeyi iptal et",
