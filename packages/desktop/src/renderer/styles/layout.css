@@ -151,11 +151,11 @@
 }
 
 /* Message component positioning - center in conversation area (exclude left sider) */
-/* Use padding-inline-start offset while keeping inner message centered */
+/* Offset is synced from Layout via --layout-message-offset-left (0 when sider collapsed). */
 .arco-message-wrapper {
   inset-inline-start: 0 !important;
   width: 100% !important;
-  padding-inline-start: 266px;
+  padding-inline-start: var(--layout-message-offset-left, 266px);
   box-sizing: border-box;
   z-index: 10001 !important;
 }
@@ -245,7 +245,7 @@
     border-radius: 8px !important;
   }
 
-  /* Mobile: remove left padding for message wrapper */
+  /* Mobile: message offset is cleared via --layout-message-offset-left from Layout */
   .arco-message-wrapper {
     padding-inline-start: 0;
   }

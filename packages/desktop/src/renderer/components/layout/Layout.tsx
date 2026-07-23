@@ -34,6 +34,10 @@ import { useNotificationClick } from '@renderer/hooks/system/notification/useNot
 import { useBrowserNotification } from '@renderer/hooks/system/notification/useBrowserNotification';
 import { useDesktopTurnNotification } from '@renderer/hooks/system/notification/useDesktopTurnNotification';
 import { cleanupSiderTooltips } from '@renderer/utils/ui/siderTooltip';
+import {
+  LAYOUT_MESSAGE_OFFSET_CSS_VAR,
+  resolveLayoutMessageOffsetLeft,
+} from '@renderer/utils/ui/layoutMessageOffset';
 import { useConversationShortcuts } from '@renderer/hooks/ui/useConversationShortcuts';
 import { isElectronDesktop } from '@renderer/utils/platform';
 import { IS_DISCONTINUED_BUILD } from '@/renderer/utils/discontinuedBuild';
@@ -351,6 +355,21 @@ const Layout: React.FC<{
         Math.min(MOBILE_SIDER_MAX_WIDTH, Math.round(viewportWidth * MOBILE_SIDER_WIDTH_RATIO))
       )
     : desktopSiderWidth;
+
+  // Keep Arco Message centered in the main content column (not the full window).
+  // Message portals to body, so the offset is applied via a CSS variable.
+  useEffect(() => {
+    const offsetPx = `${resolveLayoutMessageOffsetLeft({
+      isMobile,
+      siderCollapsed: collapsed,
+      siderWidth,
+    })}px`;
+    document.documentElement.style.setProperty(LAYOUT_MESSAGE_OFFSET_CSS_VAR, offsetPx);
+    return () => {
+      document.documentElement.style.removeProperty(LAYOUT_MESSAGE_OFFSET_CSS_VAR);
+    };
+  }, [collapsed, isMobile, siderWidth]);
+
   useEffect(() => {
     collapsedRef.current = collapsed;
   }, [collapsed]);
