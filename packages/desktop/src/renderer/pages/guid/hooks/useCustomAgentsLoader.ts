@@ -7,6 +7,7 @@
 import { ipcBridge } from '@/common';
 import type { Assistant } from '@/common/types/agent/assistantTypes';
 import { getAgentHubConversationAssistantCatalog } from '@/renderer/utils/hub/agentHubAssistantCatalog';
+import { isAssistantsCatalogLoading } from '@/renderer/utils/ui/loadingPlaceholders';
 import { useEffect } from 'react';
 import useSWR, { mutate as swrMutate } from 'swr';
 
@@ -17,6 +18,8 @@ type UseCustomAgentsLoaderResult = {
    * Settings list render.
    */
   assistants: Assistant[];
+  /** True until the first assistants.list response arrives. */
+  isLoading: boolean;
 };
 
 /**
@@ -27,7 +30,7 @@ type UseCustomAgentsLoaderResult = {
 export const useCustomAgentsLoader = (): UseCustomAgentsLoaderResult => {
   // Preset assistants share their own cache so settings / guid / conversation
   // all see the same list without duplicate HTTP calls.
-  const { data: assistantList } = useSWR('assistants.list', async () => {
+  const { data: assistantList, isLoading, isValidating } = useSWR('assistants.list', async () => {
     try {
       return await ipcBridge.assistants.list.invoke();
     } catch (error) {
@@ -44,5 +47,10 @@ export const useCustomAgentsLoader = (): UseCustomAgentsLoaderResult => {
 
   return {
     assistants,
+    isLoading: isAssistantsCatalogLoading({
+      hasData: assistantList !== undefined,
+      // Prefer SWR isLoading; fall back to isValidating for older SWR semantics.
+      isValidating: isLoading || isValidating,
+    }),
   };
 };

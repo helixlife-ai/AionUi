@@ -10,6 +10,7 @@ import { Down, Robot, Search } from '@icon-park/react';
 import { Button, Dropdown, Input } from '@arco-design/web-react';
 import React, { useMemo, useState } from 'react';
 import { resolveAssistantAvatar } from '@/renderer/utils/model/assistantAvatar';
+import { resolveAssistantName } from '@/renderer/utils/model/assistantDisplay';
 import { selectableAssistants } from '@/renderer/utils/model/assistantSelection';
 import { useTranslation } from 'react-i18next';
 
@@ -52,7 +53,7 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
     const query = search.trim().toLowerCase();
     if (!query) return overflowAssistants;
     return overflowAssistants.filter((assistant) => {
-      const label = assistant.name_i18n?.[localeKey] || assistant.name;
+      const label = resolveAssistantName(assistant, localeKey, assistant.name);
       return label.toLowerCase().includes(query);
     });
   }, [localeKey, overflowAssistants, search]);
@@ -62,7 +63,7 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
   const renderAssistantPill = (assistant: Assistant, testId: string) => {
     const avatar = resolveAssistantAvatar(assistant.avatar);
     const isSelected = selectedId === assistant.id;
-    const label = assistant.name_i18n?.[localeKey] || assistant.name;
+    const label = resolveAssistantName(assistant, localeKey, assistant.name);
 
     return (
       <Button

@@ -480,7 +480,7 @@
   "webui.resetPasswordWarning": "Збережіть скинутий пароль!",
   "webui.featureRemoteDesc": "Увімкніть WebUI для доступу до AionUi з телефону або віддаленого браузера.",
   "webui.featureChannelsTitle": "Керування повідомленнями",
-  "webui.featureChannelsDesc": "Підключіть Lark та WeChat для взаємодії з Agent Hub з месенджерів.",
+  "webui.featureChannelsDesc": "Підключіть Lark та WeChat для взаємодії з Studio з месенджерів.",
   "webui.goToChannels": "Перейти до каналів",
   "assistant.telegramConfig": "Налаштування бота Telegram",
   "assistant.botToken": "Токен бота",

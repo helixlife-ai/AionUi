@@ -59,10 +59,12 @@ export const useConversations = () => {
   const { id } = useParams();
   const {
     conversations,
+    isListHydrated,
     isConversationGenerating,
     hasCompletionUnread,
     clearCompletionUnread,
     setActiveConversation,
+    setHistoryViewMounted,
     groupedHistory,
   } = useConversationHistoryContext();
 
@@ -208,6 +210,7 @@ export const useConversations = () => {
 
   return {
     conversations,
+    isListHydrated,
     isConversationGenerating,
     hasCompletionUnread,
     expandedWorkspaces,
@@ -216,5 +219,6 @@ export const useConversations = () => {
     handleToggleWorkspace,
     collapsedSections,
     toggleSection,
+    setHistoryViewMounted,
   };
 };

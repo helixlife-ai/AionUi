@@ -13,6 +13,7 @@ import { useInputFocusRing } from '@/renderer/hooks/chat/useInputFocusRing';
 import { openExternalUrl } from '@/renderer/utils/platform';
 import AssistantSelectionArea from './components/AssistantSelectionArea';
 import GuidActionRow from './components/GuidActionRow';
+import { GuidAgentsLoadingSkeleton } from './components/GuidSkeleton';
 import GuidInputCard from './components/GuidInputCard';
 import GuidModelSelector from './components/GuidModelSelector';
 import GuidPromptCarousel from './components/GuidPromptCarousel';
@@ -505,44 +506,50 @@ const GuidPage: React.FC = () => {
             <p className='text-2xl font-semibold mb-0 text-0 text-center'>{t('conversation.welcome.title')}</p>
           </div>
 
-          <AssistantSelectionArea
-            selectedAssistantId={agentSelection.selectedAssistantId}
-            assistants={agentSelection.assistants}
-            localeKey={localeKey}
-            onSelectAssistant={handleSelectAssistant}
-          />
+          {agentSelection.isAssistantsLoading ? (
+            <GuidAgentsLoadingSkeleton />
+          ) : (
+            <>
+              <AssistantSelectionArea
+                selectedAssistantId={agentSelection.selectedAssistantId}
+                assistants={agentSelection.assistants}
+                localeKey={localeKey}
+                onSelectAssistant={handleSelectAssistant}
+              />
 
-          <GuidInputCard
-            input={guidInput.input}
-            onInputChange={handleInputChange}
-            onKeyDown={handleInputKeyDown}
-            onPaste={guidInput.onPaste}
-            onFocus={guidInput.handleTextareaFocus}
-            onBlur={guidInput.handleTextareaBlur}
-            placeholder={typewriterPlaceholder || t('conversation.welcome.placeholder')}
-            isInputActive={guidInput.isInputFocused}
-            isFileDragging={guidInput.isFileDragging}
-            activeBorderColor={activeBorderColor}
-            inactiveBorderColor={inactiveBorderColor}
-            activeShadow={activeShadow}
-            dragHandlers={guidInput.dragHandlers}
-            files={guidInput.files}
-            onRemoveFile={guidInput.handleRemoveFile}
-            actionRow={actionRowNode}
-            workspaceDir={guidInput.dir}
-            onSelectWorkspace={(dir) => guidInput.setDir(dir)}
-            onClearWorkspace={() => guidInput.setDir('')}
-            onAddWorkspaceFiles={guidInput.handleFilesUploaded}
-          />
+              <GuidInputCard
+                input={guidInput.input}
+                onInputChange={handleInputChange}
+                onKeyDown={handleInputKeyDown}
+                onPaste={guidInput.onPaste}
+                onFocus={guidInput.handleTextareaFocus}
+                onBlur={guidInput.handleTextareaBlur}
+                placeholder={typewriterPlaceholder || t('conversation.welcome.placeholder')}
+                isInputActive={guidInput.isInputFocused}
+                isFileDragging={guidInput.isFileDragging}
+                activeBorderColor={activeBorderColor}
+                inactiveBorderColor={inactiveBorderColor}
+                activeShadow={activeShadow}
+                dragHandlers={guidInput.dragHandlers}
+                files={guidInput.files}
+                onRemoveFile={guidInput.handleRemoveFile}
+                actionRow={actionRowNode}
+                workspaceDir={guidInput.dir}
+                onSelectWorkspace={(dir) => guidInput.setDir(dir)}
+                onClearWorkspace={() => guidInput.setDir('')}
+                onAddWorkspaceFiles={guidInput.handleFilesUploaded}
+              />
 
-          {selectedAssistantPromptCategories.length > 0 ? (
-            <div className='mt-18px w-full animate-fade-in'>
-              <div className={`${styles.assistantPromptHint} mb-10px text-left`}>
-                {t('guid.promptExamplesHint', { defaultValue: 'Try these example prompts:' })}
-              </div>
-              <GuidPromptCarousel categories={selectedAssistantPromptCategories} onSelect={handleSelectPrompt} />
-            </div>
-          ) : null}
+              {selectedAssistantPromptCategories.length > 0 ? (
+                <div className='mt-18px w-full animate-fade-in'>
+                  <div className={`${styles.assistantPromptHint} mb-10px text-left`}>
+                    {t('guid.promptExamplesHint', { defaultValue: 'Try these example prompts:' })}
+                  </div>
+                  <GuidPromptCarousel categories={selectedAssistantPromptCategories} onSelect={handleSelectPrompt} />
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
 
         {/*<QuickActionButtons*/}

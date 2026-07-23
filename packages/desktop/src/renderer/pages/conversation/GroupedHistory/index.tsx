@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import WorkspaceCollapse from '../components/WorkspaceCollapse';
+import ConversationListSkeleton from './ConversationListSkeleton';
 import ConversationRow from './ConversationRow';
 import DragOverlayContent from './DragOverlayContent';
 import SortableConversationRow from './SortableConversationRow';
@@ -28,6 +29,7 @@ import { useConversations } from './hooks/useConversations';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useExport } from './hooks/useExport';
 import type { ConversationRowProps, WorkspaceGroupedHistoryProps } from './types';
+import { shouldShowConversationListSkeleton } from '@/renderer/utils/ui/loadingPlaceholders';
 
 const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
   onSessionClick,
@@ -46,6 +48,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
 
   const {
     conversations,
+    isListHydrated,
     isConversationGenerating,
     hasCompletionUnread,
     expandedWorkspaces,
@@ -54,7 +57,13 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     handleToggleWorkspace,
     collapsedSections,
     toggleSection,
+    setHistoryViewMounted,
   } = useConversations();
+
+  useEffect(() => {
+    setHistoryViewMounted(true);
+    return () => setHistoryViewMounted(false);
+  }, [setHistoryViewMounted]);
 
   const SectionLabel = useCallback(
     ({ sectionKey, label, trailing }: { sectionKey: string; label: string; trailing?: React.ReactNode }) => {
@@ -243,6 +252,15 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
         .filter((section) => section.items.length > 0),
     [timelineSections]
   );
+
+  if (shouldShowConversationListSkeleton({ isListHydrated })) {
+    return (
+      <>
+        {afterPinnedContent}
+        <ConversationListSkeleton />
+      </>
+    );
+  }
 
   if (timelineSections.length === 0 && pinnedConversations.length === 0) {
     return (

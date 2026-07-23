@@ -309,27 +309,28 @@
   }
 }
 
-/* Skeleton shimmer animation */
+/* Legacy local skeleton classes — prefer global .aion-skeleton-block */
 @keyframes guid-shimmer {
-  0% {
-    background-position: -200% 0;
-  }
+  0%,
   100% {
-    background-position: 200% 0;
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.78;
   }
 }
 
 .skeleton {
-  background: linear-gradient(90deg, var(--color-fill-2) 25%, var(--color-fill-3) 50%, var(--color-fill-2) 75%);
-  background-size: 200% 100%;
-  animation: guid-shimmer 1.5s ease-in-out infinite;
+  background-color: var(--color-fill-3);
+  border: 1px solid var(--color-border-2);
+  animation: guid-shimmer 1.6s ease-in-out infinite;
   border-radius: 50%;
 }
 
 .skeletonPill {
-  background: linear-gradient(90deg, var(--color-fill-2) 25%, var(--color-fill-3) 50%, var(--color-fill-2) 75%);
-  background-size: 200% 100%;
-  animation: guid-shimmer 1.5s ease-in-out infinite;
+  background-color: var(--color-fill-3);
+  border: 1px solid var(--color-border-2);
+  animation: guid-shimmer 1.6s ease-in-out infinite;
   border-radius: 100px;
 }
 

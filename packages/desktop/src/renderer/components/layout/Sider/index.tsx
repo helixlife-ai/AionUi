@@ -8,10 +8,14 @@ import { blurActiveElement } from '@renderer/utils/ui/focus';
 import { useThemeContext } from '@renderer/hooks/context/ThemeContext';
 import { getDocumentThemeAppearance, oppositeAppearance } from '@renderer/utils/theme/themeAppearance';
 import { getAgentHubDefaultSettingsPath } from '@renderer/utils/hub/agentHubUiPolicy';
+import { useConversationHistoryContext } from '@renderer/hooks/context/ConversationHistoryContext';
 import { SiderToolbar, SiderSearchEntry, SiderScheduledEntry, SiderAssistantEntry } from './SiderNav';
 import SiderFooter from './SiderFooter';
+import SiderTopNavSkeleton, { SiderFooterSkeleton } from './SiderTopNavSkeleton';
 import TeamSiderSection from './TeamSiderSection';
 import siderStyles from './Sider.module.css';
+import ConversationListSkeleton from '@renderer/pages/conversation/GroupedHistory/ConversationListSkeleton';
+import { shouldShowSiderChromeSkeleton } from '@/renderer/utils/ui/loadingPlaceholders';
 
 const WorkspaceGroupedHistory = React.lazy(() => import('@renderer/pages/conversation/GroupedHistory'));
 const SettingsSider = React.lazy(() => import('@renderer/pages/settings/components/SettingsSider'));
@@ -119,6 +123,11 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
 
   const tooltipEnabled = collapsed && !isMobile;
   const siderTooltipProps = getSiderTooltipProps(tooltipEnabled);
+  const { isListHydrated, isHistoryViewMounted } = useConversationHistoryContext();
+  const showSiderChromeSkeleton = shouldShowSiderChromeSkeleton({
+    isListHydrated,
+    isHistoryViewMounted,
+  });
 
   const workspaceHistoryProps = {
     collapsed,
@@ -138,41 +147,47 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
           </Suspense>
         ) : (
           <div className='size-full flex flex-col gap-2px'>
-            <SiderToolbar
-              isMobile={isMobile}
-              isBatchMode={isBatchMode}
-              collapsed={collapsed}
-              siderTooltipProps={siderTooltipProps}
-              onNewChat={handleNewChat}
-              onToggleBatchMode={() => setIsBatchMode((prev) => !prev)}
-            />
-            {/* Search entry — desktop moves this into the titlebar toolbar;
-                mobile keeps it here in the sidebar. */}
-            {isMobile && (
-              <SiderSearchEntry
-                isMobile={isMobile}
-                collapsed={collapsed}
-                siderTooltipProps={siderTooltipProps}
-                onConversationSelect={handleConversationSelect}
-                onSessionClick={onSessionClick}
-              />
+            {showSiderChromeSkeleton ? (
+              <SiderTopNavSkeleton collapsed={collapsed} />
+            ) : (
+              <>
+                <SiderToolbar
+                  isMobile={isMobile}
+                  isBatchMode={isBatchMode}
+                  collapsed={collapsed}
+                  siderTooltipProps={siderTooltipProps}
+                  onNewChat={handleNewChat}
+                  onToggleBatchMode={() => setIsBatchMode((prev) => !prev)}
+                />
+                {/* Search entry — desktop moves this into the titlebar toolbar;
+                    mobile keeps it here in the sidebar. */}
+                {isMobile && (
+                  <SiderSearchEntry
+                    isMobile={isMobile}
+                    collapsed={collapsed}
+                    siderTooltipProps={siderTooltipProps}
+                    onConversationSelect={handleConversationSelect}
+                    onSessionClick={onSessionClick}
+                  />
+                )}
+                {/* Assistant nav entry - fixed above Scheduled */}
+                <SiderAssistantEntry
+                  isMobile={isMobile}
+                  isActive={pathname.startsWith('/assistants')}
+                  collapsed={collapsed}
+                  siderTooltipProps={siderTooltipProps}
+                  onClick={handleAssistantClick}
+                />
+                {/* Scheduled tasks nav entry - fixed above scroll */}
+                <SiderScheduledEntry
+                  isMobile={isMobile}
+                  isActive={pathname === '/scheduled'}
+                  collapsed={collapsed}
+                  siderTooltipProps={siderTooltipProps}
+                  onClick={handleScheduledClick}
+                />
+              </>
             )}
-            {/* Assistant nav entry - fixed above Scheduled */}
-            <SiderAssistantEntry
-              isMobile={isMobile}
-              isActive={pathname.startsWith('/assistants')}
-              collapsed={collapsed}
-              siderTooltipProps={siderTooltipProps}
-              onClick={handleAssistantClick}
-            />
-            {/* Scheduled tasks nav entry - fixed above scroll */}
-            <SiderScheduledEntry
-              isMobile={isMobile}
-              isActive={pathname === '/scheduled'}
-              collapsed={collapsed}
-              siderTooltipProps={siderTooltipProps}
-              onClick={handleScheduledClick}
-            />
             {/* Divider between fixed top nav and scrollable content area */}
             <div
               className={classNames(
@@ -182,7 +197,7 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
             />
             {/* Scrollable content: pinned → team (slot) → projects → conversations */}
             <div className={classNames('flex-1 min-h-0 overflow-y-auto', siderStyles.scrollArea)}>
-              <Suspense fallback={<div className='min-h-200px' />}>
+              <Suspense fallback={<ConversationListSkeleton />}>
                 <WorkspaceGroupedHistory
                   {...workspaceHistoryProps}
                   afterPinnedContent={
@@ -202,14 +217,18 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
         )}
       </div>
       {/* Footer */}
-      <SiderFooter
-        isMobile={isMobile}
-        isSettings={isSettings}
-        collapsed={collapsed}
-        siderTooltipProps={siderTooltipProps}
-        onSettingsClick={handleSettingsClick}
-        onThemeToggle={handleQuickThemeToggle}
-      />
+      {showSiderChromeSkeleton && !isSettings ? (
+        <SiderFooterSkeleton collapsed={collapsed} />
+      ) : (
+        <SiderFooter
+          isMobile={isMobile}
+          isSettings={isSettings}
+          collapsed={collapsed}
+          siderTooltipProps={siderTooltipProps}
+          onSettingsClick={handleSettingsClick}
+          onThemeToggle={handleQuickThemeToggle}
+        />
+      )}
     </div>
   );
 };

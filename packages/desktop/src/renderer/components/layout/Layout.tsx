@@ -16,6 +16,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { setGlobalNavigate } from '@/renderer/utils/navigation';
 import { LayoutContext } from '@renderer/hooks/context/LayoutContext';
 import { NavigationHistoryProvider } from '@renderer/hooks/context/NavigationHistoryContext';
+import { useConversationHistoryContext } from '@renderer/hooks/context/ConversationHistoryContext';
 import { useDeepLink } from '@renderer/hooks/system/useDeepLink';
 import { useNotificationClick } from '@renderer/hooks/system/notification/useNotificationClick';
 import { useBrowserNotification } from '@renderer/hooks/system/notification/useBrowserNotification';
@@ -25,7 +26,10 @@ import {
   LAYOUT_MESSAGE_OFFSET_CSS_VAR,
   resolveLayoutMessageOffsetLeft,
 } from '@renderer/utils/ui/layoutMessageOffset';
+import { shouldShowSiderChromeSkeleton } from '@/renderer/utils/ui/loadingPlaceholders';
+import { SiderBrandSkeleton } from '@renderer/components/layout/Sider/SiderTopNavSkeleton';
 import { useConversationShortcuts } from '@renderer/hooks/ui/useConversationShortcuts';
+import { PRODUCT_DISPLAY_NAME } from '@/renderer/utils/hub/productBrand';
 import { isElectronDesktop } from '@renderer/utils/platform';
 import '@renderer/styles/layout.css';
 
@@ -339,6 +343,14 @@ const Layout: React.FC<{
         overflow: 'visible' as const,
       };
 
+  const { isListHydrated, isHistoryViewMounted } = useConversationHistoryContext();
+  const showSiderBrandSkeleton =
+    !isSettingsRoute &&
+    shouldShowSiderChromeSkeleton({
+      isListHydrated,
+      isHistoryViewMounted,
+    });
+
   return (
     <LayoutContext.Provider value={{ isMobile, siderCollapsed: collapsed, setSiderCollapsed: setCollapsed }}>
       <NavigationHistoryProvider>
@@ -359,6 +371,9 @@ const Layout: React.FC<{
               })}
               style={siderStyle}
             >
+              {showSiderBrandSkeleton ? (
+                <SiderBrandSkeleton collapsed={collapsed} />
+              ) : (
               <ArcoLayout.Header
                 className={classNames(
                   'flex items-center justify-start pt-8px pb-8px pl-18px pr-16px gap-12px layout-sider-header',
@@ -398,11 +413,11 @@ const Layout: React.FC<{
                         }
                       }}
                     >
-                      Agent Hub
+                      {PRODUCT_DISPLAY_NAME}
                     </div>
                   </Tooltip>
                 ) : (
-                  <div className='text-16px text-t-primary collapsed-hidden font-semibold'>Agent Hub</div>
+                  <div className='text-16px text-t-primary collapsed-hidden font-semibold'>{PRODUCT_DISPLAY_NAME}</div>
                 )}
                 {isMobile && !collapsed && (
                   <button
@@ -417,6 +432,7 @@ const Layout: React.FC<{
                 )}
                 {/* 侧栏折叠改由标题栏统一控制 / Sidebar folding handled by Titlebar toggle */}
               </ArcoLayout.Header>
+              )}
               <ArcoLayout.Content className='pt-0 px-8px pb-0 layout-sider-content'>
                 {React.isValidElement(sider)
                   ? React.cloneElement(sider, {

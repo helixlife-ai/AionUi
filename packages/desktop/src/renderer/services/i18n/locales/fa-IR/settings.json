@@ -455,7 +455,7 @@
   "webui.resetPasswordWarning": "لطفاً رمز عبور بازنشانی‌شده را در جای امنی نگه دارید!",
   "webui.featureRemoteDesc": "WebUI را فعال کنید تا گوشی یا مرورگر ریموت شما بتواند به AionUi دسترسی داشته باشد.",
   "webui.featureChannelsTitle": "کنترل پیام‌رسان",
-  "webui.featureChannelsDesc": "Lark و WeChat را متصل کنید تا از طریق برنامه‌های پیام‌رسان با Agent Hub تعامل کنید.",
+  "webui.featureChannelsDesc": "Lark و WeChat را متصل کنید تا از طریق برنامه‌های پیام‌رسان با Studio تعامل کنید.",
   "webui.goToChannels": "رفتن به کانال‌ها",
   "assistant.telegramConfig": "پیکربندی ربات تلگرام",
   "assistant.botToken": "توکن ربات",
