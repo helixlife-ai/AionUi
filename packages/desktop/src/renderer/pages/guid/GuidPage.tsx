@@ -18,6 +18,7 @@ import { openExternalUrl } from '@/renderer/utils/platform';
 import SlashCommandMenu, { type SlashCommandMenuItem } from '@/renderer/components/chat/SlashCommandMenu';
 import AssistantSelectionArea from './components/AssistantSelectionArea';
 import GuidActionRow from './components/GuidActionRow';
+import { GuidAgentsLoadingSkeleton } from './components/GuidSkeleton';
 import GuidInputCard from './components/GuidInputCard';
 import GuidModelSelector from './components/GuidModelSelector';
 import GuidPromptCarousel from './components/GuidPromptCarousel';
@@ -686,12 +687,16 @@ const GuidPage: React.FC = () => {
             <p className='text-2xl font-semibold mb-0 text-t-primary text-center'>{t('conversation.welcome.title')}</p>
           </div>
 
-          <AssistantSelectionArea
-            selectedAssistantId={agentSelection.selectedAssistantId}
-            assistants={agentSelection.assistants}
-            localeKey={localeKey}
-            onSelectAssistant={handleSelectAssistant}
-          />
+          {agentSelection.isAssistantsLoading ? (
+            <GuidAgentsLoadingSkeleton />
+          ) : (
+            <>
+              <AssistantSelectionArea
+                selectedAssistantId={agentSelection.selectedAssistantId}
+                assistants={agentSelection.assistants}
+                localeKey={localeKey}
+                onSelectAssistant={handleSelectAssistant}
+              />
 
           <GuidInputCard
             focusRequestKey={navState?.focusPrefill && navState.prefillPrompt ? location.key : undefined}
@@ -718,14 +723,16 @@ const GuidPage: React.FC = () => {
             onAddWorkspaceFiles={guidInput.handleFilesUploaded}
           />
 
-          {selectedAssistantPromptCategories.length > 0 ? (
-            <div className='mt-18px w-full animate-fade-in'>
-              <div className={`${styles.assistantPromptHint} mb-10px text-left`}>
-                {t('guid.promptExamplesHint', { defaultValue: 'Try these example prompts:' })}
-              </div>
-              <GuidPromptCarousel categories={selectedAssistantPromptCategories} onSelect={handleSelectPrompt} />
-            </div>
-          ) : null}
+              {selectedAssistantPromptCategories.length > 0 ? (
+                <div className='mt-18px w-full animate-fade-in'>
+                  <div className={`${styles.assistantPromptHint} mb-10px text-left`}>
+                    {t('guid.promptExamplesHint', { defaultValue: 'Try these example prompts:' })}
+                  </div>
+                  <GuidPromptCarousel categories={selectedAssistantPromptCategories} onSelect={handleSelectPrompt} />
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
 
         {/*<QuickActionButtons*/}

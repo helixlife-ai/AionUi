@@ -1,0 +1,42 @@
+/**
+ * Shared skeleton tokens — solid blocks (not soft shimmer) for clearer loading UI.
+ */
+
+.aion-skeleton-block {
+  background-color: var(--color-fill-3);
+  border: 1px solid var(--color-border-2);
+  animation: aion-skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+.aion-skeleton-block--pill {
+  border-radius: 999px;
+}
+
+.aion-skeleton-block--card {
+  border-radius: 16px;
+}
+
+.aion-skeleton-block--tile {
+  border-radius: 10px;
+}
+
+.aion-skeleton-block--soft {
+  border-radius: 8px;
+}
+
+@keyframes aion-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.78;
+  }
+}
+
+/* Dark theme: keep blocks clearly visible against bg */
+[data-theme='dark'] .aion-skeleton-block,
+body[arco-theme='dark'] .aion-skeleton-block {
+  background-color: var(--color-fill-2);
+  border-color: var(--color-border-3);
+}

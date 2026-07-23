@@ -219,6 +219,8 @@ type ConversationListSyncSnapshot = {
   waitingConfirmationConversationIds: Set<string>;
   completionUnreadConversationIds: Set<string>;
   manualUnreadConversationIds: Set<string>;
+  isListHydrated: boolean;
+  isHistoryViewMounted: boolean;
 };
 
 /**
@@ -252,6 +254,8 @@ const persistManualUnread = () => {
 const listeners = new Set<() => void>();
 
 let isStoreInitialized = false;
+let isListHydratedState = false;
+let isHistoryViewMountedState = false;
 let conversationsState: TChatConversation[] = [];
 let generatingConversationIdsState = new Set<string>();
 // Per-conversation set of pending confirmation ids (permission / acp_permission
@@ -279,6 +283,8 @@ let snapshotState: ConversationListSyncSnapshot = {
   waitingConfirmationConversationIds: waitingConfirmationConversationIdsState,
   completionUnreadConversationIds: completionUnreadConversationIdsState,
   manualUnreadConversationIds: manualUnreadConversationIdsState,
+  isListHydrated: isListHydratedState,
+  isHistoryViewMounted: isHistoryViewMountedState,
 };
 
 const emitStoreChange = () => {
@@ -288,6 +294,8 @@ const emitStoreChange = () => {
     waitingConfirmationConversationIds: waitingConfirmationConversationIdsState,
     completionUnreadConversationIds: completionUnreadConversationIdsState,
     manualUnreadConversationIds: manualUnreadConversationIdsState,
+    isListHydrated: isListHydratedState,
+    isHistoryViewMounted: isHistoryViewMountedState,
   };
   listeners.forEach((listener) => listener());
 };
@@ -352,6 +360,7 @@ const refreshConversations = () => {
         // Map ALL rows (unfiltered) so a team member conversation's project_id is
         // resolvable too — the team route looks up its leader conversation here.
         projectIdByIdState = new Map(items.map((conversation) => [conversation.id, conversation.project_id ?? null]));
+        isListHydratedState = true;
         emitStoreChange();
         return;
       }
@@ -359,6 +368,7 @@ const refreshConversations = () => {
       conversationsState = [];
       conversation_idsState = new Set();
       projectIdByIdState = new Map();
+      isListHydratedState = true;
       emitStoreChange();
     })
     .catch((error) => {
@@ -366,6 +376,7 @@ const refreshConversations = () => {
       conversationsState = [];
       conversation_idsState = new Set();
       projectIdByIdState = new Map();
+      isListHydratedState = true;
       emitStoreChange();
     });
 };
@@ -580,6 +591,14 @@ const setActiveConversationState = (conversation_id: string | null) => {
   activeConversationIdState = conversation_id;
 };
 
+const setHistoryViewMountedState = (mounted: boolean) => {
+  if (isHistoryViewMountedState === mounted) {
+    return;
+  }
+  isHistoryViewMountedState = mounted;
+  emitStoreChange();
+};
+
 const initializeConversationListSyncStore = () => {
   if (isStoreInitialized) {
     return;
@@ -674,6 +693,8 @@ export const useConversationListSync = () => {
     waitingConfirmationConversationIds,
     completionUnreadConversationIds,
     manualUnreadConversationIds,
+    isListHydrated,
+    isHistoryViewMounted,
   } = useSyncExternalStore(
     subscribeConversationListSync,
     getConversationListSyncSnapshot,
@@ -694,6 +715,10 @@ export const useConversationListSync = () => {
 
   const setActiveConversation = useCallback((conversation_id: string | null) => {
     setActiveConversationState(conversation_id);
+  }, []);
+
+  const setHistoryViewMounted = useCallback((mounted: boolean) => {
+    setHistoryViewMountedState(mounted);
   }, []);
 
   const isConversationGenerating = useCallback(
@@ -726,6 +751,8 @@ export const useConversationListSync = () => {
 
   return {
     conversations,
+    isListHydrated,
+    isHistoryViewMounted,
     isConversationGenerating,
     isConversationWaitingConfirmation,
     hasCompletionUnread,
@@ -734,5 +761,6 @@ export const useConversationListSync = () => {
     markManualUnread,
     clearManualUnread,
     setActiveConversation,
+    setHistoryViewMounted,
   };
 };

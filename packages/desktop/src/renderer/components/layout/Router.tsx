@@ -10,6 +10,7 @@ import AppLoader from '@renderer/components/layout/AppLoader';
 import DocumentTitle from '@renderer/components/layout/DocumentTitle';
 import { useCrossSessionRateLimitNotice } from '@/renderer/hooks/system/useCrossSessionRateLimitNotice';
 import { useAuth } from '@renderer/hooks/context/AuthContext';
+import { GuidPageSkeleton } from '@renderer/pages/guid/components/GuidSkeleton';
 import { TEAM_MODE_ENABLED } from '@/common/config/constants';
 import {
   getAgentHubDefaultSettingsPath,
@@ -36,8 +37,11 @@ const ScheduledTasksPage = React.lazy(() => import('@renderer/pages/cron/Schedul
 const TaskDetailPage = React.lazy(() => import('@renderer/pages/cron/ScheduledTasksPage/TaskDetailPage'));
 const TeamIndex = React.lazy(() => import('@renderer/pages/team'));
 
-const withRouteFallback = (Component: React.LazyExoticComponent<React.ComponentType>) => (
-  <Suspense fallback={<AppLoader />}>
+const withRouteFallback = (
+  Component: React.LazyExoticComponent<React.ComponentType>,
+  fallback: React.ReactNode = <AppLoader />
+) => (
+  <Suspense fallback={fallback}>
     <Component />
   </Suspense>
 );
@@ -75,7 +79,7 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
         <Route path='/login' element={<Navigate to='/guid' replace />} />
         <Route element={<ProtectedLayout layout={layout} />}>
           <Route index element={<Navigate to='/guid' replace />} />
-          <Route path='/guid' element={withRouteFallback(Guid)} />
+          <Route path='/guid' element={withRouteFallback(Guid, <GuidPageSkeleton />)} />
           <Route path='/conversation/:id' element={withRouteFallback(Conversation)} />
           <Route
             path='/team/:id'

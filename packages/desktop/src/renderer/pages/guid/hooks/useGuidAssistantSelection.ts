@@ -36,6 +36,8 @@ export type GuidAssistantSelectionResult = {
   selectedAssistantBackend: string;
   selectedAssistantAvailable: boolean;
   assistants: Assistant[];
+  /** True until the assistant catalog finishes its first load. */
+  isAssistantsLoading: boolean;
   selectedMode: string;
   setSelectedMode: (mode: React.SetStateAction<string>, options?: { persistPreference?: boolean }) => void;
   selectedAcpModel: string | null;
@@ -125,7 +127,7 @@ export const useGuidAssistantSelection = ({
   const [selectedMode, _setSelectedMode] = useState<string>('default');
   const [selectedAcpModel, _setSelectedAcpModel] = useState<string | null>(null);
   const [selectedThoughtLevelValue, _setSelectedThoughtLevelValue] = useState<string>('');
-  const { assistants } = useCustomAgentsLoader();
+  const { assistants, isLoading: isAssistantsLoading } = useCustomAgentsLoader();
   const managedAgentRuntimeCatalog = useManagedAgentRuntimeCatalog();
 
   const setSelectedMode = useCallback(
@@ -341,6 +343,7 @@ export const useGuidAssistantSelection = ({
     selectedAssistantBackend,
     selectedAssistantAvailable,
     assistants,
+    isAssistantsLoading,
     selectedMode,
     setSelectedMode,
     selectedAcpModel,

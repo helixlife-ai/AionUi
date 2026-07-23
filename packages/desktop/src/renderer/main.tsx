@@ -78,6 +78,7 @@ import 'uno.css';
 import './styles/arco-override.css';
 import './styles/themes/index.css';
 import './styles/markdown.css';
+import './styles/skeleton.css';
 
 // Config service — kick off initialization before i18n / theme modules load,
 // so their startup paths (which await configService.whenReady()) observe the
@@ -101,6 +102,7 @@ import BackendStartingView from './components/layout/BackendStartingView';
 import BackendStartupGate from './components/layout/BackendStartupGate';
 import GpuAutoDisableNotice from './components/layout/GpuAutoDisableNotice';
 import Layout from './components/layout/Layout';
+import AppBootstrapSkeleton from './components/layout/AppBootstrapSkeleton';
 import Router from './components/layout/Router';
 import Sider from './components/layout/Sider';
 import { useAuth } from './hooks/context/AuthContext';
@@ -354,7 +356,7 @@ const Main = () => {
   }, [ready]);
 
   if (!ready || !configReady) {
-    return null;
+    return <AppBootstrapSkeleton />;
   }
 
   return (
