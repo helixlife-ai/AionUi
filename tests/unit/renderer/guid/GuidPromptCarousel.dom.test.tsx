@@ -25,8 +25,17 @@ const categories = [
 ];
 
 describe('GuidPromptCarousel', () => {
-  it('renders the first category title and prompts with indicator dots', () => {
+  it('hides category title and indicators by default', () => {
     render(<GuidPromptCarousel categories={categories} onSelect={vi.fn()} />);
+
+    expect(screen.queryByTestId('guid-prompt-carousel-category-title')).toBeNull();
+    expect(screen.queryByTestId('guid-prompt-carousel-indicators')).toBeNull();
+    screen.getByRole('button', { name: 'Prompt A1' });
+    screen.getByRole('button', { name: 'Prompt A2' });
+  });
+
+  it('renders the first category title and prompts with indicator dots when enabled', () => {
+    render(<GuidPromptCarousel categories={categories} onSelect={vi.fn()} showTitle showIndicators />);
 
     expect(screen.getByTestId('guid-prompt-carousel-category-title').textContent).toBe('Category A');
     screen.getByRole('button', { name: 'Prompt A1' });
@@ -36,7 +45,7 @@ describe('GuidPromptCarousel', () => {
   });
 
   it('switches categories when an indicator is clicked', () => {
-    render(<GuidPromptCarousel categories={categories} onSelect={vi.fn()} />);
+    render(<GuidPromptCarousel categories={categories} onSelect={vi.fn()} showTitle showIndicators />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Category 2' }));
 
