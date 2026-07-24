@@ -710,12 +710,7 @@ const GuidPage: React.FC = () => {
                   <div className={`${styles.assistantPromptHint} mb-10px text-left`}>
                     {t('guid.promptExamplesHint', { defaultValue: 'Try these example prompts:' })}
                   </div>
-                  <GuidPromptCarousel
-                    categories={selectedAssistantPromptCategories}
-                    onSelect={handleSelectPrompt}
-                    showTitle
-                    showIndicators
-                  />
+                  <GuidPromptCarousel categories={selectedAssistantPromptCategories} onSelect={handleSelectPrompt} />
                 </div>
               ) : null}
             </>

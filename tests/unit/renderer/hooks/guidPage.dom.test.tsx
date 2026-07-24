@@ -474,9 +474,7 @@ describe('GuidPage', () => {
     expect(promptButton.className).toContain('!break-words');
   });
 
-  it('always shows categorized Hub prompts with title and indicators', () => {
-    // Even when assistant detail includes recommended prompts, Hub keeps the
-    // curated category carousel (title + 3 indicator dots).
+  it('shows curated Hub prompts without category title or indicators', () => {
     swrMock.useSWRMock.mockImplementation((key: string | null) => {
       if (key?.startsWith('guid.assistant.detail.')) {
         return { data: assistantDetailFixture };
@@ -486,12 +484,10 @@ describe('GuidPage', () => {
 
     render(<GuidPage />);
 
-    expect(screen.getByTestId('guid-prompt-carousel-category-title').textContent).toBe(
-      'guid.defaultPromptCategories.literature.title'
-    );
+    expect(screen.queryByTestId('guid-prompt-carousel-category-title')).toBeNull();
+    expect(screen.queryByTestId('guid-prompt-carousel-indicators')).toBeNull();
     screen.getByRole('button', { name: 'guid.defaultPromptCategories.literature.items.prompt1' });
     screen.getByRole('button', { name: 'guid.defaultPromptCategories.literature.items.prompt2' });
-    expect(screen.getByTestId('guid-prompt-carousel-indicators').children).toHaveLength(3);
   });
 
   it('does not seed skill defaults from the assistant list while detail is loading', async () => {

@@ -65,8 +65,3 @@
   width: 16px;
   background: var(--aou-6);
 }
-
-/* Dark --aou-6 is near-white; use a mid brand step so the capsule stays obvious. */
-:global([data-theme='dark']) .indicatorActive {
-  background: var(--aou-4);
-}
