@@ -104,6 +104,7 @@ describe('AgentModeSelector', () => {
     vi.clearAllMocks();
     useAcpConfigOptionsMock.mockImplementation(() => ({
       setStatus: { state: 'idle' },
+      isLoading: false,
       mode: runtimeMode(),
       model: null,
       thoughtLevel: null,
@@ -141,9 +142,35 @@ describe('AgentModeSelector', () => {
     expect(screen.getByText('权限 · 默认')).toBeInTheDocument();
   });
 
+  it('keeps compact mode selector hidden while runtime mode is initializing', () => {
+    useAcpConfigOptionsMock.mockImplementation(() => ({
+      setStatus: { state: 'idle' },
+      isLoading: true,
+      mode: null,
+      model: null,
+      thoughtLevel: null,
+      reload: vi.fn(),
+      setConfigOption: vi.fn(),
+    }));
+
+    render(
+      <AgentModeSelector
+        backend='claude'
+        conversation_id='conv-1'
+        compact
+        modeLabelFormatter={(mode) => (mode.value === 'default' ? '默认' : '全自动')}
+        compactLabelPrefix='权限'
+      />
+    );
+
+    expect(screen.queryByTestId('agent-mode-selector-claude')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('runtime-selector-loading-indicator')).not.toBeInTheDocument();
+  });
+
   it('renders setting progress at the compact trailing edge instead of using Arco button loading', async () => {
     useAcpConfigOptionsMock.mockImplementation(() => ({
       setStatus: { state: 'setting' },
+      isLoading: false,
       mode: runtimeMode(),
       model: null,
       thoughtLevel: null,
@@ -173,6 +200,7 @@ describe('AgentModeSelector', () => {
     const setConfigOption = vi.fn().mockResolvedValue(undefined);
     useAcpConfigOptionsMock.mockImplementation(() => ({
       setStatus: { state: 'idle' },
+      isLoading: false,
       mode: runtimeMode(),
       model: null,
       thoughtLevel: null,
@@ -187,6 +215,47 @@ describe('AgentModeSelector', () => {
     await waitFor(() => {
       expect(setConfigOption).toHaveBeenCalledWith('mode', 'bypassPermissions');
     });
+  });
+
+  it('passes set-only runtime preparation to runtime config options', () => {
+    const beforeRuntimeSet = vi.fn().mockResolvedValue(undefined);
+
+    render(<AgentModeSelector backend='claude' conversation_id='conv-1' beforeRuntimeSet={beforeRuntimeSet} />);
+
+    expect(useAcpConfigOptionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ prepareSetRuntime: beforeRuntimeSet })
+    );
+  });
+
+  it('falls back to the raw mode value when the current value matches no option', async () => {
+    // Regression: an out-of-catalog current value (e.g. backend mode-vocabulary
+    // drift such as codex "agent-full-access" vs catalog "full-access") used to
+    // render an empty label — the compact pill showed a bare "权限 · ".
+    useAcpConfigOptionsMock.mockImplementation(() => ({
+      setStatus: { state: 'idle' },
+      isLoading: false,
+      mode: {
+        id: 'mode',
+        category: 'mode',
+        currentValue: 'agent-full-access',
+        options: [
+          { value: 'read-only', label: 'Read Only', description: null },
+          { value: 'auto', label: 'Default', description: null },
+          { value: 'full-access', label: 'Full Access', description: null },
+        ],
+      },
+      model: null,
+      thoughtLevel: null,
+      reload: vi.fn(),
+      setConfigOption: vi.fn(),
+    }));
+
+    render(<AgentModeSelector backend='codex' conversation_id='conv-1' compact compactLabelPrefix='权限' />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('mode-selector')).toHaveAttribute('data-current-mode', 'agent-full-access')
+    );
+    expect(screen.getByTestId('agent-mode-selector-codex')).toHaveTextContent('权限 · agent-full-access');
   });
 
   it('shows runtime mode descriptions in option tooltips', () => {

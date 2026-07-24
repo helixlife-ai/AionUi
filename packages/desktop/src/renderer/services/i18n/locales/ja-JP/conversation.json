@@ -1,7 +1,7 @@
 {
   "welcome": {
     "title": "Hi、今日の予定は何ですか？",
-    "placeholder": "メッセージの送信、ファイルの追加、フォルダーの追加、またはスケジュールタスクの作成...",
+    "placeholder": "メッセージの送信、ファイルの追加、フォルダーの追加、スケジュールタスクの作成、または / でコマンド呼び出し...",
     "linkFolder": "フォルダを追加",
     "newConversation": "新しいチャット",
     "selectModel": "モデルを選択",
@@ -34,6 +34,7 @@
     "saveName": "保存",
     "cancelEdit": "キャンセル",
     "rename": "名前を変更",
+    "createCronTask": "スケジュールタスクを作成",
     "renameTitle": "チャット名を変更",
     "renamePlaceholder": "新しい名前を入力してください",
     "renameSuccess": "名前を変更しました",
@@ -72,7 +73,8 @@
     "removeProject": "プロジェクトを削除",
     "removeProjectConfirm": "プロジェクト「{{name}}」を削除しますか？プロジェクト内の {{count}} 件の会話も削除されます。",
     "newConversationInProject": "このプロジェクト内で新しい会話",
-    "deleting": "削除中..."
+    "deleting": "削除中...",
+    "reorderPinned": "ドラッグしてピン留め会話の順序を変更"
   },
   "historySearch": {
     "tooltip": "メッセージを検索",
@@ -475,8 +477,8 @@
     "error": "補足質問への回答に失敗しました。"
   },
   "commandQueue": {
-    "title": "キュー中の指示",
-    "clear": "キューをクリア",
+    "title": "ドラフトボックス",
+    "clear": "ドラフトボックスをクリア",
     "edit": "編集",
     "editing": "編集中",
     "editPlaceholder": "実行される前に、この待機中の指示を修正できます。",
@@ -491,7 +493,19 @@
     "queueFull": "キューがいっぱいです。追加する前にいくつか削除してください。",
     "inputTooLong": "キューに追加する指示が長すぎます。短くしてから送信してください。",
     "tooManyFiles": "このキュー中の指示にはファイルが多すぎます。",
-    "queueTooLarge": "キューのデータが大きすぎて安全に保持できません。いくつか削除してください。"
+    "queueTooLarge": "キューのデータが大きすぎて安全に保持できません。いくつか削除してください。",
+    "sendNow": "今すぐ送信",
+    "modeToggle": "送信モードを切り替え",
+    "help": "使い方",
+    "helpIntro": "AI の返信中に送信したメッセージはここに一時保存されます。",
+    "helpAuto": "：各返信が終わるたびに自動で順番に送信します。",
+    "helpManual": "：自動送信せず保管し、各メッセージを「今すぐ送信」で送ります。",
+    "clearConfirmTitle": "送信ドラフトボックスをクリアしますか？",
+    "clearConfirmContent": "保留中のメッセージはすべて削除され、元に戻せません。",
+    "mode": {
+      "auto": "自動送信",
+      "manual": "手動送信"
+    }
   },
   "contextUsage": {
     "contextUsed": "コンテキスト使用量"
@@ -534,18 +548,22 @@
       "loaded": "読み込み済み",
       "failed": "失敗",
       "unsupported": "非対応"
-    }
+    },
+    "selected": "選択済み MCP"
   },
   "runtimePreparing": {
     "sendboxHint": "実行環境を準備しています。初回起動は少し時間がかかる場合があります。"
   },
   "sendbox": {
-    "hint": "/ でコマンド、@ でファイルを参照"
+    "hint": "/ でコマンド、@ でファイルを参照、↑/↓ でメッセージ履歴"
   },
   "agentTip": {
     "codes": {
       "ACP_EMPTY_TURN": {
         "body": "このリクエストでは、表示できる返信はありませんでした。"
+      },
+      "ACP_EMPTY_TURN_NEEDS_AUTH": {
+        "body": "このリクエストは可視的な応答を生成しませんでした。この Agent はまずサインインが必要かもしれません：{{hint}}。"
       },
       "ACP_EMPTY_TURN_MAX_TOKENS": {
         "body": "このリクエストは、表示できる返信が生成される前にモデルの出力トークン上限に達しました。"

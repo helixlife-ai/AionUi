@@ -107,7 +107,7 @@ const FileAttachButton: React.FC<FileAttachButtonProps> = ({
     setOpen(false);
     setSkillsOpen(false);
     setMcpOpen(false);
-    void navigate('/settings/capabilities?tab=tools');
+    void navigate('/settings/tools');
   }, [navigate]);
 
   const handleLocalFileChange = useCallback(
@@ -241,7 +241,7 @@ const FileAttachButton: React.FC<FileAttachButtonProps> = ({
                 <div>
                   <MenuItem
                     icon={<Shield theme='outline' size={15} strokeWidth={2.5} />}
-                    label={`${t('conversation.mcp.loaded', { defaultValue: 'Loaded MCP' })} · ${mcpStatuses.length}`}
+                    label={`${t('conversation.mcp.selected', { defaultValue: 'Selected MCP' })} · ${mcpStatuses.length}`}
                     suffix={<Right theme='outline' size={12} strokeWidth={3} style={{ color: '#c9cdd4' }} />}
                   />
                 </div>
@@ -262,7 +262,7 @@ const FileAttachButton: React.FC<FileAttachButtonProps> = ({
                 <div>
                   <MenuItem
                     icon={<Lightning theme='outline' size={15} strokeWidth={2.5} />}
-                    label={`${t('conversation.skills.loaded', { defaultValue: 'Loaded Skills' })} · ${skillNames.length}`}
+                    label={`${t('common.selectedSkills', { defaultValue: 'Selected skills' })} · ${skillNames.length}`}
                     suffix={<Right theme='outline' size={12} strokeWidth={3} style={{ color: '#c9cdd4' }} />}
                   />
                 </div>

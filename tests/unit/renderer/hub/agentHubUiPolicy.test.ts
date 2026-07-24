@@ -24,9 +24,9 @@ describe('agentHubUiPolicy', () => {
     expect(isAgentHubPermissionSelectorHidden()).toBe(false);
   });
 
-  it('hides Agents settings tab in phase-1 and defaults settings landing to capabilities', () => {
+  it('hides Agents settings tab in phase-1 and defaults settings landing to skills', () => {
     expect(isAgentHubAgentsSettingsHidden()).toBe(true);
-    expect(getAgentHubDefaultSettingsPath()).toBe('/settings/capabilities');
+    expect(getAgentHubDefaultSettingsPath()).toBe('/settings/skills');
   });
 
   it('hides Desktop Pet settings tab in Agent Hub builds', () => {

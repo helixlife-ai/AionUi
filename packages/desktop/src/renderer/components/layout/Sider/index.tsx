@@ -66,7 +66,7 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
         console.error('Navigation failed:', error);
       });
     } else {
-      // Agent Hub: default settings landing (capabilities while Agents tab is phase-1 hidden).
+      // Agent Hub: default settings landing (skills while Agents tab is phase-1 hidden).
       Promise.resolve(navigate(getAgentHubDefaultSettingsPath())).catch((error) => {
         console.error('Navigation failed:', error);
       });
@@ -79,7 +79,10 @@ const Sider: React.FC<SiderProps> = ({ onSessionClick, collapsed = false }) => {
   const handleConversationSelect = () => {
     cleanupSiderTooltips();
     blurActiveElement();
-    closePreview();
+    // Do NOT call closePreview() here. conversation/index.tsx calls
+    // closePreviewIfWorkspaceChanged() once the conversation data loads, which
+    // keeps the preview open when switching between conversations of the same
+    // project and closes it only when the workspace actually changes.
     setIsBatchMode(false);
   };
 

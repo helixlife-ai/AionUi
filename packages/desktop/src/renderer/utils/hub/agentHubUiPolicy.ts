@@ -33,7 +33,7 @@ export function isAgentHubPetSettingsHidden(): boolean {
 
 /** Default settings landing path when opening Settings from the sider / `#/settings`. */
 export function getAgentHubDefaultSettingsPath(): string {
-  return isAgentHubAgentsSettingsHidden() ? '/settings/capabilities' : '/settings/agent';
+  return isAgentHubAgentsSettingsHidden() ? '/settings/skills' : '/settings/agent';
 }
 
 /**

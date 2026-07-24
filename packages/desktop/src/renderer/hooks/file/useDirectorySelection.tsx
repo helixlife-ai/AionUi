@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { bridge } from '@office-ai/platform';
+import { bridge } from '@/common/platform/bridge';
 import React, { useCallback, useEffect, useState } from 'react';
 import { SHOW_OPEN_REQUEST_EVENT } from '@/common/adapter/constant';
 import DirectorySelectionModal from '@renderer/components/settings/DirectorySelectionModal';
@@ -27,12 +27,8 @@ export const useDirectorySelection = () => {
   const handleConfirm = useCallback(
     (paths: string[] | undefined) => {
       if (requestData) {
-        // Bridge 框架的回调事件命名规则: subscribe.callback-{event-name}{id}
         const callbackEventName = `subscribe.callback-show-open${requestData.id}`;
-        // 使用全局函数发送回调到 bridge emitter
-        if ((window as any).__emitBridgeCallback) {
-          (window as any).__emitBridgeCallback(callbackEventName, paths);
-        }
+        bridge.emit(callbackEventName, paths);
       }
       setVisible(false);
       setRequestData(null);
@@ -42,12 +38,8 @@ export const useDirectorySelection = () => {
 
   const handleCancel = useCallback(() => {
     if (requestData) {
-      // Bridge 框架的回调事件命名规则: subscribe.callback-{event-name}{id}
       const callbackEventName = `subscribe.callback-show-open${requestData.id}`;
-      // 使用全局函数发送回调到 bridge emitter
-      if ((window as any).__emitBridgeCallback) {
-        (window as any).__emitBridgeCallback(callbackEventName, undefined);
-      }
+      bridge.emit(callbackEventName, undefined);
     }
     setVisible(false);
     setRequestData(null);
@@ -63,11 +55,7 @@ export const useDirectorySelection = () => {
     };
 
     // 监听来自 browser.ts 的文件选择请求
-    bridge.on(SHOW_OPEN_REQUEST_EVENT, handleShowOpenRequest);
-
-    return () => {
-      bridge.off(SHOW_OPEN_REQUEST_EVENT, handleShowOpenRequest);
-    };
+    return bridge.on(SHOW_OPEN_REQUEST_EVENT, handleShowOpenRequest);
   }, []);
 
   const contextHolder = (
