@@ -11,6 +11,7 @@ import {
   isAgentHubModelSelectorHidden,
   isAgentHubPermissionSelectorHidden,
   isAgentHubPetSettingsHidden,
+  isAgentHubRuntimeHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { describe, expect, it } from 'vitest';
 
@@ -37,5 +38,13 @@ describe('agentHubUiPolicy', () => {
     expect(isAgentHubChannelTypeHidden('dingtalk')).toBe(true);
     expect(isAgentHubChannelTypeHidden('lark')).toBe(false);
     expect(isAgentHubChannelTypeHidden('weixin')).toBe(false);
+  });
+
+  it('hides Aion CLI and OpenClaw runtimes from Hub pickers', () => {
+    expect(isAgentHubRuntimeHidden('aionrs')).toBe(true);
+    expect(isAgentHubRuntimeHidden('openclaw')).toBe(true);
+    expect(isAgentHubRuntimeHidden('openclaw-gateway')).toBe(true);
+    expect(isAgentHubRuntimeHidden('claude')).toBe(false);
+    expect(isAgentHubRuntimeHidden('codex')).toBe(false);
   });
 });

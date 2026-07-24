@@ -4,9 +4,9 @@ services:
     image: helix-aio.tencentcloudcr.com/application/agent-hub:latest
     container_name: agent-hub
     # The /agent_hub mount is shared with the documents app (file-browser, runs
-    # as uid 65532) and openclaw (uid 1000). No single gid covers all consumers,
-    # so we rely on world-writable mode (0777) + umask 0000 — acceptable on a
-    # single-device appliance where all apps are trusted (like a NAS shared dir).
+    # as uid 65532). No single gid covers all consumers, so we rely on
+    # world-writable mode (0777) + umask 0000 — acceptable on a single-device
+    # appliance where all apps are trusted (like a NAS shared dir).
     user: "0"
     ports:
       - '25808:25808'
@@ -31,8 +31,6 @@ services:
       - ANTHROPIC_DEFAULT_SONNET_MODEL=agenthub-claude
       - ANTHROPIC_DEFAULT_HAIKU_MODEL=agenthub-claude
       - CLAUDE_CODE_MAX_OUTPUT_TOKENS=16000
-      # OpenClaw models provider — same SN as auth token for helix proxy.
-      - OPENCLAW_API_KEY=${SERIAL_NUMBER}
       # Codex CLI — API key for the helix proxy (Responses API).
       - OPENAI_API_KEY=${SERIAL_NUMBER}
       # Codex CLI — helix proxy Responses API endpoint + model. Codex appends
@@ -43,63 +41,13 @@ services:
     command:
       - |
         # umask 0000 → new files 0666, dirs 0777 (world-writable). The /agent_hub
-        # mount is shared with file-browser (uid 65532) and openclaw (uid 1000);
-        # world-writable lets all of them read/write without gid juggling.
+        # mount is shared with file-browser (uid 65532); world-writable lets them
+        # read/write without gid juggling.
         umask 0000
         # Ensure the shared /agent_hub mount is world-writable so the documents
-        # app and openclaw can operate on files created here (or via command line).
+        # app can operate on files created here (or via command line).
         # Safe to run every start — idempotent.
         chmod -R a+rwX /agent_hub 2>/dev/null || true
-        mkdir -p /root/.openclaw
-        # OpenClaw models provider config, inlined (was a bind-mounted file).
-        # Written via printf because a heredoc can't survive inside this YAML
-        # block scalar — YAML requires every line to stay indented, but a
-        # heredoc's closing delimiter must sit at column 0.
-        # __OPENCLAW_API_KEY__ is substituted from the container env below.
-        printf '%s\n' '{
-          "models": {
-            "mode": "merge",
-            "providers": {
-              "default_custom_proxy": {
-                "baseUrl": "https://paas-model.jova.bio/api/v1/helix",
-                "apiKey": "__OPENCLAW_API_KEY__",
-                "api": "anthropic-messages",
-                "models": [
-                  {
-                    "id": "agenthub-openclaw",
-                    "name": "agenthub-openclaw",
-                    "reasoning": true,
-                    "input": ["text"],
-                    "contextWindow": 1000000,
-                    "maxTokens": 32000,
-                    "compat": {
-                      "supportsReasoningEffort": true,
-                      "supportsUsageInStreaming": true,
-                      "maxTokensField": "max_tokens",
-                      "thinkingFormat": "deepseek"
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        }' > /tmp/openclaw-models.patch.json
-        # Write the OpenClaw models provider config directly. `openclaw config patch`
-        # is unreliable here (ordering race with gateway-created config, and the
-        # gateway overwrites the file on start). Writing the JSON ourselves before
-        # the gateway starts avoids both issues.
-        node -e '
-          const fs = require("fs");
-          const raw = fs.readFileSync("/tmp/openclaw-models.patch.json", "utf8")
-            .replace(/__OPENCLAW_API_KEY__/g, process.env.OPENCLAW_API_KEY || "");
-          const patch = JSON.parse(raw);
-          let cfg = {};
-          try { cfg = JSON.parse(fs.readFileSync("/root/.openclaw/openclaw.json", "utf8")); } catch {}
-          cfg.models = cfg.models || {};
-          cfg.models.mode = patch.models.mode || "merge";
-          cfg.models.providers = Object.assign({}, cfg.models.providers, patch.models.providers);
-          fs.writeFileSync("/root/.openclaw/openclaw.json", JSON.stringify(cfg, null, 2) + "\n");
-        ' 2>/dev/null || true
         # Codex CLI config for the helix proxy, inlined (was a bind-mounted
         # file). Placeholders __CODEX_BASE_URL__ and __CODEX_MODEL__ are
         # substituted from the container env (see environment: above).
@@ -118,16 +66,5 @@ services:
         wire_api = "responses"' \
           | sed "s|__CODEX_BASE_URL__|$${CODEX_BASE_URL:-}|g; s|__CODEX_MODEL__|$${CODEX_MODEL:-}|g" \
           > /root/.codex/config.toml
-        # Start the OpenClaw gateway in the background. The ACP OpenClaw agent
-        # (`openclaw acp`) connects to this gateway on 127.0.0.1:18789; without
-        # it the agent fails with "ACP bridge failed: connect ECONNREFUSED".
-        # --bind loopback: only listen locally (ACP agent is same-container).
-        # --auth none: no token needed for loopback (container is trusted).
-        openclaw gateway run --allow-unconfigured --bind loopback --auth none >/data/logs/openclaw-gateway.log 2>&1 &
-        # Wait for the gateway to report ready before launching aionui-web.
-        for i in $(seq 1 20); do
-          if grep -q "gateway. ready" /data/logs/openclaw-gateway.log 2>/dev/null; then break; fi
-          sleep 0.5
-        done
         exec /app/aionui-web/aionui-web start
     restart: unless-stopped
