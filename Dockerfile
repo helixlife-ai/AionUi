@@ -60,7 +60,7 @@ RUN mkdir -p /out && tar -xzf dist-web-cli/aionui-web-*-linux-arm64.tar.gz -C /o
 # ---- Runtime ---------------------------------------------------------------
 # node:22-trixie-slim = Debian 13 trixie + Node 22 on PATH. glibc 2.41 satisfies
 # aioncore v0.1.41+'s GLIBC_2.39 requirement. Node is required at runtime
-# because the ACP CLI agents (codex, openclaw) are JS entry points with
+# because the ACP CLI agents (codex) are JS entry points with
 # `#!/usr/bin/env node` shebangs; aioncore detects the CLIs on PATH and
 # spawns them. claude-code ships a native binary but shares the PATH.
 FROM node:22-trixie-slim AS runtime
@@ -72,13 +72,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libicu76 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the three CLI agents globally so aioncore auto-detects them on PATH
+# Install Claude Code + Codex globally so aioncore auto-detects them on PATH
 # at startup (registered as `source: builtin` ACP agents). Versions resolved
 # from npm; pin in package.json if reproducibility is needed.
 RUN npm install -g --unsafe-perm \
       @anthropic-ai/claude-code \
       @openai/codex \
-      openclaw \
     && npm cache clean --force
 
 COPY --from=builder /out/aionui-web /app/aionui-web

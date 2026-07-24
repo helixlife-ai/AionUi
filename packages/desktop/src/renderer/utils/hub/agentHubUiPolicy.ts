@@ -45,3 +45,17 @@ const HIDDEN_CHANNEL_TYPES = new Set(['telegram', 'dingtalk']);
 export function isAgentHubChannelTypeHidden(channelType: string): boolean {
   return HIDDEN_CHANNEL_TYPES.has(channelType);
 }
+
+/**
+ * Runtimes hidden from Agent Hub assistant / agent pickers.
+ * - aionrs: built-in Aion CLI
+ * - openclaw / openclaw-gateway: removed from Hub deploy; may still exist in
+ *   persisted `/data` or a separate appliance OpenClaw stack.
+ */
+const HIDDEN_RUNTIME_KEYS = new Set(['aionrs', 'openclaw', 'openclaw-gateway']);
+
+/** True when this runtime key should not appear in Hub agent selection UI. */
+export function isAgentHubRuntimeHidden(runtimeKey: string | null | undefined): boolean {
+  const key = (runtimeKey || '').trim().toLowerCase();
+  return HIDDEN_RUNTIME_KEYS.has(key);
+}

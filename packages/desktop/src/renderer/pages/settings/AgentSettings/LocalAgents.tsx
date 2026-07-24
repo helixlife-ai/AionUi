@@ -16,6 +16,7 @@ import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AgentCard from './AgentCard';
 import { isDeprecatedRuntimeAgentType } from '@/renderer/utils/model/agentTypeSupportPolicy';
+import { isAgentHubRuntimeHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import InlineAgentEditor, { type CustomAgentDraft } from './InlineAgentEditor';
 import { getBoundAssistants, useAssistantsForAgents } from './BoundAssistants';
 import { useNavigate } from 'react-router-dom';
@@ -40,11 +41,12 @@ const LocalAgents: React.FC = () => {
   // can change after health checks or custom-agent mutations.
   const { agents: allAgents, isRefreshing, refreshCatalog } = useManagedAgents();
 
-  // Hide deprecated runtime backends (nanobot / openclaw-gateway / remote / gemini)
-  // — they are no longer offered as agents and shouldn't appear on the detection page.
-  // Agent Hub: hide the built-in Aion CLI entry from the agent management list.
+  // Hide deprecated runtimes + Agent Hub–hidden backends (Aion CLI / OpenClaw).
   const officialAgents = allAgents.filter(
-    (a) => a.agent_source !== 'custom' && !isDeprecatedRuntimeAgentType(a.agent_type) && a.agent_type !== 'aionrs'
+    (a) =>
+      a.agent_source !== 'custom' &&
+      !isDeprecatedRuntimeAgentType(a.agent_type) &&
+      !isAgentHubRuntimeHidden(a.agent_type)
   );
 
   const customAgents: ManagedAgent[] = allAgents.filter((a) => a.agent_source === 'custom');
