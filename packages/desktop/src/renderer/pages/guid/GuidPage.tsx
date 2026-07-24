@@ -322,33 +322,16 @@ const GuidPage: React.FC = () => {
 
   // Typewriter placeholder
   const typewriterPlaceholder = useTypewriterPlaceholder(t('conversation.welcome.placeholder'));
-  const selectedAssistantRecord = useMemo(() => {
-    if (!selectedAssistantId) return undefined;
-    const selectedId = agentSelection.selectedAssistantId;
-    const strippedId = selectedId.replace(/^builtin-/, '');
-    const candidates = new Set([selectedId, `builtin-${strippedId}`, strippedId]);
-    return agentSelection.assistants.find((item) => candidates.has(item.id));
-  }, [agentSelection.assistants, selectedAssistantId, agentSelection.selectedAssistantId]);
+  // Agent Hub: always use the curated categorized carousel (title + indicators),
+  // even when the selected assistant ships its own recommended prompts.
   const selectedAssistantPromptCategories = useMemo((): GuidPromptCategory[] => {
     if (!selectedAssistantId) return [];
-    const resolvedPrompts =
-      selectedAssistantDetail?.prompts.recommended_i18n?.[localeKey] ||
-      selectedAssistantDetail?.prompts.recommended_i18n?.['en-US'] ||
-      selectedAssistantDetail?.prompts.recommended ||
-      selectedAssistantRecord?.prompts_i18n?.[localeKey] ||
-      selectedAssistantRecord?.prompts_i18n?.['en-US'] ||
-      selectedAssistantRecord?.prompts ||
-      [];
-
-    if (resolvedPrompts.length > 0) {
-      return [{ prompts: resolvedPrompts }];
-    }
 
     return GUID_DEFAULT_PROMPT_CATEGORY_DEFS.map((category) => ({
       title: t(category.titleKey),
       prompts: category.promptKeys.map((key) => t(key)),
     }));
-  }, [localeKey, selectedAssistantDetail, selectedAssistantRecord, selectedAssistantId, t]);
+  }, [selectedAssistantId, t]);
 
   const handleSelectPrompt = useCallback(
     (prompt: string) => {

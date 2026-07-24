@@ -463,54 +463,27 @@ describe('GuidPage', () => {
     );
   });
 
-  it('renders example prompts with wrapping text for long assistant suggestions', () => {
-    agentSelectionMock.assistants = [
-      {
-        id: 'bare-aionrs',
-        source: 'generated',
-        name: 'Aion CLI',
-        name_i18n: {},
-        description_i18n: {},
-        enabled: true,
-        sort_order: 10,
-        preset_agent_type: 'aionrs',
-        enabled_skills: [],
-        custom_skill_names: [],
-        disabled_builtin_skills: [],
-        context_i18n: {},
-        prompts: [],
-        prompts_i18n: {
-          'en-US': [
-            'Create a three-page financial dashboard with profit, revenue mix, and conditional formatting highlights',
-          ],
-        },
-        models: [],
-        agent_status: 'online',
-        team_selectable: true,
-        deletable: false,
-      },
-    ];
-
-    swrMock.useSWRMock.mockImplementation((key: string | null) => {
-      if (key?.startsWith('guid.assistant.detail.')) {
-        return {
-          data: assistantDetailFixture,
-        };
-      }
-      return { data: null };
-    });
-
+  it('renders curated Hub prompt cards with wrapping text classes', () => {
     render(<GuidPage />);
 
     const promptButton = screen.getByRole('button', {
-      name: /Create a three-page financial dashboard with profit/i,
+      name: 'guid.defaultPromptCategories.literature.items.prompt1',
     });
 
     expect(promptButton.className).toContain('!whitespace-normal');
     expect(promptButton.className).toContain('!break-words');
   });
 
-  it('falls back to default instruction prompts when the selected assistant has no recommendations', () => {
+  it('always shows categorized Hub prompts with title and indicators', () => {
+    // Even when assistant detail includes recommended prompts, Hub keeps the
+    // curated category carousel (title + 3 indicator dots).
+    swrMock.useSWRMock.mockImplementation((key: string | null) => {
+      if (key?.startsWith('guid.assistant.detail.')) {
+        return { data: assistantDetailFixture };
+      }
+      return { data: null };
+    });
+
     render(<GuidPage />);
 
     expect(screen.getByTestId('guid-prompt-carousel-category-title').textContent).toBe(
