@@ -326,6 +326,8 @@ class FileServiceClass {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
 
+      if (!isSupportedFile(file.name, allSupportedExts)) throw new Error(FILE_UNSUPPORTED_ERROR);
+      if (isUploadFileTooLarge(file.size)) throw new Error(FILE_TOO_LARGE_ERROR);
       // Each upload owns its own AbortController; the tracker exposes an `abort()`
       // that triggers the signal so user-driven cancel and conversation-switch
       // bulk-abort go through the same path.

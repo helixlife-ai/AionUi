@@ -1,4 +1,3 @@
-import { showFileAttachError } from '@/renderer/utils/file/fileAttachErrors';
 /**
  * @license
  * Copyright 2025 AionUi (aionui.com)
@@ -21,6 +20,7 @@ import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { getCleanFileNames, FileService, allSupportedExts, isSupportedFile, FILE_UNSUPPORTED_ERROR } from '@/renderer/services/FileService';
 import { iconColors } from '@/renderer/styles/colors';
 import { isElectronDesktop } from '@/renderer/utils/platform';
+import { showFileAttachError, filterPathsWithinUploadLimit } from '@/renderer/utils/file/fileAttachErrors';
 import type { AcpModelInfo } from '../types';
 import { getAvailableModels } from '../utils/modelUtils';
 import { Button, Checkbox, Dropdown, Menu, Message, Tooltip } from '@arco-design/web-react';
@@ -218,11 +218,13 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
   const openHostFilePicker = useCallback(() => {
     ipcBridge.dialog.showOpen
       .invoke({ properties: ['openFile', 'multiSelections'] })
-      .then((pickedFiles) => {
-        if (pickedFiles && pickedFiles.length > 0) onFilesPicked(pickedFiles);
+      .then(async (uploadedFiles) => {
+        if (!uploadedFiles || uploadedFiles.length === 0) return;
+        const withinLimit = await filterPathsWithinUploadLimit(uploadedFiles, t);
+        if (withinLimit.length > 0) onFilesPicked(withinLimit);
       })
       .catch((error) => console.error('Failed to open file dialog:', error));
-  }, [onFilesPicked]);
+  }, [onFilesPicked, t]);
 
   // Build the mobile action sheet entries: model / thought level / permission
   // (single-select), attach (action), skills / MCP (multi-select checkboxes).
@@ -438,9 +440,18 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
         if (key === 'file') {
           ipcBridge.dialog.showOpen
             .invoke({ properties: ['openFile', 'multiSelections'] })
-            .then((pickedFiles) => {
-              if (pickedFiles && pickedFiles.length > 0) {
-                onFilesPicked(pickedFiles);
+            .then(async (uploadedFiles) => {
+              if (!uploadedFiles || uploadedFiles.length === 0) return;
+              const supported = uploadedFiles.filter((path) =>
+                isSupportedFile(path.split(/[\\/]/).pop() || path, allSupportedExts)
+              );
+              if (supported.length < uploadedFiles.length) {
+                showFileAttachError(t, new Error(FILE_UNSUPPORTED_ERROR));
+              }
+              if (supported.length === 0) return;
+              const withinLimit = await filterPathsWithinUploadLimit(supported, t);
+              if (withinLimit.length > 0) {
+                onFilesPicked(withinLimit);
               }
             })
             .catch((error) => {

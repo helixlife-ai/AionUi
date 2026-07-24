@@ -14,9 +14,28 @@ import {
 } from '@/renderer/services/FileService';
 import {
   FILE_ATTACH_ERROR_TOAST_DURATION_MS,
+  filterPathsWithinUploadLimit,
   getFileAttachErrorMessage,
 } from '@/renderer/utils/file/fileAttachErrors';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const getFileMetadataInvoke = vi.fn();
+
+vi.mock('@/common', () => ({
+  ipcBridge: {
+    fs: {
+      getFileMetadata: {
+        invoke: (...args: unknown[]) => getFileMetadataInvoke(...args),
+      },
+    },
+  },
+}));
+
+vi.mock('@arco-design/web-react', () => ({
+  Message: {
+    error: vi.fn(),
+  },
+}));
 
 describe('file attach size/type helpers', () => {
   const t = (key: string, options?: Record<string, unknown>) => {
@@ -55,5 +74,33 @@ describe('file attach size/type helpers', () => {
 
   it('keeps toast duration long enough to read', () => {
     expect(FILE_ATTACH_ERROR_TOAST_DURATION_MS).toBeGreaterThanOrEqual(4000);
+  });
+});
+
+describe('filterPathsWithinUploadLimit', () => {
+  beforeEach(() => {
+    getFileMetadataInvoke.mockReset();
+  });
+
+  it('drops oversized host paths and keeps the rest', async () => {
+    getFileMetadataInvoke
+      .mockResolvedValueOnce({
+        name: 'ok.pdf',
+        path: '/tmp/ok.pdf',
+        size: MAX_UPLOAD_FILE_SIZE_BYTES - 1,
+        type: 'application/pdf',
+        lastModified: 0,
+      })
+      .mockResolvedValueOnce({
+        name: 'big.pdf',
+        path: '/tmp/big.pdf',
+        size: MAX_UPLOAD_FILE_SIZE_BYTES,
+        type: 'application/pdf',
+        lastModified: 0,
+      });
+
+    const t = (key: string) => key;
+    const accepted = await filterPathsWithinUploadLimit(['/tmp/ok.pdf', '/tmp/big.pdf'], t);
+    expect(accepted).toEqual(['/tmp/ok.pdf']);
   });
 });
