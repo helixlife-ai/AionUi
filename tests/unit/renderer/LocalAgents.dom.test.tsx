@@ -347,7 +347,7 @@ describe('LocalAgents', () => {
     expect(getBoundAssistants(aionrsAgent, assistants)).toEqual([]);
   });
 
-  it('pins Kimi right after the aionrs agent in the official list', () => {
+  it('pins Kimi ahead of localeCompare order in the official list', () => {
     useManagedAgents.mockReturnValue({
       agents: [
         ...makeAgents(),
@@ -369,12 +369,11 @@ describe('LocalAgents', () => {
 
     render(<LocalAgents />);
 
-    // Alphabetically Claude Code < Kimi, so this order proves the pin rule:
-    // aionrs stays first, Kimi jumps ahead of the localeCompare ordering.
-    const aion = screen.getByText('Aion CLI');
+    // Aion CLI is hidden by Agent Hub. Kimi still pins ahead of Claude Code
+    // (alphabetically Claude Code < Kimi), proving the partner pin rule.
+    expect(screen.queryByText('Aion CLI')).toBeNull();
     const kimi = screen.getByText('Kimi');
     const claude = screen.getByText('Claude Code');
-    expect(kimi.compareDocumentPosition(aion) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
     expect(claude.compareDocumentPosition(kimi) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
@@ -437,16 +436,16 @@ describe('LocalAgents', () => {
     const unavailableTab = screen.getByTestId('settings-tab-unavailable');
     expect(allTab.tagName).toBe('BUTTON');
 
-    // Default "all": both official agents visible (Aion CLI online, Claude Code missing).
-    expect(screen.getByText('Aion CLI')).toBeInTheDocument();
+    // Aion CLI is hidden by Agent Hub. Default "all" shows remaining official agents.
+    expect(screen.queryByText('Aion CLI')).toBeNull();
     expect(screen.getByText('Claude Code')).toBeInTheDocument();
 
-    // "available" keeps only the online agent.
+    // "available" has no online official agents after Hub runtime filtering.
     fireEvent.click(availableTab);
-    expect(screen.getByText('Aion CLI')).toBeInTheDocument();
+    expect(screen.queryByText('Aion CLI')).toBeNull();
     expect(screen.queryByText('Claude Code')).toBeNull();
 
-    // "unavailable" keeps only the non-online agent.
+    // "unavailable" keeps the non-online official agent.
     fireEvent.click(unavailableTab);
     expect(screen.queryByText('Aion CLI')).toBeNull();
     expect(screen.getByText('Claude Code')).toBeInTheDocument();
