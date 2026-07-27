@@ -185,6 +185,12 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
   const handleConfirm = () => {
     if (selectedPath) {
       onConfirm([selectedPath]);
+      return;
+    }
+    // Directory-only: confirming after navigating into a folder selects that folder
+    // even if the user did not click the per-row "Select" button.
+    if (selectionMode === 'directory' && currentPath) {
+      onConfirm([currentPath]);
     }
   };
 
@@ -203,7 +209,9 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
       }}
       onCancel={onCancel}
       onOk={handleConfirm}
-      okButtonProps={{ disabled: !selectedPath }}
+      okButtonProps={{
+        disabled: !selectedPath && !(selectionMode === 'directory' && Boolean(currentPath)),
+      }}
       className='w-[90vw] md:w-[600px]'
       style={{ width: 'min(600px, 90vw)' }}
       wrapStyle={{ zIndex: 10050 }}
@@ -224,7 +232,7 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
               <Button
                 type='primary'
                 onClick={handleConfirm}
-                disabled={!selectedPath}
+                disabled={!selectedPath && !(selectionMode === 'directory' && currentPath)}
                 className='px-20px min-w-80px'
                 style={{ borderRadius: 8 }}
               >

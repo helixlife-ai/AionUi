@@ -118,6 +118,7 @@ import {
   toBackendAssistant,
 } from './teamMapper';
 import { fromBackendCompareResult, type RawCompareResult } from './fileSnapshotMapper';
+import { fromBackendFileMetadata, type RawFileMetadata } from './fileMetadataMapper';
 import {
   absoluteToRelativePath,
   fromBackendWorkspaceFlatFiles,
@@ -575,7 +576,10 @@ export const fs = {
     }
   >('/api/fs/zip'),
   cancelZip: httpPost<boolean, { request_id: string }>('/api/fs/zip/cancel'),
-  getFileMetadata: httpPost<IFileMetadata, { path: string; workspace?: string }>('/api/fs/metadata'),
+  getFileMetadata: withResponseMap(
+    httpPost<RawFileMetadata | null, { path: string; workspace?: string }>('/api/fs/metadata'),
+    fromBackendFileMetadata
+  ),
   copyFilesToWorkspace: httpPost<
     { copied_files: string[]; failed_files?: Array<{ path: string; error: string }> },
     { file_paths: string[]; workspace: string; source_root?: string }

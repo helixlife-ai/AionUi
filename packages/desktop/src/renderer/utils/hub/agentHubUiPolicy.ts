@@ -40,6 +40,16 @@ export function isAgentHubToolsSettingsHidden(): boolean {
   return true;
 }
 
+/**
+ * Agent Hub / WebUI appliance: hide the Scheduled Tasks awake banner + Keep Awake switch.
+ * Keep-awake needs `systemd-inhibit` (missing in the container → PUT 500). The
+ * "only runs while PC is awake" tip is for desktop sleep, not always-on appliances.
+ * 隐藏定时任务唤醒横幅和保持唤醒开关
+ */
+export function isAgentHubKeepAwakeHidden(): boolean {
+  return true;
+}
+
 /** Default settings landing path when opening Settings from the sider / `#/settings`. */
 export function getAgentHubDefaultSettingsPath(): string {
   return isAgentHubAgentsSettingsHidden() ? '/settings/skills' : '/settings/agent';

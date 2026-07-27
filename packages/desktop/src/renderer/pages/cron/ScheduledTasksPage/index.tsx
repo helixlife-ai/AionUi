@@ -23,6 +23,7 @@ import TalkToButlerButton from '@/renderer/components/base/TalkToButlerButton';
 import { AionSearchInput } from '@/renderer/components/base';
 import SettingsPageHeader from '@/renderer/pages/settings/components/SettingsPageHeader';
 import { Robot } from '@icon-park/react';
+import { isAgentHubKeepAwakeHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 
 const ScheduledTasksPage: React.FC = () => {
   const layout = useLayoutContext();
@@ -35,10 +36,12 @@ const ScheduledTasksPage: React.FC = () => {
   const [createDialogVisible, setCreateDialogVisible] = useState(false);
   const [keepAwake, setKeepAwake] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const hideKeepAwake = isAgentHubKeepAwakeHidden();
 
   useEffect(() => {
+    if (hideKeepAwake) return;
     setKeepAwake(configService.get('system.keepAwake') ?? false);
-  }, []);
+  }, [hideKeepAwake]);
 
   const handleKeepAwakeChange = useCallback(async (enabled: boolean) => {
     setKeepAwake(enabled);
@@ -165,24 +168,26 @@ const ScheduledTasksPage: React.FC = () => {
             isMobile ? 'gap-14px' : 'gap-16px'
           )}
         >
-          <div className='grid w-full box-border grid-cols-[minmax(0,1fr)_auto] items-center gap-x-12px gap-y-10px rounded-12px border border-solid border-[var(--color-border-2)] bg-fill-2 px-14px py-12px sm:rounded-14px sm:px-16px max-[520px]:grid-cols-1'>
-            <span
-              className={classNames(
-                'min-w-0 text-t-primary',
-                isMobile ? 'text-12px leading-18px' : 'text-13px leading-20px'
-              )}
-            >
-              {t('cron.page.awakeBanner')}
-            </span>
-            <div className='justify-self-end max-[520px]:justify-self-start'>
-              <Tooltip content={t('cron.page.keepAwakeTooltip')}>
-                <div className='flex items-center gap-8px text-t-secondary text-12px leading-18px sm:text-13px'>
-                  <span>{t('cron.page.keepAwake')}</span>
-                  <Switch size='small' checked={keepAwake} onChange={handleKeepAwakeChange} />
-                </div>
-              </Tooltip>
+          {!hideKeepAwake && (
+            <div className='grid w-full box-border grid-cols-[minmax(0,1fr)_auto] items-center gap-x-12px gap-y-10px rounded-12px border border-solid border-[var(--color-border-2)] bg-fill-2 px-14px py-12px sm:rounded-14px sm:px-16px max-[520px]:grid-cols-1'>
+              <span
+                className={classNames(
+                  'min-w-0 text-t-primary',
+                  isMobile ? 'text-12px leading-18px' : 'text-13px leading-20px'
+                )}
+              >
+                {t('cron.page.awakeBanner')}
+              </span>
+              <div className='justify-self-end max-[520px]:justify-self-start'>
+                <Tooltip content={t('cron.page.keepAwakeTooltip')}>
+                  <div className='flex items-center gap-8px text-t-secondary text-12px leading-18px sm:text-13px'>
+                    <span>{t('cron.page.keepAwake')}</span>
+                    <Switch size='small' checked={keepAwake} onChange={handleKeepAwakeChange} />
+                  </div>
+                </Tooltip>
+              </div>
             </div>
-          </div>
+          )}
 
           {loading ? (
             <div className='flex min-h-220px items-center justify-center rounded-16px border border-dashed border-border-2 bg-fill-1'>

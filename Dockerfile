@@ -69,7 +69,7 @@ WORKDIR /app
 # libicu76: officecli (.NET) needs ICU if document preview is used (trixie ships libicu76).
 # ca-certificates: HTTPS calls to model providers / keybalance.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libicu76 ca-certificates \
+      libicu76 ca-certificates bubblewrap \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Claude Code + Codex globally so aioncore auto-detects them on PATH
@@ -82,6 +82,12 @@ RUN npm install -g --unsafe-perm \
 
 COPY --from=builder /out/aionui-web /app/aionui-web
 RUN chmod +x /app/aionui-web/aionui-web
+
+# Appliance deploy helpers: baked into the image so OTA / full-update flows that
+# only sync docker-compose.yaml + config.json still get Codex catalog, Claude
+# root-safe wrap, idle ACP clearer, and project trust (no host-side js/ mount).
+COPY aio_deploy/js/ /opt/agent-hub/js/
+COPY aio_deploy/codex-model-catalog.json /opt/agent-hub/codex-model-catalog.json
 
 ENV AIONUI_PORT=25808
 ENV AIONUI_DATA_DIR=/data

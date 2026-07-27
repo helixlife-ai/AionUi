@@ -215,6 +215,23 @@ if (win.electronAPI) {
 
   bridge.adapter({
     emit(name, data) {
+      // Renderer-local providers (DirectorySelectionModal for dialog.showOpen)
+      // subscribe on the in-page EventEmitter. WebUI's default emit only sends
+      // over WebSocket, so invoke('show-open') never reached the modal provider
+      // and confirm callbacks never resolved the caller's Promise — workspace
+      // pick appeared to do nothing after 确定.
+      if (
+        typeof name === 'string' &&
+        (name === 'subscribe-show-open' || name.startsWith('subscribe.callback-show-open'))
+      ) {
+        if (emitterRef) {
+          queueMicrotask(() => {
+            emitterRef?.emit(name, data);
+          });
+        }
+        return;
+      }
+
       const message: QueuedMessage = { name, data };
 
       ensureSocket();

@@ -8,6 +8,7 @@ import {
   getAgentHubDefaultSettingsPath,
   isAgentHubAgentsSettingsHidden,
   isAgentHubChannelTypeHidden,
+  isAgentHubKeepAwakeHidden,
   isAgentHubModelSelectorHidden,
   isAgentHubPermissionSelectorHidden,
   isAgentHubPetSettingsHidden,
@@ -36,6 +37,10 @@ describe('agentHubUiPolicy', () => {
 
   it('hides Desktop Pet settings tab in Agent Hub builds', () => {
     expect(isAgentHubPetSettingsHidden()).toBe(true);
+  });
+
+  it('hides Keep Awake banner on scheduled tasks in Agent Hub builds', () => {
+    expect(isAgentHubKeepAwakeHidden()).toBe(true);
   });
 
   it('hides Telegram and DingTalk channel configs in Agent Hub builds', () => {

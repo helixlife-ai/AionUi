@@ -12,12 +12,25 @@ services:
       - '25808:25808'
     volumes:
       - ./data:/data
+      # Pre-conversation uploads land at /tmp/aionui (aioncore temp root). Bind
+      # it under ./data so attachments survive image redeploy / container recreate;
+      # otherwise resume hits USER_AGENT_RESOURCE_NOT_FOUND for missing files.
+      - ./data/tmp-aionui:/tmp/aionui
       - ${APP_STORAGE_DIR:-/var/helix/app_storage}/documents/data/agent_hub:/agent_hub
+      # Codex catalog + deploy helpers live in the image at /opt/agent-hub/
+      # (see Dockerfile). Entrypoint seeds /etc/agent-hub from there so OTA
+      # flows that only sync docker-compose.yaml + config.json still work.
+      # Optional host overrides: create a compose override that bind-mounts
+      # ./codex-model-catalog.json and ./js onto /etc/agent-hub/.
     working_dir: /agent_hub
     environment:
       - AIONUI_PORT=25808
       - AIONUI_DATA_DIR=/data
       - AIONUI_ALLOW_REMOTE=1
+      # Clear ACP session_id when last_active_at is older than this (minutes).
+      # Default idle kill is ~5 min; 10 min leaves a grace window before clearing.
+      - ACP_IDLE_ANCHOR_CLEAR_MINUTES=${ACP_IDLE_ANCHOR_CLEAR_MINUTES:-10}
+      - ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC=${ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC:-60}
       # File-picker root for the WebUI: browse is capped to this directory so
       # users never see container internals (app/bin/boot/…). Mounted above.
       - AIONUI_FS_ROOT=/agent_hub
@@ -48,23 +61,93 @@ services:
         # app can operate on files created here (or via command line).
         # Safe to run every start — idempotent.
         chmod -R a+rwX /agent_hub 2>/dev/null || true
+        mkdir -p /tmp/aionui/general
+        # Seed deploy helpers from the image. OTA may only ship compose+config;
+        # never rely on host-side ./js or catalog mounts for production.
+        mkdir -p /etc/agent-hub/js
+        if [ ! -f /etc/agent-hub/codex-model-catalog.json ] && [ -f /opt/agent-hub/codex-model-catalog.json ]; then
+          cp -a /opt/agent-hub/codex-model-catalog.json /etc/agent-hub/codex-model-catalog.json
+        fi
+        if [ ! -f /etc/agent-hub/js/trust-codex-projects.js ] && [ -d /opt/agent-hub/js ]; then
+          cp -a /opt/agent-hub/js/. /etc/agent-hub/js/
+        fi
+        # Container restart/recreate always kills ACP CLI processes. Stale
+        # acp_session.session_id then makes runtime/ensure fail with
+        # USER_AGENT_RESOURCE_NOT_FOUND / 502. Drop resume anchors on every
+        # start so ensure rebuilds a fresh session (chat history stays in DB).
+        if [ -f /data/aionui-backend.db ]; then
+          node --experimental-sqlite -e "const {DatabaseSync}=require('node:sqlite'); const db=new DatabaseSync('/data/aionui-backend.db'); const r=db.prepare('UPDATE acp_session SET session_id=NULL WHERE session_id IS NOT NULL AND length(session_id)>0').run(); console.log('[agent-hub] cleared stale acp session anchors:', r.changes); db.close();" \
+            || echo "[agent-hub] warn: failed to clear acp session anchors (continuing)"
+        fi
         # Codex CLI config for the helix proxy, inlined (was a bind-mounted
         # file). Placeholders __CODEX_BASE_URL__ and __CODEX_MODEL__ are
         # substituted from the container env (see environment: above).
         # $$ escapes the $ from docker-compose interpolation so the shell expands it.
         # Codex reads ~/.codex/config.toml on each invocation.
         mkdir -p /root/.codex
+        CODEX_MODEL_VALUE="$${CODEX_MODEL:-agenthub-codex}"
+        # Install a schema-complete catalog (see aio_deploy/codex-model-catalog.json).
+        # Hand-written partial catalogs omit required fields (priority,
+        # base_instructions, …) and Codex then ignores config + hangs handshake.
+        if [ -f /etc/agent-hub/codex-model-catalog.json ]; then
+          node -e "const fs=require('fs'); const src='/etc/agent-hub/codex-model-catalog.json'; const dst='/root/.codex/model-catalog.json'; const j=JSON.parse(fs.readFileSync(src,'utf8')); const slug=process.env.CODEX_MODEL||'agenthub-codex'; if (j.models&&j.models[0]) { j.models[0].slug=slug; j.models[0].display_name='Agent Hub Codex'; } fs.writeFileSync(dst, JSON.stringify(j, null, 2));"
+        else
+          echo "[agent-hub] warn: codex-model-catalog.json missing; Codex may warn about unknown model metadata"
+        fi
         printf '%s\n' '# Top-level defaults (applied without -p) so codex exec uses the helix
         # provider automatically. [profiles.*] requires explicit -p selection.
         model = "__CODEX_MODEL__"
         model_provider = "helix"
+        model_catalog_json = "/root/.codex/model-catalog.json"
 
         [model_providers.helix]
         name = "Helix"
         base_url = "__CODEX_BASE_URL__"
         env_key = "OPENAI_API_KEY"
         wire_api = "responses"' \
-          | sed "s|__CODEX_BASE_URL__|$${CODEX_BASE_URL:-}|g; s|__CODEX_MODEL__|$${CODEX_MODEL:-}|g" \
+          | sed "s|__CODEX_BASE_URL__|$${CODEX_BASE_URL:-}|g; s|__CODEX_MODEL__|$${CODEX_MODEL_VALUE}|g" \
           > /root/.codex/config.toml
+        # If catalog is missing, do not point config at a broken path.
+        if [ ! -f /root/.codex/model-catalog.json ]; then
+          sed -i '/^model_catalog_json/d' /root/.codex/config.toml
+        fi
+        # Trust conversation workspaces so Codex does not block project-local
+        # config (and surface scary stderr that the UI shows as orange tips).
+        # Old chats live under /data/conversations/**/codex-temp-<id>.
+        if [ -f /etc/agent-hub/js/trust-codex-projects.js ]; then
+          node /etc/agent-hub/js/trust-codex-projects.js /root/.codex/config.toml \
+            || echo "[agent-hub] warn: failed to mark trusted projects"
+        fi
+        # Claude Code (acceptEdits) is spawned with --dangerously-skip-permissions.
+        # As root that flag hard-fails (exit 1) → USER_AGENT_DISCONNECTED in UI.
+        # Rewrite argv to --permission-mode acceptEdits for bundled + PATH CLIs.
+        if [ -f /etc/agent-hub/js/wrap-claude-for-root.js ]; then
+          node /etc/agent-hub/js/wrap-claude-for-root.js \
+            || echo "[agent-hub] warn: failed to wrap Claude for root"
+        fi
+        # Proactively drop idle ACP resume anchors while the app runs.
+        # Container-start clear (above) only covers restart; Feishu idle (~hours)
+        # leaves a dead sid that warmup still tries to session/load.
+        if [ -f /etc/agent-hub/js/clear-idle-acp-sessions.js ] || [ -f /etc/agent-hub/js/trust-codex-projects.js ]; then
+          (
+            INTERVAL="$${ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC:-60}"
+            while true; do
+              sleep "$${INTERVAL}"
+              if [ -f /etc/agent-hub/js/clear-idle-acp-sessions.js ]; then
+                node --experimental-sqlite /etc/agent-hub/js/clear-idle-acp-sessions.js \
+                  || echo "[agent-hub] warn: idle ACP anchor clear failed"
+              fi
+              # New Feishu/Web chats create codex-temp-* after boot; re-trust so
+              # Codex stderr tips are less likely to be relayed as IM messages.
+              if [ -f /etc/agent-hub/js/trust-codex-projects.js ]; then
+                node /etc/agent-hub/js/trust-codex-projects.js /root/.codex/config.toml \
+                  || echo "[agent-hub] warn: periodic trust projects failed"
+              fi
+            done
+          ) &
+          echo "[agent-hub] started idle ACP clearer + periodic Codex trust (every $${ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC:-60}s)"
+        fi
+        # bubblewrap: install in the image (Dockerfile). Do NOT apt-get here —
+        # appliance networks make entrypoint apt hang and the UI stays down.
         exec /app/aionui-web/aionui-web start
     restart: unless-stopped
