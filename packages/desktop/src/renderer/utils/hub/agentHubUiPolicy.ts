@@ -31,6 +31,15 @@ export function isAgentHubPetSettingsHidden(): boolean {
   return true;
 }
 
+/**
+ * Agent Hub: temporarily hide Settings → Tools (MCP / image generation).
+ * Set to `false` to restore the Tools settings entry.
+ * 暂时隐藏设置中的工具页
+ */
+export function isAgentHubToolsSettingsHidden(): boolean {
+  return true;
+}
+
 /** Default settings landing path when opening Settings from the sider / `#/settings`. */
 export function getAgentHubDefaultSettingsPath(): string {
   return isAgentHubAgentsSettingsHidden() ? '/settings/skills' : '/settings/agent';

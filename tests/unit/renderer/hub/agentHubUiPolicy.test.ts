@@ -12,6 +12,7 @@ import {
   isAgentHubPermissionSelectorHidden,
   isAgentHubPetSettingsHidden,
   isAgentHubRuntimeHidden,
+  isAgentHubToolsSettingsHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { describe, expect, it } from 'vitest';
 
@@ -27,6 +28,10 @@ describe('agentHubUiPolicy', () => {
   it('hides Agents settings tab in phase-1 and defaults settings landing to skills', () => {
     expect(isAgentHubAgentsSettingsHidden()).toBe(true);
     expect(getAgentHubDefaultSettingsPath()).toBe('/settings/skills');
+  });
+
+  it('hides Tools settings tab temporarily in Agent Hub builds', () => {
+    expect(isAgentHubToolsSettingsHidden()).toBe(true);
   });
 
   it('hides Desktop Pet settings tab in Agent Hub builds', () => {
