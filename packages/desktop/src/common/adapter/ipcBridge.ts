@@ -872,7 +872,7 @@ export const fs = {
   fetchRemoteImage: httpPost<string, { url: string }>('/api/fs/fetch-remote-image'),
   readFile: httpPost<string | null, { path: string; workspace?: string }>('/api/fs/read'),
   writeFile: httpPost<boolean, { path: string; data: string; workspace?: string }>('/api/fs/write'),
-  getFileMetadata: httpPost<IFileMetadata, { path: string; workspace?: string }>('/api/fs/metadata'),
+  getFileMetadata: withResponseMap(httpPost<RawFileMetadata, { path: string; workspace?: string }>('/api/fs/metadata'), fromBackendFileMetadata),
   // ── ChatFileRef content endpoints (PR-2: preview I/O by ref identity) ──────
   // Read a file addressed by ChatFileRef; `encoding` selects text (utf8) vs image
   // data URL (dataurl) vs raw base64. Backend: POST /api/fs/content → String.
