@@ -16,6 +16,7 @@ import {
   getAgentHubDefaultSettingsPath,
   isAgentHubAgentsSettingsHidden,
   isAgentHubPetSettingsHidden,
+  isAgentHubToolsSettingsHidden,
 } from '@renderer/utils/hub/agentHubUiPolicy';
 const Conversation = React.lazy(() => import('@renderer/pages/conversation'));
 const Guid = React.lazy(() => import('@renderer/pages/guid'));
@@ -53,7 +54,10 @@ const withRouteFallback = (
 const CapabilitiesRedirect: React.FC = () => {
   const { search } = useLocation();
   const tab = new URLSearchParams(search).get('tab');
-  return <Navigate to={tab === 'tools' ? '/settings/tools' : '/settings/skills'} replace />;
+  if (tab === 'tools' && !isAgentHubToolsSettingsHidden()) {
+    return <Navigate to='/settings/tools' replace />;
+  }
+  return <Navigate to='/settings/skills' replace />;
 };
 
 const ProtectedLayout: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
@@ -68,6 +72,7 @@ const ProtectedLayout: React.FC<{ layout: React.ReactElement }> = ({ layout }) =
 
 const DEFAULT_SETTINGS_PATH = getAgentHubDefaultSettingsPath();
 const AGENTS_SETTINGS_HIDDEN = isAgentHubAgentsSettingsHidden();
+const TOOLS_SETTINGS_HIDDEN = isAgentHubToolsSettingsHidden();
 const PET_SETTINGS_HIDDEN = isAgentHubPetSettingsHidden();
 
 const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
@@ -96,7 +101,7 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
           <Route path='/settings/skills' element={withRouteFallback(SkillsSettings)} />
           <Route path='/settings/skills/import-history' element={withRouteFallback(SkillsSettings)} />
           <Route path='/settings/skills/detail/:skillName' element={withRouteFallback(SkillDetailPage)} />
-          <Route path='/settings/tools' element={withRouteFallback(ToolsSettings)} />
+          <Route path='/settings/tools' element={TOOLS_SETTINGS_HIDDEN ? <Navigate to={DEFAULT_SETTINGS_PATH} replace /> : withRouteFallback(ToolsSettings)} />
           {/* Legacy routes — the previous combined "Capabilities" page is now two pages. */}
           <Route path='/settings/capabilities' element={<CapabilitiesRedirect />} />
           <Route

@@ -25,6 +25,7 @@ import { getSiderTooltipProps } from '@/renderer/utils/ui/siderTooltip';
 import {
   isAgentHubAgentsSettingsHidden,
   isAgentHubPetSettingsHidden,
+  isAgentHubToolsSettingsHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
 
 /** Builtin settings tab IDs in display order (must match router paths). */
@@ -49,7 +50,8 @@ export const BUILTIN_TAB_IDS = [
 export const LEGACY_ANCHOR_REMAP: Record<string, string> = {
   'skills-hub': 'skills',
   capabilities: 'skills',
-  display: 'appearance',
+  display: 'webui',
+  ...(isAgentHubToolsSettingsHidden() ? { tools: 'skills' } : {}),
 };
 
 /**
@@ -126,11 +128,12 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
     };
 
     // Start with ordered builtin IDs, hiding desktop-only tabs in browser mode
-    // and Agent Hub policy-gated tabs (Agents / Pet).
+    // and Agent Hub policy-gated tabs (Agents / Tools / Pet).
     const result: SiderItem[] = BUILTIN_TAB_IDS.filter(
       (id) =>
         (isDesktop || id !== 'pet') &&
         !(id === 'agent' && isAgentHubAgentsSettingsHidden()) &&
+        !(id === 'tools' && isAgentHubToolsSettingsHidden()) &&
         !(id === 'pet' && isAgentHubPetSettingsHidden())
     ).map((id) => builtinMap[id]);
 
