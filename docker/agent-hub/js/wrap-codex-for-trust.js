@@ -67,7 +67,9 @@ if (alreadyWrapped(which)) {
 // is a plain file, overwriting it in place would leave no distinct real
 // binary to exec, so the wrapper would call itself forever — refuse.
 if (!fs.lstatSync(which).isSymbolicLink()) {
-  console.error(`[agent-hub] Codex trust wrap: ${which} is not a symlink to a distinct binary; skip to avoid self-exec`);
+  console.error(
+    `[agent-hub] Codex trust wrap: ${which} is not a symlink to a distinct binary; skip to avoid self-exec`
+  );
   process.exit(0);
 }
 

@@ -21,10 +21,7 @@ const { DatabaseSync } = require('node:sqlite');
 
 const dataDir = process.env.AIONUI_DATA_DIR || '/data';
 const dbPath = `${dataDir}/aionui-backend.db`;
-const idleMinutes = Math.max(
-  1,
-  Number(process.env.ACP_IDLE_ANCHOR_CLEAR_MINUTES || 10) || 10
-);
+const idleMinutes = Math.max(1, Number(process.env.ACP_IDLE_ANCHOR_CLEAR_MINUTES || 10) || 10);
 
 if (!fs.existsSync(dbPath)) {
   process.exit(0);

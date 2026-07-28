@@ -86,9 +86,7 @@ try {
   }
 
   if (tableExists('teams') && columnExists('teams', 'session_mode')) {
-    const result = db
-      .prepare(`UPDATE teams SET session_mode = ? WHERE session_mode = ?`)
-      .run(TO, FROM);
+    const result = db.prepare(`UPDATE teams SET session_mode = ? WHERE session_mode = ?`).run(TO, FROM);
     teamFixed = Number(result.changes || 0);
   }
 

@@ -23,10 +23,7 @@ let hasMode = false;
 
 for (let i = 0; i < incoming.length; i += 1) {
   const arg = incoming[i];
-  if (
-    arg === '--dangerously-skip-permissions' ||
-    arg === '--allow-dangerously-skip-permissions'
-  ) {
+  if (arg === '--dangerously-skip-permissions' || arg === '--allow-dangerously-skip-permissions') {
     stripped = true;
     continue;
   }
