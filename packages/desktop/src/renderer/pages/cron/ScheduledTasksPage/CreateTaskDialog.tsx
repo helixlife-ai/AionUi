@@ -27,6 +27,7 @@ import { resolveAssistantAvatar } from '@renderer/utils/model/assistantAvatar';
 import { resolveAssistantName } from '@renderer/utils/model/assistantDisplay';
 import { resolveCronAgentConfig } from './resolveCronAgentConfig';
 import { assistantRuntimeKey, isAionrsAssistant } from '@/common/types/agent/assistantTypes';
+import { normalizeCodexSessionMode } from '@/renderer/utils/hub/normalizeCodexSessionMode';
 
 const FormItem = Form.Item;
 const TextArea = Input.TextArea;
@@ -362,7 +363,8 @@ const CreateTaskDialog: React.FC<CreateTaskDialogProps> = ({
   const resolveAutoApproveModeFromAgentMetadata = useCallback(
     (assistant: (typeof presetAssistants)[number]): string => {
       const agent = managedAgentRuntimeCatalog.find((item) => item.id === assistant.agent_id);
-      return agent?.yolo_id || 'yolo';
+      const raw = agent?.yolo_id || 'yolo';
+      return normalizeCodexSessionMode(raw);
     },
     [managedAgentRuntimeCatalog]
   );

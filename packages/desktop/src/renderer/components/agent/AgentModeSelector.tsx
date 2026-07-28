@@ -10,6 +10,7 @@ import {
   useAcpConfigOptions,
 } from '@/renderer/hooks/agent/useAcpConfigOptions';
 import type { AgentModeOption } from '@/renderer/utils/model/agentTypes';
+import { normalizeCodexSessionMode } from '@/renderer/utils/hub/normalizeCodexSessionMode';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { AgentLogoIcon } from './AgentBadge';
 import { Dropdown, Menu, Message, Tooltip } from '@arco-design/web-react';
@@ -180,14 +181,15 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
         if (!runtimeMode) {
           throw new Error('config_not_observed');
         }
-        await runtimeConfig.setConfigOption(runtimeMode.id, mode);
+        await runtimeConfig.setConfigOption(runtimeMode.id, normalizeCodexSessionMode(mode));
       };
 
       setIsLoading(true);
       try {
+        const nextMode = normalizeCodexSessionMode(mode);
         await setActiveMode();
-        setCurrentMode(mode);
-        onModeChanged?.(mode);
+        setCurrentMode(nextMode);
+        onModeChanged?.(nextMode);
         Message.success(t('agentMode.switchSuccess'));
       } catch (error) {
         console.error('[AgentModeSelector] Failed to switch mode:', error);
