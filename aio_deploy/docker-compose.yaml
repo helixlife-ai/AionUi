@@ -115,6 +115,14 @@ services:
           node /etc/agent-hub/js/trust-codex-projects.js /root/.codex/config.toml \
             || echo "[agent-hub] warn: failed to mark trusted projects"
         fi
+        # Wrap the codex PATH entry so brand-new conversation folders (which
+        # do not exist yet for the sweep above, or the periodic one below)
+        # get trusted synchronously on their very first turn — otherwise the
+        # UI shows a "project not trusted" warning until the next sweep.
+        if [ -f /etc/agent-hub/js/wrap-codex-for-trust.js ]; then
+          node /etc/agent-hub/js/wrap-codex-for-trust.js \
+            || echo "[agent-hub] warn: failed to wrap Codex for trust"
+        fi
         # Claude Code (acceptEdits) is spawned with --dangerously-skip-permissions.
         # As root that flag hard-fails (exit 1) → USER_AGENT_DISCONNECTED in UI.
         # Rewrite argv to --permission-mode acceptEdits for bundled + PATH CLIs.
