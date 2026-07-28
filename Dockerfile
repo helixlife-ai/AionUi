@@ -46,6 +46,22 @@ RUN bun install --frozen-lockfile
 
 COPY . .
 
+# Prefer a pre-seeded linux-arm64 aioncore+CLI bundle when present. Docker-on-
+# macOS sometimes fails optionalDeps for @openai/codex-linux-arm64 during
+# prepare-managed-resources. Copy aside first — prepareAioncore clears
+# resources/bundled-aioncore/<platform> before copying the local bundle in.
+ARG AIONUI_USE_SEEDED_AIONCORE_BUNDLE=0
+RUN if [ "$AIONUI_USE_SEEDED_AIONCORE_BUNDLE" = "1" ] \
+      && [ -x /app/resources/bundled-aioncore/linux-arm64/aioncore ] \
+      && [ -d /app/resources/bundled-aioncore/linux-arm64/managed-resources ]; then \
+      mkdir -p /opt && \
+      cp -a /app/resources/bundled-aioncore/linux-arm64 /opt/aioncore-linux-arm64-bundle && \
+      echo "Seeded aioncore bundle at /opt/aioncore-linux-arm64-bundle"; \
+    else \
+      echo "No seeded aioncore bundle (will download + prepare)"; \
+    fi
+ENV AIONUI_BACKEND_LOCAL_BUNDLE_DIR=/opt/aioncore-linux-arm64-bundle
+
 # 1) Build desktop renderer -> out/renderer (static SPA consumed by web-cli)
 RUN bunx electron-vite build --config packages/desktop/electron.vite.config.ts
 
