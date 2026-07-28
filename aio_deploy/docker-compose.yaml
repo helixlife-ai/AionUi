@@ -7,7 +7,7 @@ services:
     # as uid 65532). No single gid covers all consumers, so we rely on
     # world-writable mode (0777) + umask 0000 — acceptable on a single-device
     # appliance where all apps are trusted (like a NAS shared dir).
-    user: "0"
+    user: '0'
     ports:
       - '25808:25808'
     volumes:
@@ -48,7 +48,7 @@ services:
       # /responses to the base url. Override via env if a different endpoint is needed.
       - CODEX_BASE_URL=${CODEX_BASE_URL:-https://paas-model.jova.bio/api/v1/helix/v1}
       - CODEX_MODEL=${CODEX_MODEL:-agenthub-codex}
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: ['/bin/sh', '-c']
     command:
       - |
         # umask 0000 → new files 0666, dirs 0777 (world-writable). The /agent_hub

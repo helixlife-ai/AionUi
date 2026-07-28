@@ -18,12 +18,9 @@ export function normalizeCodexSessionMode(mode: string): string {
 }
 
 /** Normalize when present; leave undefined/empty untouched. */
-export function normalizeCodexSessionModeOptional(
-  mode: string | null | undefined
-): string | undefined {
+export function normalizeCodexSessionModeOptional(mode: string | null | undefined): string | undefined {
   if (mode == null) return undefined;
   const trimmed = mode.trim();
   if (!trimmed) return undefined;
   return normalizeCodexSessionMode(trimmed);
 }
-      
