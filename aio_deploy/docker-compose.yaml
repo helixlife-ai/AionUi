@@ -68,6 +68,13 @@ services:
           node --experimental-sqlite -e "const {DatabaseSync}=require('node:sqlite'); const db=new DatabaseSync('/data/aionui-backend.db'); const r=db.prepare('UPDATE acp_session SET session_id=NULL WHERE session_id IS NOT NULL AND length(session_id)>0').run(); console.log('[agent-hub] cleared stale acp session anchors:', r.changes); db.close();" \
             || echo "[agent-hub] warn: failed to clear acp session anchors (continuing)"
         fi
+        # One-off repair for cron jobs / conversations / teams persisted before
+        # the agent-full-access -> full-access Codex mode fix (frontend normalize
+        # only covers new saves, not already-stored rows).
+        if [ -f /etc/agent-hub/js/normalize-codex-session-modes.js ]; then
+          node --experimental-sqlite /etc/agent-hub/js/normalize-codex-session-modes.js \
+            || echo "[agent-hub] warn: failed to normalize persisted Codex session modes"
+        fi
         # Codex CLI config for the helix proxy, inlined (was a bind-mounted
         # file). Placeholders __CODEX_BASE_URL__ and __CODEX_MODEL__ are
         # substituted from the container env (see environment: above).

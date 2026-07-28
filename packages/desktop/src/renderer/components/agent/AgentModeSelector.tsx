@@ -10,6 +10,7 @@ import {
   useAcpConfigOptions,
 } from '@/renderer/hooks/agent/useAcpConfigOptions';
 import type { AgentModeOption } from '@/renderer/utils/model/agentTypes';
+import { normalizeCodexSessionMode } from '@/renderer/utils/hub/normalizeCodexSessionMode';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { AgentLogoIcon } from './AgentBadge';
 import { Dropdown, Menu, Message, Tooltip } from '@arco-design/web-react';
@@ -191,7 +192,7 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
         if (!runtimeMode) {
           throw new Error('config_not_observed');
         }
-        return runtimeConfig.setConfigOption(runtimeMode.id, mode);
+        return runtimeConfig.setConfigOption(runtimeMode.id, normalizeCodexSessionMode(mode));
       };
 
       setIsLoading(true);
@@ -202,13 +203,13 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
         // pill must keep naming the permission actually governing) and say so; the
         // pending marker is already driven by `pendingValues`. When the agent applies it,
         // an `acp_config_option` frame updates the snapshot and clears the marker.
-        const landed = applied?.find((option) => option.id === runtimeMode?.id)?.current_value === mode;
+        const landed = applied?.find((option) => option.id === runtimeMode?.id)?.current_value === normalizeCodexSessionMode(mode);
         if (!landed) {
           Message.info(t('agentMode.switchPendingNextTurn', { defaultValue: 'Takes effect on the next turn' }));
           return;
         }
-        setCurrentMode(mode);
-        onModeChanged?.(mode);
+        setCurrentMode(normalizeCodexSessionMode(mode));
+        onModeChanged?.(normalizeCodexSessionMode(mode));
         Message.success(t('agentMode.switchSuccess'));
       } catch (error) {
         console.error('[AgentModeSelector] Failed to switch mode:', error);

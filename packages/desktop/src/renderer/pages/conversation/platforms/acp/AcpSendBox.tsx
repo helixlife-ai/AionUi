@@ -38,6 +38,7 @@ import {
   isAgentHubPermissionSelectorHidden,
   isAgentHubModelSelectorHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
+import { normalizeCodexSessionMode } from '@/renderer/utils/hub/normalizeCodexSessionMode';
 import { getChatSurfaceWidthClass } from '@/renderer/pages/conversation/utils/chatSurfaceWidth';
 import { useTeamPermission } from '@/renderer/pages/team/hooks/TeamPermissionContext';
 import type { TeamSendBoxRuntime } from '@/renderer/pages/team/components/teamSendRuntime';
@@ -207,9 +208,9 @@ const AcpSendBox: React.FC<{
     async (mode: string) => {
       if (!runtimeMode || mode === runtimeMode.currentValue) return;
       try {
-        await runtimeConfig.setConfigOption(runtimeMode.id, mode);
-        setCurrentMode(mode);
-        if (isLeaderInTeam) teamPermission?.propagateMode?.(mode);
+        await runtimeConfig.setConfigOption(runtimeMode.id, normalizeCodexSessionMode(mode));
+        setCurrentMode(normalizeCodexSessionMode(mode));
+        if (isLeaderInTeam) teamPermission?.propagateMode?.(normalizeCodexSessionMode(mode));
         Message.success(t('agentMode.switchSuccess'));
       } catch (error) {
         console.error('[AcpSendBox] Failed to switch mode via sheet:', error);
