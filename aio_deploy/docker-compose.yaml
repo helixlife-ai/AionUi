@@ -9,7 +9,7 @@ services:
     # appliance where all apps are trusted (like a NAS shared dir).
     user: '0'
     ports:
-      - '25808:25808'
+      - '80:25808'
     volumes:
       - ./data:/data
       # Pre-conversation uploads land at /tmp/aionui (aioncore temp root). Bind
@@ -48,6 +48,10 @@ services:
       # /responses to the base url. Override via env if a different endpoint is needed.
       - CODEX_BASE_URL=${CODEX_BASE_URL:-https://paas-model.jova.bio/api/v1/helix/v1}
       - CODEX_MODEL=${CODEX_MODEL:-agenthub-codex}
+      # Studio(happy)server — 启动时导入该设备 SN 的 Studio 历史会话。
+      # 生产:https://studio-server.newidea.pro;dev:https://studio-server.jova.bio
+      # 默认走 dev 环境;生产部署时显式传 HAPPY_SERVER_URL 覆盖。
+      - HAPPY_SERVER_URL=${HAPPY_SERVER_URL:-https://studio-server.jova.bio}
     entrypoint: ['/bin/sh', '-c']
     command:
       - |
@@ -154,5 +158,20 @@ services:
         fi
         # bubblewrap: install in the image (Dockerfile). Do NOT apt-get here —
         # appliance networks make entrypoint apt hang and the UI stays down.
-        exec /app/aionui-web/aionui-web start
+        # Start aionui-web in the background so we can run the Studio history
+        # import after the backend has migrated the DB. `wait` keeps the
+        # container's lifecycle tied to aionui-web and forwards signals.
+        /app/aionui-web/aionui-web start &
+        AIONUI_PID=$!
+        # Wait until aioncore has migrated the DB (users table readable).
+        for i in $$(seq 1 60); do
+          if [ -f /data/aionui-backend.db ] && node --experimental-sqlite -e "const {DatabaseSync}=require('node:sqlite');const db=new DatabaseSync('/data/aionui-backend.db');db.prepare('SELECT 1 FROM users LIMIT 1').get();db.close()" 2>/dev/null; then break; fi
+          sleep 1
+        done
+        # Studio history import: pulls this device's SN history from the happy
+        # server, decrypts, and imports into aionui-backend.db. Incremental and
+        # idempotent (per-session); failures never block startup.
+        mkdir -p '/agent_hub/studio 原版'
+        node --experimental-sqlite /opt/studio-import/import.mjs >>/data/logs/studio-import.log 2>&1 || true
+        wait $$AIONUI_PID
     restart: unless-stopped

@@ -99,6 +99,12 @@ RUN npm install -g --unsafe-perm \
 COPY --from=builder /out/aionui-web /app/aionui-web
 RUN chmod +x /app/aionui-web/aionui-web
 
+# Studio 历史导入工具(Agent Hub 扩展)。容器启动时由 compose command 调用,
+# 从 happy server 拉取并解密该设备 SN 的 Studio 历史会话,导入 aionui-backend.db。
+# tweetnacl 装在脚本同级 node_modules,供 ESM import 解析。
+COPY scripts/studio-history-import/import.mjs /opt/studio-import/import.mjs
+RUN cd /opt/studio-import && npm install --omit=dev tweetnacl && npm cache clean --force
+
 # Appliance full-update only syncs docker-compose.yaml onto the host — not
 # sibling files under aio_deploy/. Bake Codex catalog + entrypoint helpers into
 # the image so compose can call them without host bind-mounts. These live
