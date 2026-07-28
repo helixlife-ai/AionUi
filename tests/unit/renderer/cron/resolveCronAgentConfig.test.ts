@@ -75,6 +75,24 @@ describe('resolveCronAgentConfig', () => {
     });
   });
 
+  it('normalizes drifted Codex agent-full-access mode to catalog full-access', () => {
+    const result = resolveCronAgentConfig({
+      agentValue: 'assistant-2',
+      presetAssistants: [
+        assistant({
+          id: 'assistant-2',
+          name: 'Codex 助手',
+          agent_id: 'agent-codex',
+          agent: agent('agent-codex', 'acp', 'codex'),
+        }),
+      ],
+      getMode: () => 'agent-full-access',
+      aionrsModelRequiredMessage: 'provider required',
+    });
+
+    expect(result.agent_config?.mode).toBe('full-access');
+  });
+
   it('stores localized assistant names when a locale key is provided', () => {
     const result = resolveCronAgentConfig({
       agentValue: 'assistant-2',

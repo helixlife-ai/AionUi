@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { bridge, logger } from '@office-ai/platform';
+import { bridge } from '@/common/platform/bridge';
 import { WEBUI_DEFAULT_PORT } from '@/common/config/constants';
 import type { ElectronBridgeAPI } from '@/common/types/platform/electron';
 
 interface CustomWindow extends Window {
   electronAPI?: ElectronBridgeAPI;
   __bridgeEmitter?: { emit: (name: string, data: unknown) => void };
-  __emitBridgeCallback?: (name: string, data: unknown) => void;
   __websocketReconnect?: () => void;
 }
 
@@ -216,6 +215,23 @@ if (win.electronAPI) {
 
   bridge.adapter({
     emit(name, data) {
+      // Renderer-local providers (DirectorySelectionModal for dialog.showOpen)
+      // subscribe on the in-page EventEmitter. WebUI's default emit only sends
+      // over WebSocket, so invoke('show-open') never reached the modal provider
+      // and confirm callbacks never resolved the caller's Promise — workspace
+      // pick appeared to do nothing after 确定.
+      if (
+        typeof name === 'string' &&
+        (name === 'subscribe-show-open' || name.startsWith('subscribe.callback-show-open'))
+      ) {
+        if (emitterRef) {
+          queueMicrotask(() => {
+            emitterRef?.emit(name, data);
+          });
+        }
+        return;
+      }
+
       const message: QueuedMessage = { name, data };
 
       ensureSocket();
@@ -235,12 +251,6 @@ if (win.electronAPI) {
       emitterRef = emitter;
       win.__bridgeEmitter = emitter;
 
-      // Expose callback emitter for bridge provider pattern
-      // Used by components to send responses back through WebSocket
-      win.__emitBridgeCallback = (name: string, data: unknown) => {
-        emitter.emit(name, data);
-      };
-
       ensureSocket();
     },
   });
@@ -254,12 +264,3 @@ if (win.electronAPI) {
     connect();
   };
 }
-
-logger.provider({
-  log(log) {
-    console.log('process.log', log.type, ...log.logs);
-  },
-  path() {
-    return Promise.resolve('');
-  },
-});

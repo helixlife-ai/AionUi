@@ -46,6 +46,22 @@ RUN bun install --frozen-lockfile
 
 COPY . .
 
+# Prefer a pre-seeded linux-arm64 aioncore+CLI bundle when present. Docker-on-
+# macOS sometimes fails optionalDeps for @openai/codex-linux-arm64 during
+# prepare-managed-resources. Copy aside first — prepareAioncore clears
+# resources/bundled-aioncore/<platform> before copying the local bundle in.
+ARG AIONUI_USE_SEEDED_AIONCORE_BUNDLE=0
+RUN if [ "$AIONUI_USE_SEEDED_AIONCORE_BUNDLE" = "1" ] \
+      && [ -x /app/resources/bundled-aioncore/linux-arm64/aioncore ] \
+      && [ -d /app/resources/bundled-aioncore/linux-arm64/managed-resources ]; then \
+      mkdir -p /opt && \
+      cp -a /app/resources/bundled-aioncore/linux-arm64 /opt/aioncore-linux-arm64-bundle && \
+      echo "Seeded aioncore bundle at /opt/aioncore-linux-arm64-bundle"; \
+    else \
+      echo "No seeded aioncore bundle (will download + prepare)"; \
+    fi
+ENV AIONUI_BACKEND_LOCAL_BUNDLE_DIR=/opt/aioncore-linux-arm64-bundle
+
 # 1) Build desktop renderer -> out/renderer (static SPA consumed by web-cli)
 RUN bunx electron-vite build --config packages/desktop/electron.vite.config.ts
 
@@ -60,7 +76,7 @@ RUN mkdir -p /out && tar -xzf dist-web-cli/aionui-web-*-linux-arm64.tar.gz -C /o
 # ---- Runtime ---------------------------------------------------------------
 # node:22-trixie-slim = Debian 13 trixie + Node 22 on PATH. glibc 2.41 satisfies
 # aioncore v0.1.41+'s GLIBC_2.39 requirement. Node is required at runtime
-# because the ACP CLI agents (codex, openclaw) are JS entry points with
+# because the ACP CLI agents (codex) are JS entry points with
 # `#!/usr/bin/env node` shebangs; aioncore detects the CLIs on PATH and
 # spawns them. claude-code ships a native binary but shares the PATH.
 FROM node:22-trixie-slim AS runtime
@@ -69,20 +85,33 @@ WORKDIR /app
 # libicu76: officecli (.NET) needs ICU if document preview is used (trixie ships libicu76).
 # ca-certificates: HTTPS calls to model providers / keybalance.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libicu76 ca-certificates \
+      libicu76 ca-certificates bubblewrap \
     && rm -rf /var/lib/apt/lists/*
 
-# Install the three CLI agents globally so aioncore auto-detects them on PATH
+# Install Claude Code + Codex globally so aioncore auto-detects them on PATH
 # at startup (registered as `source: builtin` ACP agents). Versions resolved
 # from npm; pin in package.json if reproducibility is needed.
 RUN npm install -g --unsafe-perm \
       @anthropic-ai/claude-code \
       @openai/codex \
-      openclaw \
     && npm cache clean --force
 
 COPY --from=builder /out/aionui-web /app/aionui-web
 RUN chmod +x /app/aionui-web/aionui-web
+
+# Studio 历史导入工具(Agent Hub 扩展)。容器启动时由 compose command 调用,
+# 从 happy server 拉取并解密该设备 SN 的 Studio 历史会话,导入 aionui-backend.db。
+# tweetnacl 装在脚本同级 node_modules,供 ESM import 解析。
+COPY scripts/studio-history-import/import.mjs /opt/studio-import/import.mjs
+RUN cd /opt/studio-import && npm install --omit=dev tweetnacl && npm cache clean --force
+
+# Appliance full-update only syncs docker-compose.yaml onto the host — not
+# sibling files under aio_deploy/. Bake Codex catalog + entrypoint helpers into
+# the image so compose can call them without host bind-mounts. These live
+# under docker/agent-hub/ (not aio_deploy/) since aio_deploy/ mirrors exactly
+# what the appliance OTA pulls (docker-compose.yaml + config.json).
+COPY docker/agent-hub/codex-model-catalog.json /etc/agent-hub/codex-model-catalog.json
+COPY docker/agent-hub/js/ /etc/agent-hub/js/
 
 ENV AIONUI_PORT=25808
 ENV AIONUI_DATA_DIR=/data

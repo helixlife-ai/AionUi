@@ -19,6 +19,7 @@
  */
 import { Message } from '@arco-design/web-react';
 import { useAssistantEditor, useAssistantList } from '@/renderer/hooks/assistant';
+import { useManagedAgentRuntimeCatalog } from '@/renderer/hooks/agent/useManagedAgents';
 import { buildAssistantEditorBackends, resolveAvatarImageSrc } from './assistantUtils';
 import AssistantEditorPage from './AssistantEditorPage';
 import AssistantHomeTabs from './home/AssistantHomeTabs';
@@ -26,6 +27,7 @@ import DeleteAssistantModal from './DeleteAssistantModal';
 import SkillConfirmModals from './SkillConfirmModals';
 import type { AssistantEditorViewModel, AssistantListItem } from './types';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 type AssistantNavigationState = {
@@ -36,13 +38,14 @@ const OPEN_ASSISTANT_EDITOR_INTENT_KEY = 'guid.openAssistantEditorIntent';
 
 const AssistantSettings: React.FC = () => {
   const [message, messageContext] = Message.useMessage({ maxCount: 10 });
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const navigationState = (location.state as AssistantNavigationState | null) ?? null;
 
-  // Which home tab to show when returning from the editor. Editing an official
-  // assistant should land back on the Official tab; everything else on Mine.
-  const [homeTab, setHomeTab] = React.useState<'mine' | 'official'>('mine');
+  // Keep the current management surface when returning from the editor. The
+  // unified Enabled tab is the default entry point for assistant ordering.
+  const [homeTab, setHomeTab] = React.useState<'enabled' | 'mine' | 'official'>('enabled');
 
   // "Chat" on an assistant → open a new conversation with it preselected.
   const handleStartChat = useCallback(
@@ -59,9 +62,12 @@ const AssistantSettings: React.FC = () => {
     setActiveAssistantId,
     activeAssistant,
     loadAssistants,
-    reorderAssistants,
+    reorderEnabledAssistants,
+    assistantOrder,
+    setAssistantOrder,
     localeKey,
   } = useAssistantList();
+  const managedAgentRuntimeCatalog = useManagedAgentRuntimeCatalog();
   const builtinAvatarOptions = useMemo(
     () =>
       assistants
@@ -81,15 +87,20 @@ const AssistantSettings: React.FC = () => {
         .filter((option): option is NonNullable<typeof option> => option !== null),
     [assistants, localeKey]
   );
-  const availableBackends = useMemo(() => buildAssistantEditorBackends(assistants, localeKey), [assistants, localeKey]);
-
   const editor = useAssistantEditor({
     localeKey,
     activeAssistant,
     setActiveAssistantId,
     loadAssistants,
+    assistants,
+    assistantOrder,
+    setAssistantOrder,
     message,
   });
+  const availableBackends = useMemo(
+    () => buildAssistantEditorBackends(managedAgentRuntimeCatalog, localeKey, editor.editAgent),
+    [editor.editAgent, localeKey, managedAgentRuntimeCatalog]
+  );
 
   const editAvatarImage = editor.editAvatarPreview || resolveAvatarImageSrc(editor.editAvatar);
   const hasConsumedNavigationIntentRef = useRef(false);
@@ -128,6 +139,12 @@ const AssistantSettings: React.FC = () => {
         setMode: editor.setDefaultPermissionMode,
         value: editor.defaultPermissionValue,
         setValue: editor.setDefaultPermissionValue,
+      },
+      thoughtLevel: {
+        mode: editor.defaultThoughtLevelMode,
+        setMode: editor.setDefaultThoughtLevelMode,
+        value: editor.defaultThoughtLevelValue,
+        setValue: editor.setDefaultThoughtLevelValue,
       },
       skills: {
         mode: editor.defaultSkillsMode,
@@ -213,16 +230,15 @@ const AssistantSettings: React.FC = () => {
           ) : (
             <AssistantHomeTabs
               assistants={assistants}
+              assistantOrder={assistantOrder}
               localeKey={localeKey}
               initialTab={homeTab}
               onTabChange={setHomeTab}
               onOpenDetail={(assistant) => {
-                if (assistant.source === 'builtin') setHomeTab('official');
                 setActiveAssistantId(assistant.id);
                 void editor.handleEdit(assistant);
               }}
               onOpenSettings={(assistant) => {
-                if (assistant.source === 'builtin') setHomeTab('official');
                 setActiveAssistantId(assistant.id);
                 void editor.handleEdit(assistant);
               }}
@@ -238,7 +254,13 @@ const AssistantSettings: React.FC = () => {
                 void editor.handleCreate();
               }}
               onToggleEnabled={(assistant, checked) => void editor.handleToggleEnabled(assistant, checked)}
-              onReorder={(activeId, overId) => void reorderAssistants(activeId, overId)}
+              onReorderEnabled={async (activeId, overId) => {
+                try {
+                  await reorderEnabledAssistants(activeId, overId);
+                } catch {
+                  message.error(t('common.failed', { defaultValue: 'Failed' }));
+                }
+              }}
               onStartChat={handleStartChat}
             />
           )}

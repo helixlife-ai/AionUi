@@ -1,13 +1,12 @@
 import { ipcBridge } from '@/common';
 import { resolveLocaleKey } from '@/common/utils';
-import { isAionrsAssistant, type Assistant } from '@/common/types/agent/assistantTypes';
-import {
-  applyAssistantSortOrders,
-  buildAssistantSortUpdates,
-  reorderAssistantList,
-} from '@/renderer/pages/settings/AssistantSettings/assistantUtils';
+import { assistantRuntimeKey, type Assistant } from '@/common/types/agent/assistantTypes';
+import { reorderAssistantList } from '@/renderer/pages/settings/AssistantSettings/assistantUtils';
+import { selectableAssistants } from '@/renderer/utils/model/assistantSelection';
+import { isAgentHubRuntimeHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAssistantOrder } from './useAssistantOrder';
 
 /**
  * Manages the assistant list: loading from backend, sorting, and tracking the
@@ -20,12 +19,13 @@ export const useAssistantList = () => {
   const [activeAssistantId, setActiveAssistantId] = useState<string | null>(null);
   const localeKey = resolveLocaleKey(i18n.language);
   const previousLocaleKeyRef = useRef(localeKey);
+  const { assistantOrder, setAssistantOrder } = useAssistantOrder();
 
   const loadAssistants = useCallback(async () => {
     try {
       const list = await ipcBridge.assistants.list.invoke();
-      // Agent Hub: hide the built-in Aion CLI entry from the assistant catalog.
-      setAssistants(list.filter((assistant) => !isAionrsAssistant(assistant)));
+      // Agent Hub: hide Aion CLI / OpenClaw from the assistant catalog.
+      setAssistants(list.filter((assistant) => !isAgentHubRuntimeHidden(assistantRuntimeKey(assistant))));
       setActiveAssistantId((prev) => {
         if (prev && list.some((a) => a.id === prev)) return prev;
         return list[0]?.id ?? null;
@@ -35,31 +35,20 @@ export const useAssistantList = () => {
     }
   }, []);
 
-  const reorderAssistants = useCallback(
+  const reorderEnabledAssistants = useCallback(
     async (activeId: string, overId: string) => {
-      const reorderedAssistants = reorderAssistantList(assistants, activeId, overId);
-      if (reorderedAssistants === assistants) {
-        return;
-      }
-
-      const normalizedAssistants = applyAssistantSortOrders(reorderedAssistants);
-      const sortUpdates = buildAssistantSortUpdates(assistants, normalizedAssistants);
-      if (sortUpdates.length === 0) {
-        setAssistants(normalizedAssistants);
-        return;
-      }
-
-      const previousAssistants = assistants;
-      setAssistants(normalizedAssistants);
+      const enabledAssistants = selectableAssistants(assistants, assistantOrder);
+      const reorderedAssistants = reorderAssistantList(enabledAssistants, activeId, overId);
+      if (reorderedAssistants === enabledAssistants) return;
 
       try {
-        await Promise.all(sortUpdates.map((update) => ipcBridge.assistants.setState.invoke(update)));
+        await setAssistantOrder(reorderedAssistants.map((assistant) => assistant.id));
       } catch (error) {
-        console.error('Failed to reorder assistants:', error);
-        setAssistants(previousAssistants);
+        console.error('Failed to reorder enabled assistants:', error);
+        throw error;
       }
     },
-    [assistants]
+    [assistantOrder, assistants, setAssistantOrder]
   );
 
   useEffect(() => {
@@ -86,7 +75,9 @@ export const useAssistantList = () => {
     setActiveAssistantId,
     activeAssistant,
     loadAssistants,
-    reorderAssistants,
+    reorderEnabledAssistants,
+    assistantOrder,
+    setAssistantOrder,
     localeKey,
   };
 };

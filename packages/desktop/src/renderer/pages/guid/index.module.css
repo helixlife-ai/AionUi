@@ -100,6 +100,27 @@
 
 .actionConfigGroup :global(.sendbox-model-btn .arco-btn-content > span:first-child) {
   gap: 4px !important;
+  min-width: 0 !important;
+}
+
+/* Model button must be allowed to shrink so a long label truncates instead of
+ * pushing the send button / mode switch out of the row on narrow viewports. */
+.actionConfigGroup :global(.sendbox-model-btn) {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.actionConfigGroup :global(.sendbox-model-btn .arco-btn-content) {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.actionConfigGroup :global(.sendbox-model-btn .guid-model-label) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 220px;
 }
 
 .actionSubmit {
@@ -309,27 +330,28 @@
   }
 }
 
-/* Skeleton shimmer animation */
+/* Legacy local skeleton classes — prefer global .aion-skeleton-block */
 @keyframes guid-shimmer {
-  0% {
-    background-position: -200% 0;
-  }
+  0%,
   100% {
-    background-position: 200% 0;
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.78;
   }
 }
 
 .skeleton {
-  background: linear-gradient(90deg, var(--color-fill-2) 25%, var(--color-fill-3) 50%, var(--color-fill-2) 75%);
-  background-size: 200% 100%;
-  animation: guid-shimmer 1.5s ease-in-out infinite;
+  background-color: var(--color-fill-3);
+  border: 1px solid var(--color-border-2);
+  animation: guid-shimmer 1.6s ease-in-out infinite;
   border-radius: 50%;
 }
 
 .skeletonPill {
-  background: linear-gradient(90deg, var(--color-fill-2) 25%, var(--color-fill-3) 50%, var(--color-fill-2) 75%);
-  background-size: 200% 100%;
-  animation: guid-shimmer 1.5s ease-in-out infinite;
+  background-color: var(--color-fill-3);
+  border: 1px solid var(--color-border-2);
+  animation: guid-shimmer 1.6s ease-in-out infinite;
   border-radius: 100px;
 }
 
@@ -376,6 +398,10 @@
 
   .actionConfigGroup {
     gap: 0;
+  }
+
+  .actionConfigGroup :global(.sendbox-model-btn .guid-model-label) {
+    max-width: 90px;
   }
 
   .actionConfigGroupWithDivider > :first-child::after {
@@ -432,6 +458,23 @@
     opacity 0.5s cubic-bezier(0.2, 0.8, 0.3, 1),
     background-color 0.25s ease-out;
   animation: agentSelectPop 0.4s ease-out forwards;
+}
+
+/* 更多 Agent 面板：细微且快速的下滑淡入 */
+@keyframes assistantOverflowPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.assistantOverflowPanel {
+  transform-origin: top center;
+  animation: assistantOverflowPanelIn 0.16s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
 :global([data-theme='dark']) .assistantSelectorInactive {

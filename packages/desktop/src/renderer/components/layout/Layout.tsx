@@ -14,14 +14,23 @@ import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react
 import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { setGlobalNavigate } from '@/renderer/utils/navigation';
+import { usePreviewContext } from '@renderer/pages/conversation/Preview';
 import { LayoutContext } from '@renderer/hooks/context/LayoutContext';
 import { NavigationHistoryProvider } from '@renderer/hooks/context/NavigationHistoryContext';
+import { useConversationHistoryContext } from '@renderer/hooks/context/ConversationHistoryContext';
 import { useDeepLink } from '@renderer/hooks/system/useDeepLink';
 import { useNotificationClick } from '@renderer/hooks/system/notification/useNotificationClick';
 import { useBrowserNotification } from '@renderer/hooks/system/notification/useBrowserNotification';
 import { useDirectorySelection } from '@renderer/hooks/file/useDirectorySelection';
 import { cleanupSiderTooltips } from '@renderer/utils/ui/siderTooltip';
+import {
+  LAYOUT_MESSAGE_OFFSET_CSS_VAR,
+  resolveLayoutMessageOffsetLeft,
+} from '@renderer/utils/ui/layoutMessageOffset';
+import { shouldShowSiderChromeSkeleton } from '@/renderer/utils/ui/loadingPlaceholders';
+import { SiderBrandSkeleton } from '@renderer/components/layout/Sider/SiderTopNavSkeleton';
 import { useConversationShortcuts } from '@renderer/hooks/ui/useConversationShortcuts';
+import { PRODUCT_DISPLAY_NAME } from '@/renderer/utils/hub/productBrand';
 import { isElectronDesktop } from '@renderer/utils/platform';
 import '@renderer/styles/layout.css';
 
@@ -114,14 +123,19 @@ const Layout: React.FC<{
   useNotificationClick();
   useBrowserNotification();
   const navigate = useNavigate();
-  useConversationShortcuts({ navigate });
+  const location = useLocation();
+  const workspaceAvailable =
+    location.pathname.startsWith('/conversation/') || (TEAM_MODE_ENABLED && location.pathname.startsWith('/team/'));
+  const toggleSider = useCallback(() => {
+    setCollapsed((previous) => !previous);
+  }, []);
+  useConversationShortcuts({ navigate, toggleSider });
   // Expose navigate to code running outside the Router tree (e.g. the globally
   // mounted FeedbackReportModal's "via chat" action).
   useEffect(() => {
     setGlobalNavigate(navigate);
     return () => setGlobalNavigate(null);
   }, [navigate]);
-  const location = useLocation();
   const { t } = useTranslation();
   // The "AionUi" wordmark acts as Home / Back-to-Chat, but only from settings routes.
   // In non-settings routes the user is already "home", so it is a no-op (and not actionable).
@@ -143,8 +157,25 @@ const Layout: React.FC<{
     }
     void navigate('/guid');
   }, [navigate]);
-  const workspaceAvailable =
-    location.pathname.startsWith('/conversation/') || (TEAM_MODE_ENABLED && location.pathname.startsWith('/team/'));
+  // Close preview whenever the user leaves the conversation route entirely
+  // (e.g. switches to a team, /guid, or settings). Within /conversation/:id
+  // the finer-grained closePreviewIfWorkspaceChanged in conversation/index.tsx
+  // handles workspace changes, so we only need to act here on route-type changes.
+  // Use closePreview directly — closePreviewIfWorkspaceChanged skips the call
+  // when lastWorkspaceRef is already null (e.g. on team routes where it was
+  // never updated), which would leave the panel open.
+  const { closePreview: closePreviewOnRouteChange } = usePreviewContext();
+  const routeLayoutMountedRef = useRef(false);
+  useEffect(() => {
+    if (!routeLayoutMountedRef.current) {
+      routeLayoutMountedRef.current = true;
+      return; // skip initial mount — preview starts closed, don't wipe persisted tabs
+    }
+    if (!location.pathname.startsWith('/conversation/')) {
+      closePreviewOnRouteChange();
+    }
+  }, [location.pathname, closePreviewOnRouteChange]);
+
   const collapsedRef = useRef(collapsed);
   const dragStateRef = useRef<{ active: boolean; startX: number; startWidth: number }>({
     active: false,
@@ -253,6 +284,21 @@ const Layout: React.FC<{
         Math.min(MOBILE_SIDER_MAX_WIDTH, Math.round(viewportWidth * MOBILE_SIDER_WIDTH_RATIO))
       )
     : DEFAULT_SIDER_WIDTH;
+
+  // Keep Arco Message centered in the main content column (not the full window).
+  // Message portals to body, so the offset is applied via a CSS variable.
+  useEffect(() => {
+    const offsetPx = `${resolveLayoutMessageOffsetLeft({
+      isMobile,
+      siderCollapsed: collapsed,
+      siderWidth,
+    })}px`;
+    document.documentElement.style.setProperty(LAYOUT_MESSAGE_OFFSET_CSS_VAR, offsetPx);
+    return () => {
+      document.documentElement.style.removeProperty(LAYOUT_MESSAGE_OFFSET_CSS_VAR);
+    };
+  }, [collapsed, isMobile, siderWidth]);
+
   useEffect(() => {
     collapsedRef.current = collapsed;
   }, [collapsed]);
@@ -320,6 +366,14 @@ const Layout: React.FC<{
         overflow: 'visible' as const,
       };
 
+  const { isListHydrated, isHistoryViewMounted } = useConversationHistoryContext();
+  const showSiderBrandSkeleton =
+    !isSettingsRoute &&
+    shouldShowSiderChromeSkeleton({
+      isListHydrated,
+      isHistoryViewMounted,
+    });
+
   return (
     <LayoutContext.Provider value={{ isMobile, siderCollapsed: collapsed, setSiderCollapsed: setCollapsed }}>
       <NavigationHistoryProvider>
@@ -340,6 +394,9 @@ const Layout: React.FC<{
               })}
               style={siderStyle}
             >
+              {showSiderBrandSkeleton ? (
+                <SiderBrandSkeleton collapsed={collapsed} />
+              ) : (
               <ArcoLayout.Header
                 className={classNames(
                   'flex items-center justify-start pt-8px pb-8px pl-18px pr-16px gap-12px layout-sider-header',
@@ -379,11 +436,11 @@ const Layout: React.FC<{
                         }
                       }}
                     >
-                      Agent Hub
+                      {PRODUCT_DISPLAY_NAME}
                     </div>
                   </Tooltip>
                 ) : (
-                  <div className='text-16px text-t-primary collapsed-hidden font-semibold'>Agent Hub</div>
+                  <div className='text-16px text-t-primary collapsed-hidden font-semibold'>{PRODUCT_DISPLAY_NAME}</div>
                 )}
                 {isMobile && !collapsed && (
                   <button
@@ -398,6 +455,7 @@ const Layout: React.FC<{
                 )}
                 {/* 侧栏折叠改由标题栏统一控制 / Sidebar folding handled by Titlebar toggle */}
               </ArcoLayout.Header>
+              )}
               <ArcoLayout.Content className='pt-0 px-8px pb-0 layout-sider-content'>
                 {React.isValidElement(sider)
                   ? React.cloneElement(sider, {

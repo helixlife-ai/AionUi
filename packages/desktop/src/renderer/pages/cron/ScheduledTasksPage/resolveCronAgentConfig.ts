@@ -7,6 +7,7 @@
 import type { ICronAgentConfigWrite } from '@/common/adapter/ipcBridge';
 import { isAionrsAssistant, type Assistant } from '@/common/types/agent/assistantTypes';
 import { resolveAssistantName } from '@renderer/utils/model/assistantDisplay';
+import { normalizeCodexSessionModeOptional } from '@renderer/utils/hub/normalizeCodexSessionMode';
 
 type SelectedAionrsProvider = {
   id?: string;
@@ -53,7 +54,7 @@ export function resolveCronAgentConfig(input: ResolveCronAgentConfigInput): Reso
 
   const assistant = assistantSelection;
   const assistantName = resolveAssistantName(assistant, localeKey, assistant.name);
-  const mode = getMode(assistant);
+  const mode = normalizeCodexSessionModeOptional(getMode(assistant));
 
   if (isAionrsAssistant(assistant)) {
     if (!selectedAionrsProvider?.id || !model_id) {

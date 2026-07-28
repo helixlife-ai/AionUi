@@ -6,6 +6,7 @@
 
 import { ipcBridge } from '@/common';
 import { addRecentWorkspace, getRecentWorkspaces } from '@/renderer/components/workspace';
+import { AionInlineSearchInput } from '@/renderer/components/base';
 import { Tooltip } from '@arco-design/web-react';
 import { Close, Down } from '@icon-park/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -52,7 +53,7 @@ const GuidWorkspaceFootnote: React.FC<GuidWorkspaceFootnoteProps> = ({
   workspaceDir,
   onSelectWorkspace,
   onClearWorkspace,
-  onAddWorkspaceFiles,
+  onAddWorkspaceFiles: _onAddWorkspaceFiles,
 }) => {
   const { t } = useTranslation();
   const recentWorkspaces = getRecentWorkspaces();
@@ -65,31 +66,23 @@ const GuidWorkspaceFootnote: React.FC<GuidWorkspaceFootnoteProps> = ({
 
   const handleBrowseWorkspace = useCallback(() => {
     setOpen(false);
+    // Directory-only: this control sets the Guid workspace, not file attachments.
+    // (File attach uses the + button.) Avoid openFile so hybrid picker cannot
+    // return a file that was then mis-routed when metadata used snake_case.
     ipcBridge.dialog.showOpen
-      .invoke({ properties: ['openFile', 'openDirectory', 'createDirectory'] })
-      .then(async (paths) => {
+      .invoke({ properties: ['openDirectory', 'createDirectory'] })
+      .then((paths) => {
         const selectedPath = paths?.[0];
         if (!selectedPath) {
           return;
         }
-
-        try {
-          const metadata = await ipcBridge.fs.getFileMetadata.invoke({ path: selectedPath });
-          if (metadata?.isDirectory) {
-            addRecentWorkspace(selectedPath);
-            onSelectWorkspace(selectedPath);
-            return;
-          }
-        } catch (error) {
-          console.error('[GuidWorkspaceFootnote] Failed to inspect selected path:', error);
-        }
-
-        onAddWorkspaceFiles([selectedPath]);
+        addRecentWorkspace(selectedPath);
+        onSelectWorkspace(selectedPath);
       })
       .catch((error) => {
         console.error('Failed to open directory dialog:', error);
       });
-  }, [onAddWorkspaceFiles, onSelectWorkspace]);
+  }, [onSelectWorkspace]);
 
   const handleSelectPath = useCallback(
     (path: string) => {
@@ -158,25 +151,13 @@ const GuidWorkspaceFootnote: React.FC<GuidWorkspaceFootnoteProps> = ({
   const dropdownEl = open
     ? createPortal(
         <div ref={dropdownRef} className={styles.wsDropdown} style={dropdownStyle}>
-          <div className={styles.wsDropdownSearch}>
-            <svg
-              width='12'
-              height='12'
-              fill='none'
-              stroke='currentColor'
-              strokeWidth='2'
-              viewBox='0 0 24 24'
-              style={{ flexShrink: 0, color: 'var(--color-text-3)' }}
-            >
-              <circle cx='11' cy='11' r='8' />
-              <path d='M21 21l-4.35-4.35' />
-            </svg>
-            <input
+          <div className='mb-8px'>
+            <AionInlineSearchInput
+              className='w-full'
               ref={searchRef}
-              className={styles.wsDropdownSearchInput}
-              placeholder={t('guid.workspace.searchPlaceholder')}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={setSearchQuery}
+              placeholder={t('guid.workspace.searchPlaceholder')}
             />
           </div>
 

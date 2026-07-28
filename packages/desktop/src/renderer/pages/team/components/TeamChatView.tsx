@@ -6,7 +6,12 @@ import { useTranslation } from 'react-i18next';
 import { useAionrsModelSelection } from '@/renderer/pages/conversation/platforms/aionrs/useAionrsModelSelection';
 import { isLegacyReadOnlyConversationType } from '@/renderer/pages/conversation/utils/conversationRuntime';
 import type { ITeamRunAck } from '@/common/types/team/teamTypes';
-import { buildTeamSendRuntime, buildTeamStopHandler } from './teamSendRuntime';
+import {
+  buildTeamRetryStartHandler,
+  buildTeamSendRuntime,
+  buildTeamStopHandler,
+  buildTeamWorkStatusText,
+} from './teamSendRuntime';
 import type { TeamRunViewState } from '../hooks/useTeamRunView';
 import TeamChatEmptyState from './TeamChatEmptyState';
 import { usePresetAssistantInfo } from '@/renderer/hooks/agent/usePresetAssistantInfo';
@@ -30,6 +35,7 @@ const EMPTY_TEAM_RUN_VIEW: TeamRunViewState = {
   activeRun: undefined,
   childTurnsBySlot: {},
   slotWorkBySlot: {},
+  sessionStopped: false,
 };
 
 const resolveAssistantDisplayName = (
@@ -163,24 +169,49 @@ const TeamChatView: React.FC<TeamChatViewProps> = ({
     presetAssistantInfo?.name ?? null,
     assistant_name
   );
+  const slotWork = slot_id ? teamRunView.slotWorkBySlot[slot_id] : undefined;
+  // Prefer the event-driven stopped flag so the prompt shows even when the stale
+  // slot has no `blocked_reason`; fall back to slot-derived status text otherwise.
+  const teamWorkStatusText = teamRunView.sessionStopped
+    ? t('team.work.sessionStopped', { defaultValue: 'The team session has stopped.' })
+    : buildTeamWorkStatusText(slotWork, {
+        processing: () => t('conversation.chat.processing', { defaultValue: 'Processing…' }),
+        processingWithQueued: (count) =>
+          t('team.work.processingWithQueued', {
+            count,
+            defaultValue: `Processing… ${count} queued`,
+          }),
+        runtimeStarting: () => t('team.work.runtimeStarting', { defaultValue: 'Waiting for this assistant to start…' }),
+        runtimeFailed: () => t('team.work.runtimeFailed', { defaultValue: 'This assistant failed to start.' }),
+        removing: () => t('team.work.removing', { defaultValue: 'Removing this assistant…' }),
+        sessionStopped: () => t('team.work.sessionStopped', { defaultValue: 'The team session has stopped.' }),
+      });
+  const isRuntimeFailed = slot_id ? slotWork?.blocked_reason === 'runtime_failed' : false;
   const teamRuntime =
     team_id && slot_id
-      ? buildTeamSendRuntime({
-          slot_id,
-          runView: teamRunView,
-          onStop: buildTeamStopHandler({
-            team_id,
+      ? {
+          ...buildTeamSendRuntime({
             slot_id,
             runView: teamRunView,
-            pauseSlotWork: (params) => ipcBridge.team.pauseSlotWork.invoke(params),
-            onStopFailed: () => {
-              Message.error(
-                t('team.stopAgentFailed', { defaultValue: 'Failed to stop this agent. Please try again.' })
-              );
-            },
-            onRunStateStale,
+            statusText: teamWorkStatusText,
+            sessionStopped: teamRunView.sessionStopped,
+            onStop: buildTeamStopHandler({
+              team_id,
+              slot_id,
+              runView: teamRunView,
+              pauseSlotWork: (params) => ipcBridge.team.pauseSlotWork.invoke(params),
+              onStopFailed: () => {
+                Message.error(
+                  t('team.stopAgentFailed', { defaultValue: 'Failed to stop this agent. Please try again.' })
+                );
+              },
+              onRunStateStale,
+            }),
           }),
-        })
+          // Only offer "retry start" when this slot's runtime failed; it triggers
+          // a directed per-member attach (not warmupSession/ensure_session).
+          onRetryStart: isRuntimeFailed ? buildTeamRetryStartHandler({ team_id, slot_id }) : undefined,
+        }
       : undefined;
   const content = (() => {
     if (isLegacyReadOnlyConversationType(conversation.type)) {

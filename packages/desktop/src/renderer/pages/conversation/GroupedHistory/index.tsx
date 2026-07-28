@@ -9,7 +9,8 @@ import AionModal from '@/renderer/components/base/AionModal';
 import DirectorySelectionModal from '@/renderer/components/settings/DirectorySelectionModal';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { useCronJobsMap } from '@/renderer/pages/cron';
-import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
+import { restrictToVerticalAxis } from '@/renderer/utils/ui/dndModifiers';
+import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Button, Dropdown, Empty, Input, Menu, Modal, Tooltip } from '@arco-design/web-react';
 import { Delete, FolderOpen, MoreOne, Plus, Right } from '@icon-park/react';
@@ -19,8 +20,8 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import WorkspaceCollapse from '../components/WorkspaceCollapse';
+import ConversationListSkeleton from './ConversationListSkeleton';
 import ConversationRow from './ConversationRow';
-import DragOverlayContent from './DragOverlayContent';
 import SortableConversationRow from './SortableConversationRow';
 import { useBatchSelection } from './hooks/useBatchSelection';
 import { useConversationActions } from './hooks/useConversationActions';
@@ -28,6 +29,7 @@ import { useConversations } from './hooks/useConversations';
 import { useDragAndDrop } from './hooks/useDragAndDrop';
 import { useExport } from './hooks/useExport';
 import type { ConversationRowProps, WorkspaceGroupedHistoryProps } from './types';
+import { shouldShowConversationListSkeleton } from '@/renderer/utils/ui/loadingPlaceholders';
 
 const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
   onSessionClick,
@@ -46,6 +48,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
 
   const {
     conversations,
+    isListHydrated,
     isConversationGenerating,
     hasCompletionUnread,
     expandedWorkspaces,
@@ -54,7 +57,13 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     handleToggleWorkspace,
     collapsedSections,
     toggleSection,
+    setHistoryViewMounted,
   } = useConversations();
+
+  useEffect(() => {
+    setHistoryViewMounted(true);
+    return () => setHistoryViewMounted(false);
+  }, [setHistoryViewMounted]);
 
   const SectionLabel = useCallback(
     ({ sectionKey, label, trailing }: { sectionKey: string; label: string; trailing?: React.ReactNode }) => {
@@ -117,6 +126,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     handleTogglePin,
     handleMenuVisibleChange,
     handleOpenMenu,
+    handleCreateCronTask,
     handleRemoveProject,
     removeProjectTarget,
     removeProjectLoading,
@@ -153,12 +163,11 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
     onBatchModeChange,
   });
 
-  const { sensors, activeId, activeConversation, handleDragStart, handleDragEnd, handleDragCancel, isDragEnabled } =
-    useDragAndDrop({
-      pinnedConversations,
-      batchMode,
-      collapsed,
-    });
+  const { sensors, handleDragEnd, isDragEnabled } = useDragAndDrop({
+    pinnedConversations,
+    batchMode,
+    collapsed,
+  });
 
   const getConversationRowProps = useCallback(
     (conversation: TChatConversation): ConversationRowProps => ({
@@ -176,6 +185,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       onOpenMenu: handleOpenMenu,
       onMenuVisibleChange: handleMenuVisibleChange,
       onEditStart: handleEditStart,
+      onCreateCronTask: handleCreateCronTask,
       onDelete: handleDeleteClick,
       // Export UI entry intentionally disabled (kanban #14): omit onExport so
       // ConversationRow's `{onExport && ...}` guard hides the menu item. The
@@ -198,6 +208,7 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
       handleOpenMenu,
       handleMenuVisibleChange,
       handleEditStart,
+      handleCreateCronTask,
       handleDeleteClick,
       handleTogglePin,
       getJobStatus,
@@ -243,6 +254,15 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
         .filter((section) => section.items.length > 0),
     [timelineSections]
   );
+
+  if (shouldShowConversationListSkeleton({ isListHydrated })) {
+    return (
+      <>
+        {afterPinnedContent}
+        <ConversationListSkeleton />
+      </>
+    );
+  }
 
   if (timelineSections.length === 0 && pinnedConversations.length === 0) {
     return (
@@ -482,9 +502,8 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
+          modifiers={[restrictToVerticalAxis]}
           onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
         >
           {pinnedConversations.length > 0 && (
             <div className='min-w-0'>
@@ -505,10 +524,6 @@ const WorkspaceGroupedHistory: React.FC<WorkspaceGroupedHistoryProps> = ({
               )}
             </div>
           )}
-
-          <DragOverlay dropAnimation={null}>
-            {activeId && activeConversation ? <DragOverlayContent conversation={activeConversation} /> : null}
-          </DragOverlay>
         </DndContext>
 
         {/* Slot 由父级（Sider）填入：例如 Team / CronJob sections，位于「置顶」之后、「项目」之前 */}

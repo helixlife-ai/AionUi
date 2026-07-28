@@ -99,11 +99,15 @@ type ConversationListSyncSnapshot = {
   conversations: TChatConversation[];
   generatingConversationIds: Set<string>;
   completionUnreadConversationIds: Set<string>;
+  isListHydrated: boolean;
+  isHistoryViewMounted: boolean;
 };
 
 const listeners = new Set<() => void>();
 
 let isStoreInitialized = false;
+let isListHydratedState = false;
+let isHistoryViewMountedState = false;
 let conversationsState: TChatConversation[] = [];
 let generatingConversationIdsState = new Set<string>();
 let completionUnreadConversationIdsState = new Set<string>();
@@ -114,6 +118,8 @@ let snapshotState: ConversationListSyncSnapshot = {
   conversations: conversationsState,
   generatingConversationIds: generatingConversationIdsState,
   completionUnreadConversationIds: completionUnreadConversationIdsState,
+  isListHydrated: isListHydratedState,
+  isHistoryViewMounted: isHistoryViewMountedState,
 };
 
 const emitStoreChange = () => {
@@ -121,6 +127,8 @@ const emitStoreChange = () => {
     conversations: conversationsState,
     generatingConversationIds: generatingConversationIdsState,
     completionUnreadConversationIds: completionUnreadConversationIdsState,
+    isListHydrated: isListHydratedState,
+    isHistoryViewMounted: isHistoryViewMountedState,
   };
   listeners.forEach((listener) => listener());
 };
@@ -151,18 +159,21 @@ const refreshConversations = () => {
         // responseStream listener recognises them as known and doesn't
         // trigger an infinite refreshConversations loop.
         conversation_idsState = new Set(items.map((conversation) => conversation.id));
+        isListHydratedState = true;
         emitStoreChange();
         return;
       }
 
       conversationsState = [];
       conversation_idsState = new Set();
+      isListHydratedState = true;
       emitStoreChange();
     })
     .catch((error) => {
       console.error('[WorkspaceGroupedHistory] Failed to load conversations:', error);
       conversationsState = [];
       conversation_idsState = new Set();
+      isListHydratedState = true;
       emitStoreChange();
     });
 };
@@ -239,6 +250,14 @@ const setActiveConversationState = (conversation_id: string | null) => {
   activeConversationIdState = conversation_id;
 };
 
+const setHistoryViewMountedState = (mounted: boolean) => {
+  if (isHistoryViewMountedState === mounted) {
+    return;
+  }
+  isHistoryViewMountedState = mounted;
+  emitStoreChange();
+};
+
 const initializeConversationListSyncStore = () => {
   if (isStoreInitialized) {
     return;
@@ -305,11 +324,8 @@ export const useConversationListSync = () => {
     initializeConversationListSyncStore();
   }, []);
 
-  const { conversations, generatingConversationIds, completionUnreadConversationIds } = useSyncExternalStore(
-    subscribeConversationListSync,
-    getConversationListSyncSnapshot,
-    getConversationListSyncSnapshot
-  );
+  const { conversations, generatingConversationIds, completionUnreadConversationIds, isListHydrated, isHistoryViewMounted } =
+    useSyncExternalStore(subscribeConversationListSync, getConversationListSyncSnapshot, getConversationListSyncSnapshot);
 
   const clearCompletionUnread = useCallback((conversation_id: string) => {
     clearCompletionUnreadState(conversation_id);
@@ -317,6 +333,10 @@ export const useConversationListSync = () => {
 
   const setActiveConversation = useCallback((conversation_id: string | null) => {
     setActiveConversationState(conversation_id);
+  }, []);
+
+  const setHistoryViewMounted = useCallback((mounted: boolean) => {
+    setHistoryViewMountedState(mounted);
   }, []);
 
   const isConversationGenerating = useCallback(
@@ -335,9 +355,12 @@ export const useConversationListSync = () => {
 
   return {
     conversations,
+    isListHydrated,
+    isHistoryViewMounted,
     isConversationGenerating,
     hasCompletionUnread,
     clearCompletionUnread,
     setActiveConversation,
+    setHistoryViewMounted,
   };
 };

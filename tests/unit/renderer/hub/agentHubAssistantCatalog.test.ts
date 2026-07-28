@@ -9,13 +9,14 @@ import { getAgentHubConversationAssistantCatalog } from '@/renderer/utils/hub/ag
 import { describe, expect, it } from 'vitest';
 
 describe('agentHubAssistantCatalog', () => {
-  it('matches guid agentSelection: hide Aion CLI and keep enabled assistants in selection order', () => {
+  it('matches guid agentSelection: hide Aion CLI / OpenClaw and keep enabled assistants in selection order', () => {
     const catalog = [
       makeAssistant('bare-aionrs', 'generated', 'aionrs', 0, false),
       makeAssistant('bare-claude', 'generated', 'claude', 1, true),
       makeAssistant('bare-codex', 'generated', 'codex', 2, true),
-      makeAssistant('user-writer', 'user', 'claude', 3, true),
-      makeAssistant('disabled-user', 'user', 'claude', 4, false),
+      makeAssistant('bare-openclaw', 'generated', 'openclaw', 3, true),
+      makeAssistant('user-writer', 'user', 'claude', 4, true),
+      makeAssistant('disabled-user', 'user', 'claude', 5, false),
     ];
 
     expect(getAgentHubConversationAssistantCatalog(catalog).map((assistant) => assistant.id)).toEqual([

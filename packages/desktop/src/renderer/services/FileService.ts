@@ -330,13 +330,14 @@ class FileServiceClass {
 
       let file_path = electronFile.path || '';
 
+      // Always enforce the attach size limit — including Electron drops that
+      // already expose a path (those used to skip the upload pre-check).
+      if (isUploadFileTooLarge(file.size)) {
+        throw new Error(FILE_TOO_LARGE_ERROR);
+      }
+
       // If no valid path (WebUI or some dragged files may not have paths), upload via HTTP multipart
       if (!file_path) {
-        // Reject before creating the progress tracker so oversized files never
-        // flash an "uploading..." bar and then silently disappear on 502.
-        if (isUploadFileTooLarge(file.size)) {
-          throw new Error(FILE_TOO_LARGE_ERROR);
-        }
         // Each upload owns its own AbortController; the tracker exposes an `abort()`
         // that triggers the signal so user-driven cancel and conversation-switch
         // bulk-abort go through the same path.

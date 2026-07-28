@@ -828,7 +828,7 @@ const ChannelModalContent: React.FC = () => {
     return undefined;
   };
   const channelGuideText = t('settings.webui.featureChannelsDesc', {
-    defaultValue: 'Connect Lark and WeChat to interact with Agent Hub from IM apps.',
+    defaultValue: 'Connect Lark and WeChat to interact with Studio from IM apps.',
   });
   const channelSetupSteps = [
     t('settings.channels.selectFirst', {
