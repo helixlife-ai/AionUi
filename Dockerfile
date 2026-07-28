@@ -99,11 +99,13 @@ RUN npm install -g --unsafe-perm \
 COPY --from=builder /out/aionui-web /app/aionui-web
 RUN chmod +x /app/aionui-web/aionui-web
 
-# Appliance deploy helpers: baked into the image so OTA / full-update flows that
-# only sync docker-compose.yaml + config.json still get Codex catalog, Claude
-# root-safe wrap, idle ACP clearer, and project trust (no host-side js/ mount).
-COPY aio_deploy/js/ /opt/agent-hub/js/
-COPY aio_deploy/codex-model-catalog.json /opt/agent-hub/codex-model-catalog.json
+# Appliance full-update only syncs docker-compose.yaml onto the host — not
+# sibling files under aio_deploy/. Bake Codex catalog + entrypoint helpers into
+# the image so compose can call them without host bind-mounts. These live
+# under docker/agent-hub/ (not aio_deploy/) since aio_deploy/ mirrors exactly
+# what the appliance OTA pulls (docker-compose.yaml + config.json).
+COPY docker/agent-hub/codex-model-catalog.json /etc/agent-hub/codex-model-catalog.json
+COPY docker/agent-hub/js/ /etc/agent-hub/js/
 
 ENV AIONUI_PORT=25808
 ENV AIONUI_DATA_DIR=/data

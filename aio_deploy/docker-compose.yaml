@@ -17,11 +17,9 @@ services:
       # otherwise resume hits USER_AGENT_RESOURCE_NOT_FOUND for missing files.
       - ./data/tmp-aionui:/tmp/aionui
       - ${APP_STORAGE_DIR:-/var/helix/app_storage}/documents/data/agent_hub:/agent_hub
-      # Codex catalog + deploy helpers live in the image at /opt/agent-hub/
-      # (see Dockerfile). Entrypoint seeds /etc/agent-hub from there so OTA
-      # flows that only sync docker-compose.yaml + config.json still work.
-      # Optional host overrides: create a compose override that bind-mounts
-      # ./codex-model-catalog.json and ./js onto /etc/agent-hub/.
+      # Codex catalog + js helpers are baked into the image at build time
+      # (/etc/agent-hub/…). Appliance full-update only pulls this compose file,
+      # so do NOT bind-mount aio_deploy siblings from the host.
     working_dir: /agent_hub
     environment:
       - AIONUI_PORT=25808
@@ -62,15 +60,6 @@ services:
         # Safe to run every start — idempotent.
         chmod -R a+rwX /agent_hub 2>/dev/null || true
         mkdir -p /tmp/aionui/general
-        # Seed deploy helpers from the image. OTA may only ship compose+config;
-        # never rely on host-side ./js or catalog mounts for production.
-        mkdir -p /etc/agent-hub/js
-        if [ ! -f /etc/agent-hub/codex-model-catalog.json ] && [ -f /opt/agent-hub/codex-model-catalog.json ]; then
-          cp -a /opt/agent-hub/codex-model-catalog.json /etc/agent-hub/codex-model-catalog.json
-        fi
-        if [ ! -f /etc/agent-hub/js/trust-codex-projects.js ] && [ -d /opt/agent-hub/js ]; then
-          cp -a /opt/agent-hub/js/. /etc/agent-hub/js/
-        fi
         # Container restart/recreate always kills ACP CLI processes. Stale
         # acp_session.session_id then makes runtime/ensure fail with
         # USER_AGENT_RESOURCE_NOT_FOUND / 502. Drop resume anchors on every
@@ -86,7 +75,8 @@ services:
         # Codex reads ~/.codex/config.toml on each invocation.
         mkdir -p /root/.codex
         CODEX_MODEL_VALUE="$${CODEX_MODEL:-agenthub-codex}"
-        # Install a schema-complete catalog (see aio_deploy/codex-model-catalog.json).
+        # Install a schema-complete catalog baked into the image
+        # (docker/agent-hub/codex-model-catalog.json → /etc/agent-hub/…).
         # Hand-written partial catalogs omit required fields (priority,
         # base_instructions, …) and Codex then ignores config + hangs handshake.
         if [ -f /etc/agent-hub/codex-model-catalog.json ]; then
