@@ -50,6 +50,25 @@ export function isAgentHubKeepAwakeHidden(): boolean {
   return true;
 }
 
+/**
+ * Agent Hub: hide the project-files toolbar "+" (Add file / Upload from device).
+ * Upstream desktop AionUi does not expose this entry; WebUI-only upload belongs
+ * elsewhere (e.g. sendbox attach), not on the workspace tree header.
+ * 隐藏项目文件工具栏「+」（添加文件 / 从设备上传）
+ */
+export function isAgentHubWorkspaceFileAddHidden(): boolean {
+  return true;
+}
+
+/**
+ * Agent Hub: temporarily hide inline "反馈问题" / Report Issue chips.
+ * Set to `false` to restore FeedbackButton on error surfaces.
+ * 暂时隐藏错误旁的「反馈问题」入口
+ */
+export function isAgentHubFeedbackHidden(): boolean {
+  return true;
+}
+
 /** Default settings landing path when opening Settings from the sider / `#/settings`. */
 export function getAgentHubDefaultSettingsPath(): string {
   return isAgentHubAgentsSettingsHidden() ? '/settings/skills' : '/settings/agent';

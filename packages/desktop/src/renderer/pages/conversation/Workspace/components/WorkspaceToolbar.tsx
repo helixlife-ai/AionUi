@@ -5,6 +5,7 @@
  */
 
 import { iconColors } from '@/renderer/styles/colors';
+import { isAgentHubWorkspaceFileAddHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { isElectronDesktop } from '@/renderer/utils/platform';
 import { Dropdown, Menu, Tooltip } from '@arco-design/web-react';
 import { Down, Plus, Refresh } from '@icon-park/react';
@@ -107,7 +108,7 @@ const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
           </span>
         </div>
         <div className='workspace-toolbar-actions flex items-center gap-8px flex-shrink-0'>
-          {!isElectronDesktop() && (
+          {!isElectronDesktop() && !isAgentHubWorkspaceFileAddHidden() && (
             <Dropdown droplist={workspaceUploadMenu} trigger='click' position='bl'>
               <span>
                 <Plus
