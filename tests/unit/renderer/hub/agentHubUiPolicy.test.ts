@@ -14,6 +14,8 @@ import {
   isAgentHubPetSettingsHidden,
   isAgentHubRuntimeHidden,
   isAgentHubToolsSettingsHidden,
+  isAgentHubWorkspaceFileAddHidden,
+  isAgentHubFeedbackHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { describe, expect, it } from 'vitest';
 
@@ -41,6 +43,14 @@ describe('agentHubUiPolicy', () => {
 
   it('hides Keep Awake banner on scheduled tasks in Agent Hub builds', () => {
     expect(isAgentHubKeepAwakeHidden()).toBe(true);
+  });
+
+  it('hides project-files toolbar add/upload entry in Agent Hub builds', () => {
+    expect(isAgentHubWorkspaceFileAddHidden()).toBe(true);
+  });
+
+  it('hides inline feedback / report-issue chips in Agent Hub builds', () => {
+    expect(isAgentHubFeedbackHidden()).toBe(true);
   });
 
   it('hides Telegram and DingTalk channel configs in Agent Hub builds', () => {
