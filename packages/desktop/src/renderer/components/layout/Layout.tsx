@@ -21,6 +21,7 @@ import { useConversationHistoryContext } from '@renderer/hooks/context/Conversat
 import { useDeepLink } from '@renderer/hooks/system/useDeepLink';
 import { useNotificationClick } from '@renderer/hooks/system/notification/useNotificationClick';
 import { useBrowserNotification } from '@renderer/hooks/system/notification/useBrowserNotification';
+import { useDesktopTurnNotification } from '@renderer/hooks/system/notification/useDesktopTurnNotification';
 import { useDirectorySelection } from '@renderer/hooks/file/useDirectorySelection';
 import { cleanupSiderTooltips } from '@renderer/utils/ui/siderTooltip';
 import {
@@ -122,6 +123,7 @@ const Layout: React.FC<{
   useDeepLink();
   useNotificationClick();
   useBrowserNotification();
+  useDesktopTurnNotification();
   const navigate = useNavigate();
   const location = useLocation();
   const workspaceAvailable =
