@@ -9,13 +9,18 @@ services:
     # appliance where all apps are trusted (like a NAS shared dir).
     user: '0'
     ports:
-      - '80:25808'
+      - '25808:25808'
     volumes:
-      - ./data:/data
+      # Data volume lives under APP_STORAGE_DIR/AgentHub (the app_storage app-dir
+      # convention, NOT ./data inside the deployment dir). The appliance OTA
+      # `force_update` resets /var/helix/app/AgentHub/, which would wipe ./data
+      # along with it — history was lost this way once.
+      - ${APP_STORAGE_DIR:-/var/helix/app_storage}/AgentHub:/data
       # Pre-conversation uploads land at /tmp/aionui (aioncore temp root). Bind
-      # it under ./data so attachments survive image redeploy / container recreate;
-      # otherwise resume hits USER_AGENT_RESOURCE_NOT_FOUND for missing files.
-      - ./data/tmp-aionui:/tmp/aionui
+      # it under the same external data volume so attachments survive image
+      # redeploy / container recreate; otherwise resume hits
+      # USER_AGENT_RESOURCE_NOT_FOUND for missing files.
+      - ${APP_STORAGE_DIR:-/var/helix/app_storage}/AgentHub/tmp-aionui:/tmp/aionui
       - ${APP_STORAGE_DIR:-/var/helix/app_storage}/documents/data/agent_hub:/agent_hub
       # Codex catalog + js helpers are baked into the image at build time
       # (/etc/agent-hub/…). Appliance full-update only pulls this compose file,
