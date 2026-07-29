@@ -23,6 +23,7 @@ import {
   loadConversationMessagePage,
   loadLatestConversationMessages,
 } from '@/renderer/utils/chat/messagePagination';
+import { isAgentHubCodexTrustTip } from '@/renderer/utils/hub/isAgentHubCodexTrustTip';
 
 const [useMessageList, MessageListProvider, useUpdateMessageList] = createContext([] as TMessage[]);
 const [useMessageListLoading, MessageListLoadingProvider, useUpdateMessageListLoading] = createContext(false);
@@ -653,15 +654,32 @@ const normalizeDbTipsMessage = (msg: TMessage): TMessage => {
 
 /**
  * Normalize a message loaded from backend DB into renderer runtime shape.
+ * Returns null when the tip should be hidden in Agent Hub (Codex trust Notice).
  */
-export function normalizeDbMessage(msg: TMessage): TMessage {
-  if (msg.type === 'tips') return normalizeDbTipsMessage(msg);
+export function normalizeDbMessage(msg: TMessage): TMessage | null {
+  if (msg.type === 'tips') {
+    const normalized = normalizeDbTipsMessage(msg);
+    const tip = normalized.content;
+    if (
+      tip &&
+      typeof tip === 'object' &&
+      tip.type !== 'error' &&
+      isAgentHubCodexTrustTip(typeof tip.content === 'string' ? tip.content : '')
+    ) {
+      return null;
+    }
+    return normalized;
+  }
   if (msg.type !== 'text') return msg;
 
   return {
     ...msg,
     content: normalizeTextMessageContent((msg as IMessageText).content),
   };
+}
+
+function normalizeDbMessageList(items: TMessage[]): TMessage[] {
+  return items.map(normalizeDbMessage).filter((item): item is TMessage => item != null);
 }
 
 const getMessageMergeKey = (message: TMessage): string => {
@@ -746,7 +764,7 @@ export const useLoadPreviousMessagePage = (conversationId?: string) => {
         before: pagination.oldestCursor,
         contentMode: 'compact',
       });
-      const messages = page.items.map(normalizeDbMessage);
+      const messages = normalizeDbMessageList(page.items);
       prependHistoryPage(messages);
       setPagination((current) => ({
         ...current,
@@ -786,7 +804,7 @@ export const useLoadAnchorMessageWindow = (conversationId?: string) => {
           limit: DEFAULT_MESSAGE_PAGE_LIMIT,
           contentMode: 'compact',
         });
-        replaceWithAnchorWindow(conversationId, page.items.map(normalizeDbMessage));
+        replaceWithAnchorWindow(conversationId, normalizeDbMessageList(page.items));
         setPagination({
           oldestCursor: page.oldest_cursor ?? undefined,
           newestCursor: page.newest_cursor ?? undefined,
@@ -815,7 +833,7 @@ export const useMessageLstCache = (key: string) => {
       limit: DEFAULT_MESSAGE_PAGE_LIMIT,
       contentMode: 'compact',
     });
-    const messages = result?.items?.map(normalizeDbMessage);
+    const messages = result?.items ? normalizeDbMessageList(result.items) : undefined;
     if (messages && Array.isArray(messages)) {
       update((currentList) => mergeLoadedPageWithCurrent(key, messages, currentList));
       setPagination({

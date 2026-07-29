@@ -146,6 +146,15 @@ describe('resolveOfficeErrorActions', () => {
     });
   });
 
+  it('start-failed errors offer retry without install guide', async () => {
+    const resolveOfficeErrorActions = await load();
+    expect(resolveOfficeErrorActions('OFFICECLI_START_FAILED', false)).toEqual({
+      showServerInstallGuide: false,
+      showInstallLink: false,
+      showRetry: true,
+    });
+  });
+
   it('non-recoverable errors offer no actions', async () => {
     const resolveOfficeErrorActions = await load();
     expect(resolveOfficeErrorActions('PATH_OUTSIDE_SANDBOX', false)).toEqual({
@@ -153,5 +162,15 @@ describe('resolveOfficeErrorActions', () => {
       showInstallLink: false,
       showRetry: false,
     });
+  });
+});
+
+describe('shouldShowOfficeInstallHint', () => {
+  it('only shows install hint for missing/failed officecli codes', async () => {
+    const mod = await import('@/renderer/pages/conversation/Preview/components/viewers/OfficeWatchViewer');
+    expect(mod.shouldShowOfficeInstallHint('OFFICECLI_NOT_FOUND')).toBe(true);
+    expect(mod.shouldShowOfficeInstallHint('OFFICECLI_INSTALL_FAILED')).toBe(true);
+    expect(mod.shouldShowOfficeInstallHint('OFFICECLI_PORT_TIMEOUT')).toBe(false);
+    expect(mod.shouldShowOfficeInstallHint(undefined)).toBe(false);
   });
 });

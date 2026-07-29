@@ -4,6 +4,7 @@
 // can hang on resume.
 const fs = require('fs');
 const path = require('path');
+const { ensureTrustedProjects } = require('./codex-trust-shared.js');
 
 const configPath = process.argv[2] || '/root/.codex/config.toml';
 const roots = ['/data', '/data/conversations', '/agent_hub'];
@@ -27,16 +28,12 @@ function walk(dir, acc, depth) {
   return acc;
 }
 
+if (!fs.existsSync(configPath)) {
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(configPath, '');
+}
+
 const extras = walk('/data/conversations', [], 0);
-let cfg = fs.readFileSync(configPath, 'utf8');
-let added = 0;
-for (const projectPath of [...roots, ...extras]) {
-  const key = `[projects."${projectPath}"]`;
-  if (cfg.includes(key)) continue;
-  cfg += `\n${key}\ntrust_level = "trusted"\n`;
-  added += 1;
-}
-if (added > 0) {
-  fs.writeFileSync(configPath, cfg);
-}
-console.log(`[agent-hub] trusted codex projects: total=${roots.length + extras.length} added=${added}`);
+const all = [...roots, ...extras];
+const added = ensureTrustedProjects(configPath, all);
+console.log(`[agent-hub] trusted codex projects: total=${all.length} added=${added}`);

@@ -209,4 +209,21 @@ describe('normalizeDbMessage', () => {
       content: 'ordinary assistant response',
     });
   });
+
+  it('drops Agent Hub Codex untrusted-project tip Notices', () => {
+    const normalized = normalizeDbMessage({
+      id: 'tip-codex-trust',
+      type: 'tips',
+      conversation_id: 'conversation-1',
+      position: 'center',
+      status: 'finish',
+      content: JSON.stringify({
+        content:
+          'Project-local config, hooks, and exec policies are disabled until the project is trusted, but skills still load.',
+        type: 'warning',
+      }),
+    } as unknown as IMessageTips);
+
+    expect(normalized).toBeNull();
+  });
 });
