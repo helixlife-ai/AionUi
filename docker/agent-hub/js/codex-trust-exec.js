@@ -13,8 +13,9 @@
  *
  * Usage: node codex-trust-exec.js <real-codex-bin> [args...]
  */
-const fs = require('fs');
+const path = require('path');
 const { spawn } = require('child_process');
+const { ensureTrustedProjects } = require('./codex-trust-shared.js');
 
 const real = process.argv[2];
 if (!real) {
@@ -22,15 +23,19 @@ if (!real) {
   process.exit(127);
 }
 
-const configPath = process.env.CODEX_HOME ? `${process.env.CODEX_HOME}/config.toml` : '/root/.codex/config.toml';
+const configPath = process.env.CODEX_HOME
+  ? path.join(process.env.CODEX_HOME, 'config.toml')
+  : '/root/.codex/config.toml';
 
 try {
-  const projectPath = process.cwd();
-  const key = `[projects."${projectPath}"]`;
-  const cfg = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8') : '';
-  if (!cfg.includes(key)) {
-    fs.writeFileSync(configPath, `${cfg}\n${key}\ntrust_level = "trusted"\n`);
+  const cwd = process.cwd();
+  const candidates = [cwd];
+  // Some ACP launches set an explicit workspace env; prefer it when present.
+  for (const key of ['AIONUI_WORKSPACE', 'AGENT_HUB_WORKSPACE', 'PWD']) {
+    const value = process.env[key];
+    if (value && typeof value === 'string') candidates.push(value);
   }
+  ensureTrustedProjects(configPath, candidates);
 } catch (err) {
   console.error(`[agent-hub] codex-trust-exec: failed to pre-trust cwd: ${err.message}`);
 }

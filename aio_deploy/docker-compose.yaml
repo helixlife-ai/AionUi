@@ -134,6 +134,13 @@ services:
           node /etc/agent-hub/js/wrap-claude-for-root.js \
             || echo "[agent-hub] warn: failed to wrap Claude for root"
         fi
+        # Root cannot use true bypassPermissions; acceptEdits still prompts for
+        # WebSearch/WebFetch, which blocks unattended cron. Pre-approve those
+        # read-only tools in ~/.claude/settings.json (idempotent merge).
+        if [ -f /etc/agent-hub/js/seed-claude-web-permissions.js ]; then
+          node /etc/agent-hub/js/seed-claude-web-permissions.js \
+            || echo "[agent-hub] warn: failed to seed Claude web permissions"
+        fi
         # Proactively drop idle ACP resume anchors while the app runs.
         # Container-start clear (above) only covers restart; Feishu idle (~hours)
         # leaves a dead sid that warmup still tries to session/load.

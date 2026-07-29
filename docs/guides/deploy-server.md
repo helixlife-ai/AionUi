@@ -12,6 +12,7 @@ Deploy AionUi WebUI on headless Linux servers — cloud VMs, Kubernetes Pods, an
 - [Service Management Script](#service-management-script)
 - [Remote Access](#remote-access)
 - [Proxy with Auto-Fallback](#proxy-with-auto-fallback)
+- [Office Preview (docx / xlsx / pptx)](#office-preview-docx--xlsx--pptx)
 - [Troubleshooting](#troubleshooting)
 - [Architecture Overview](#architecture-overview)
 
@@ -263,6 +264,30 @@ For Gemini API calls, configure the proxy inside AionUi WebUI:
 
 ---
 
+## Office Preview (docx / xlsx / pptx)
+
+Markdown, HTML, code, and images preview in the browser without extra server
+binaries. **Word / Excel / PowerPoint preview requires [`officecli`](https://github.com/iOfficeAI/OfficeCLI) on the same machine that runs the backend** (not in the user's browser). The UI only embeds the local `officecli watch` server.
+
+On Agent Hub appliance images, `officecli` and `libicu` are baked into the
+Docker image at build time (see root `Dockerfile` and `aio_deploy/README.md`).
+For other headless / container installs that do not ship officecli:
+
+```bash
+# Install officecli (mirror first; falls back to GitHub)
+curl -fsSL https://d.officecli.ai/install.sh | bash
+command -v officecli && officecli --version
+
+# ICU is required by the embedded .NET runtime (Debian/Ubuntu)
+sudo apt-get install -y libicu-dev
+```
+
+If auto-install fails at preview time (common on ARM64 or when GitHub/CDN is
+slow), install offline/build-time as above, then retry the preview. Generated
+Office files are usually still valid and can be downloaded and opened locally.
+
+---
+
 ## Troubleshooting
 
 | Issue                                     | Solution                                                     |
@@ -274,6 +299,7 @@ For Gemini API calls, configure the proxy inside AionUi WebUI:
 | `curl` fails after SSH tunnel disconnects | Add `PROMPT_COMMAND` auto-detect to `~/.bashrc` (see Step 3) |
 | Port 25808 already in use                 | `kill $(lsof -t -i:25808)` then restart                      |
 | Xvfb errors                               | `apt-get install -y xvfb libxkbcommon-x11-0`                 |
+| Office preview: officecli install failed  | Install `officecli` (+ ICU) on the **server**; see [Office Preview](#office-preview-docx--xlsx--pptx) |
 
 ---
 
@@ -502,3 +528,24 @@ PROMPT_COMMAND="_auto_proxy;${PROMPT_COMMAND}"
 | 代理断开后所有请求失败 | 用 PAC 文件替代 `--proxy-server`      |
 | SSH 断开后 curl 失败   | bashrc 添加 `PROMPT_COMMAND` 自动检测 |
 | 端口 25808 被占用      | `kill $(lsof -t -i:25808)` 后重启     |
+| Office 预览安装失败    | 在**服务器**安装 `officecli`（及 ICU），见下方「Office 文件预览」 |
+
+## Office 文件预览（docx / xlsx / pptx）
+
+Markdown、HTML、代码、图片等可在浏览器内直接预览，**不依赖额外服务端二进制**。  
+**Word / Excel / PPT 预览必须在运行后端的同一台机器上安装 [`officecli`](https://github.com/iOfficeAI/OfficeCLI)**（不是装在用户浏览器里）。前端只是把本地的 `officecli watch` 服务嵌进页面。
+
+Agent Hub 一体机镜像已在构建阶段内置 `officecli` 与 `libicu`（见根目录 `Dockerfile`、`aio_deploy/README.md`）。其它未内置的无头/容器部署可手动安装：
+
+```bash
+# 安装 officecli（优先官方镜像，失败回退 GitHub）
+curl -fsSL https://d.officecli.ai/install.sh | bash
+command -v officecli && officecli --version
+
+# .NET 运行时需要 ICU（Debian/Ubuntu）
+sudo apt-get install -y libicu-dev
+```
+
+首次预览时自动安装失败较常见（尤其 ARM64 或 GitHub/CDN 较慢）。此时请按上面方式在构建期或服务器上装好，再点预览「重试」。Office 文件本身通常已生成成功，也可先下载到本机用 Excel / WPS 打开。
+
+> 更完整的一体机说明见 `aio_deploy/README.md`。
