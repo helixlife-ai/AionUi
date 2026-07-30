@@ -37,11 +37,33 @@ function listCandidates() {
       } catch {
         // keep which
       }
+      // If PATH is already our wrapper, parse the embedded real binary path.
+      if (alreadyWrapped(which)) {
+        try {
+          const body = fs.readFileSync(which, 'utf8');
+          const m = body.match(/claude-root-safe-exec\.js"\s+"([^"]+)"/);
+          if (m && m[1]) realBin = m[1];
+        } catch {
+          // keep realBin
+        }
+      }
       // Replace the PATH entry (often a symlink); keep package binary intact.
       add(which, realBin, false);
+      // aioncore may spawn the package binary by absolute path (claude.exe),
+      // bypassing PATH — wrap that file in place too.
+      const base = path.basename(realBin);
+      if ((base === 'claude.exe' || base === 'claude') && realBin !== which) {
+        add(realBin, `${realBin}.real`, true);
+      }
     }
   } catch {
     // not on PATH
+  }
+
+  // Always probe the npm global binary — aioncore often uses this absolute path.
+  const npmClaude = '/usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe';
+  if (fs.existsSync(npmClaude) && !alreadyWrapped(npmClaude)) {
+    add(npmClaude, `${npmClaude}.real`, true);
   }
 
   const roots = ['/app/aionui-web/bundled-aioncore', '/app/bundled-aioncore'];
@@ -94,6 +116,18 @@ exec node "${EXEC_SRC}" "${realBin}" "$@"
   }
 }
 
+function retargetPathWrapperIfNeeded(oldReal, newReal) {
+  try {
+    const which = execSync('command -v claude', { encoding: 'utf8' }).trim();
+    if (!which || !alreadyWrapped(which)) return;
+    const body = fs.readFileSync(which, 'utf8');
+    if (!body.includes(`"${oldReal}"`)) return;
+    writeWrapper(which, newReal);
+  } catch {
+    // ignore
+  }
+}
+
 function wrapOne({ launchPath, realBin, rename }) {
   if (alreadyWrapped(launchPath)) return 'already';
 
@@ -112,6 +146,8 @@ function wrapOne({ launchPath, realBin, rename }) {
     }
     if (!fs.existsSync(aside)) return 'missing-real';
     writeWrapper(managedBin, aside);
+    // PATH wrapper may still point at the pre-rename absolute path.
+    retargetPathWrapperIfNeeded(managedBin, aside);
     return 'wrapped-managed';
   }
 

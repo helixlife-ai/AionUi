@@ -3,8 +3,9 @@
  * Run Claude Code with root-safe argv.
  *
  * Claude refuses `--dangerously-skip-permissions` when uid=0 (exit 1), which
- * Agent Hub surfaces as USER_AGENT_DISCONNECTED. aioncore maps acceptEdits to
- * that flag; as root we rewrite it to `--permission-mode acceptEdits`.
+ * Agent Hub surfaces as USER_AGENT_DISCONNECTED. aioncore maps acceptEdits /
+ * bypassPermissions to that flag; as root we rewrite to
+ * `--permission-mode acceptEdits`.
  *
  * Usage: node claude-root-safe-exec.js <real-claude-bin> [args...]
  */
@@ -17,33 +18,44 @@ if (!real) {
 }
 
 const incoming = process.argv.slice(3);
-const out = [];
-let stripped = false;
-let hasMode = false;
+const passthrough = [];
+let hadYolo = false;
+let modeValue = '';
 
 for (let i = 0; i < incoming.length; i += 1) {
   const arg = incoming[i];
   if (arg === '--dangerously-skip-permissions' || arg === '--allow-dangerously-skip-permissions') {
-    stripped = true;
+    hadYolo = true;
     continue;
   }
   if (arg === '--permission-mode') {
-    hasMode = true;
-    out.push(arg);
     if (i + 1 < incoming.length) {
       i += 1;
-      out.push(incoming[i]);
+      modeValue = String(incoming[i] || '');
     }
     continue;
   }
-  out.push(arg);
+  passthrough.push(arg);
 }
 
 const isRoot = typeof process.getuid === 'function' && process.getuid() === 0;
-if (isRoot && stripped && !hasMode) {
-  out.unshift('acceptEdits');
-  out.unshift('--permission-mode');
+const out = [];
+
+if (isRoot) {
+  // Root cannot use YOLO / bypassPermissions — demote to acceptEdits.
+  let safeMode = modeValue;
+  if (hadYolo || safeMode === 'bypassPermissions') {
+    safeMode = 'acceptEdits';
+  }
+  if (safeMode) {
+    out.push('--permission-mode', safeMode);
+  }
+} else {
+  if (hadYolo) out.push('--dangerously-skip-permissions');
+  if (modeValue) out.push('--permission-mode', modeValue);
 }
+
+out.push(...passthrough);
 
 const child = spawn(real, out, { stdio: 'inherit' });
 child.on('error', (err) => {
