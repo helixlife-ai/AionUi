@@ -5,7 +5,14 @@
  */
 
 import { ipcBridge } from '@/common';
-import { getBaseUrl, isBackendHttpError } from '@/common/adapter/httpBridge';
+import {
+  abortOfficePreviewRequestScope,
+  adoptOfficePreviewRequestScope,
+  getBaseUrl,
+  getOfficePreviewRequestSignal,
+  isBackendHttpError,
+  isHttpAbortError,
+} from '@/common/adapter/httpBridge';
 import WebviewHost from '@/renderer/components/media/WebviewHost';
 import { openExternalUrl } from '@/renderer/utils/platform';
 import { isElectronDesktop } from '@/renderer/utils/platform';
@@ -200,6 +207,10 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
     const bridge = BRIDGE[docType];
     const translate = tRef.current;
 
+    // Drop the previous iframe immediately so officecli EventSource
+    // (`events` / `list` / …) cannot keep eating connection slots.
+    setWatchUrl(null);
+
     if (!file_path) {
       setLoading(false);
       setError({ message: translate('preview.errors.missingFilePath') });
@@ -207,6 +218,7 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
     }
 
     let cancelled = false;
+    const generationSignal = adoptOfficePreviewRequestScope();
     const resolvedPath = resolveOfficePreviewFilePath(file_path, workspace);
     startedPathRef.current = resolvedPath;
 
@@ -226,6 +238,7 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
           OFFICE_PREVIEW_START_TIMEOUT_MS,
           'OFFICECLI_PORT_TIMEOUT'
         );
+        if (cancelled || generationSignal.aborted) return;
         const errorCode = normalizeOfficeWatchErrorCode(result.error);
         if (errorCode) {
           setError({
@@ -242,31 +255,37 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
         }
         // Small delay to ensure the watch HTTP server is fully ready for the webview
         await new Promise((r) => setTimeout(r, 300));
-        if (!cancelled) {
+        if (!cancelled && !generationSignal.aborted) {
           const resolvedUrl = resolveOfficeWatchUrl(url, docType);
           setWatchUrl(resolvedUrl);
           setLoading(false);
         }
       } catch (err) {
-        if (!cancelled) {
-          const timeoutCode =
-            err && typeof err === 'object' && 'code' in err
-              ? normalizeOfficeWatchErrorCode(String((err as { code?: unknown }).code))
-              : undefined;
-          const backendCode = isBackendHttpError(err) ? normalizeOfficeWatchErrorCode(err.code) : undefined;
-          const errorCode = timeoutCode || backendCode;
-          if (errorCode) {
-            setError({
-              code: errorCode,
-              message: translate(OFFICE_ERROR_I18N_KEYS[errorCode]),
-            });
-            setLoading(false);
-            return;
-          }
-          const msg = err instanceof Error ? err.message : translate(keys.startFailed);
-          setError({ message: msg });
-          setLoading(false);
+        if (cancelled || isHttpAbortError(err) || generationSignal.aborted) return;
+        const timeoutCode =
+          err && typeof err === 'object' && 'code' in err
+            ? normalizeOfficeWatchErrorCode(String((err as { code?: unknown }).code))
+            : undefined;
+        // Kill the hung start fetch so it does not keep a browser connection slot.
+        if (
+          timeoutCode === 'OFFICECLI_PORT_TIMEOUT' &&
+          getOfficePreviewRequestSignal() === generationSignal
+        ) {
+          abortOfficePreviewRequestScope();
         }
+        const backendCode = isBackendHttpError(err) ? normalizeOfficeWatchErrorCode(err.code) : undefined;
+        const errorCode = timeoutCode || backendCode;
+        if (errorCode) {
+          setError({
+            code: errorCode,
+            message: translate(OFFICE_ERROR_I18N_KEYS[errorCode]),
+          });
+          setLoading(false);
+          return;
+        }
+        const msg = err instanceof Error ? err.message : translate(keys.startFailed);
+        setError({ message: msg });
+        setLoading(false);
       }
     };
 
@@ -275,8 +294,13 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
     return () => {
       cancelled = true;
       unsubStatus();
+      // Abort only this generation — a newer effect will have already adopted.
+      if (getOfficePreviewRequestSignal() === generationSignal) {
+        abortOfficePreviewRequestScope();
+      }
       const stopPath = startedPathRef.current || file_pathRef.current;
       if (stopPath) {
+        // stop must not use the office start signal (already aborted above).
         bridge.stop.invoke({ file_path: stopPath }).catch(() => {});
       }
     };
