@@ -18,7 +18,12 @@ type GuidPromptCarouselProps = {
   showIndicators?: boolean;
 };
 
-const GuidPromptCarousel: React.FC<GuidPromptCarouselProps> = ({ categories, onSelect, showTitle = false, showIndicators = false }) => {
+const GuidPromptCarousel: React.FC<GuidPromptCarouselProps> = ({
+  categories,
+  onSelect,
+  showTitle = false,
+  showIndicators = false,
+}) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [animationKey, setAnimationKey] = useState(0);

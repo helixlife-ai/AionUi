@@ -3,9 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const { buildClaudeLaunch } = require(
-  path.resolve(process.cwd(), 'docker/agent-hub/js/claude-root-safe-exec.js')
-) as {
+const { buildClaudeLaunch } = require(path.resolve(process.cwd(), 'docker/agent-hub/js/claude-root-safe-exec.js')) as {
   buildClaudeLaunch: (
     incoming: string[],
     opts?: { isRoot?: boolean; env?: NodeJS.ProcessEnv }
@@ -14,25 +12,19 @@ const { buildClaudeLaunch } = require(
 
 describe('claude-root-safe-exec buildClaudeLaunch', () => {
   it('keeps full-auto as root by setting IS_SANDBOX and YOLO flags', () => {
-    const { argv, env } = buildClaudeLaunch(
-      ['--dangerously-skip-permissions', '--print', 'hi'],
-      { isRoot: true, env: { PATH: '/usr/bin' } }
-    );
+    const { argv, env } = buildClaudeLaunch(['--dangerously-skip-permissions', '--print', 'hi'], {
+      isRoot: true,
+      env: { PATH: '/usr/bin' },
+    });
     expect(env.IS_SANDBOX).toBe('1');
-    expect(argv).toEqual([
-      '--dangerously-skip-permissions',
-      '--permission-mode',
-      'bypassPermissions',
-      '--print',
-      'hi',
-    ]);
+    expect(argv).toEqual(['--dangerously-skip-permissions', '--permission-mode', 'bypassPermissions', '--print', 'hi']);
   });
 
   it('passes bypassPermissions mode through as root with IS_SANDBOX', () => {
-    const { argv, env } = buildClaudeLaunch(
-      ['--permission-mode', 'bypassPermissions', 'acp'],
-      { isRoot: true, env: {} }
-    );
+    const { argv, env } = buildClaudeLaunch(['--permission-mode', 'bypassPermissions', 'acp'], {
+      isRoot: true,
+      env: {},
+    });
     expect(env.IS_SANDBOX).toBe('1');
     expect(argv).toEqual(['--permission-mode', 'bypassPermissions', 'acp']);
   });

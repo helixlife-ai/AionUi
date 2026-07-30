@@ -30,7 +30,11 @@ type UseCustomAgentsLoaderResult = {
 export const useCustomAgentsLoader = (): UseCustomAgentsLoaderResult => {
   // Preset assistants share their own cache so settings / guid / conversation
   // all see the same list without duplicate HTTP calls.
-  const { data: assistantList, isLoading, isValidating } = useSWR('assistants.list', async () => {
+  const {
+    data: assistantList,
+    isLoading,
+    isValidating,
+  } = useSWR('assistants.list', async () => {
     try {
       return await ipcBridge.assistants.list.invoke();
     } catch (error) {

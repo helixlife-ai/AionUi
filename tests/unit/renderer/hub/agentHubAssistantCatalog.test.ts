@@ -45,9 +45,7 @@ function makeAssistant(
     enabled,
     sort_order,
     agent_id: `agent-${backend}`,
-    agent: isAionrs
-      ? { type: 'aionrs', source: 'internal' }
-      : { type: 'acp', source: 'builtin', acp_backend: backend },
+    agent: isAionrs ? { type: 'aionrs', source: 'internal' } : { type: 'acp', source: 'builtin', acp_backend: backend },
     enabled_skills: [],
     custom_skill_names: [],
     disabled_builtin_skills: [],

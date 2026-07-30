@@ -87,7 +87,10 @@ async function main(): Promise<void> {
   };
 
   let exited = false;
-  for (const [label, child] of [['renderer', renderer], ['backend', backend]] as const) {
+  for (const [label, child] of [
+    ['renderer', renderer],
+    ['backend', backend],
+  ] as const) {
     child.on('exit', (code, signal) => {
       if (exited) return;
       exited = true;

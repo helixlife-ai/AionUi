@@ -15,7 +15,10 @@ const ConversationListSkeleton: React.FC<{ rows?: number }> = ({ rows = ROW_WIDT
   const widths = ROW_WIDTHS.slice(0, Math.max(1, rows));
   return (
     <div className='px-8px py-4px flex flex-col gap-2px' data-testid='conversation-list-skeleton'>
-      <div className='aion-skeleton-block aion-skeleton-block--pill mx-10px mt-6px mb-4px' style={{ width: 40, height: 10 }} />
+      <div
+        className='aion-skeleton-block aion-skeleton-block--pill mx-10px mt-6px mb-4px'
+        style={{ width: 40, height: 10 }}
+      />
       {widths.map((width, index) => (
         <div key={index} className='h-34px px-10px flex items-center gap-8px'>
           <div className='aion-skeleton-block aion-skeleton-block--soft size-14px shrink-0' />

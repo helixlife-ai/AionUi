@@ -41,14 +41,13 @@ const LEGACY_MATCHERS = new Set([
 // Modern Claude Code hook payloads (legacy `{"decision":"allow"}` is unreliable).
 const PRE_TOOL_ALLOW_HOOK = {
   type: 'command',
-  command:
-    "printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}'",
+  command: 'printf \'%s\\n\' \'{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}\'',
   timeout: 5,
 };
 const PERMISSION_REQUEST_ALLOW_HOOK = {
   type: 'command',
   command:
-    "printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PermissionRequest\",\"decision\":{\"behavior\":\"allow\"}}}'",
+    'printf \'%s\\n\' \'{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}\'',
   timeout: 5,
 };
 
@@ -71,11 +70,7 @@ function hookCommand(entry) {
 function isLegacyOrPartialAllowHook(entry) {
   const cmd = hookCommand(entry);
   if (!cmd) return false;
-  return (
-    cmd.includes('"decision":"allow"') ||
-    cmd.includes('permissionDecision') ||
-    cmd.includes('"behavior":"allow"')
-  );
+  return cmd.includes('"decision":"allow"') || cmd.includes('permissionDecision') || cmd.includes('"behavior":"allow"');
 }
 
 function ensureUnattendedAllow(cfg) {
@@ -112,8 +107,7 @@ function ensureEventHooks(cfg, event, desiredHook) {
 
   const desiredCmd = String(desiredHook.command || '');
   const already = kept.some(
-    (entry) =>
-      String((entry && entry.matcher) || '') === UNATTENDED_MATCHER && hookCommand(entry) === desiredCmd
+    (entry) => String((entry && entry.matcher) || '') === UNATTENDED_MATCHER && hookCommand(entry) === desiredCmd
   );
   if (!already) {
     kept.push({ matcher: UNATTENDED_MATCHER, hooks: [desiredHook] });

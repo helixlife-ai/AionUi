@@ -4,10 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
-const SCRIPT = path.resolve(
-  process.cwd(),
-  'docker/agent-hub/js/seed-claude-web-permissions.js'
-);
+const SCRIPT = path.resolve(process.cwd(), 'docker/agent-hub/js/seed-claude-web-permissions.js');
 
 const tempDirs: string[] = [];
 
@@ -34,12 +31,8 @@ describe('seed-claude-web-permissions', () => {
       permissions?: { allow?: string[] };
       hooks?: { PreToolUse?: Array<{ matcher?: string }> };
     };
-    expect(cfg.permissions?.allow).toEqual(
-      expect.arrayContaining(['WebSearch', 'WebFetch', 'Bash', 'Write', 'Edit'])
-    );
-    const matcher = cfg.hooks?.PreToolUse?.find((entry) =>
-      String(entry.matcher || '').includes('Write')
-    )?.matcher;
+    expect(cfg.permissions?.allow).toEqual(expect.arrayContaining(['WebSearch', 'WebFetch', 'Bash', 'Write', 'Edit']));
+    const matcher = cfg.hooks?.PreToolUse?.find((entry) => String(entry.matcher || '').includes('Write'))?.matcher;
     expect(matcher).toBe('Bash|WebFetch|WebSearch|Write|Edit');
   });
 
@@ -60,7 +53,7 @@ describe('seed-claude-web-permissions', () => {
                   {
                     type: 'command',
                     command:
-                      "printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}'",
+                      'printf \'%s\\n\' \'{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}\'',
                   },
                 ],
               },
@@ -78,9 +71,7 @@ describe('seed-claude-web-permissions', () => {
       permissions?: { allow?: string[] };
       hooks?: { PreToolUse?: Array<{ matcher?: string }> };
     };
-    expect(cfg.permissions?.allow).toEqual(
-      expect.arrayContaining(['Write', 'Edit'])
-    );
+    expect(cfg.permissions?.allow).toEqual(expect.arrayContaining(['Write', 'Edit']));
     const matchers = (cfg.hooks?.PreToolUse || []).map((entry) => entry.matcher);
     expect(matchers).toContain('Bash|WebFetch|WebSearch|Write|Edit');
     expect(matchers).not.toContain('Bash|WebFetch|WebSearch');

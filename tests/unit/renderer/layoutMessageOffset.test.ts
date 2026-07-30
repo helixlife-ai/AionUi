@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  LAYOUT_MESSAGE_SIDER_GAP_PX,
-  resolveLayoutMessageOffsetLeft,
-} from '@/renderer/utils/ui/layoutMessageOffset';
+import { LAYOUT_MESSAGE_SIDER_GAP_PX, resolveLayoutMessageOffsetLeft } from '@/renderer/utils/ui/layoutMessageOffset';
 import { describe, expect, it } from 'vitest';
 
 describe('resolveLayoutMessageOffsetLeft', () => {
