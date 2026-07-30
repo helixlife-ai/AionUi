@@ -35,6 +35,11 @@ if ((window as { electronAPI?: unknown }).electronAPI) {
 // Runtime patches must be imported early
 import './utils/ui/runtimePatches';
 
+// Appliance Flutter webview: intercept external links (incl. Shadow DOM markdown)
+import { installApplianceExternalLinkGuard } from '@/renderer/utils/hub/externalLinkGuard';
+
+installApplianceExternalLinkGuard();
+
 // Browser adapter setup
 import '@/common/adapter/browser';
 

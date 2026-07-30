@@ -8,6 +8,7 @@ import React, { Suspense } from 'react';
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import AppLoader from '@renderer/components/layout/AppLoader';
 import { GuidPageSkeleton } from '@renderer/pages/guid/components/GuidSkeleton';
+import { ConversationPageSkeleton } from '@renderer/pages/conversation/components/ConversationSkeleton';
 import { TEAM_MODE_ENABLED } from '@/common/config/constants';
 import {
   getAgentHubDefaultSettingsPath,
@@ -70,7 +71,10 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => (
       <Route element={<ProtectedLayout layout={layout} />}>
         <Route path='/' element={<Navigate to='/guid' replace />} />
         <Route path='/guid' element={withRouteFallback(Guid, <GuidPageSkeleton />)} />
-        <Route path='/conversation/:id' element={withRouteFallback(Conversation)} />
+        <Route
+          path='/conversation/:id'
+          element={withRouteFallback(Conversation, <ConversationPageSkeleton />)}
+        />
         <Route
           path='/team/:id'
           element={TEAM_MODE_ENABLED ? withRouteFallback(TeamIndex) : <Navigate to='/guid' replace />}

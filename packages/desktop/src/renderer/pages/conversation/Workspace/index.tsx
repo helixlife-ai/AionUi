@@ -40,6 +40,8 @@ import {
   getTargetFolderPath,
 } from './utils/treeHelpers';
 import { setWorkspaceTreeSnapshot } from './utils/workspaceTreeCache';
+import { WorkspacePanelSkeleton } from '../components/ConversationSkeleton';
+import { shouldShowWorkspaceTreeSkeleton } from '@/renderer/utils/ui/loadingPlaceholders';
 import './workspace.css';
 
 const ChatWorkspace: React.FC<WorkspaceProps> = ({
@@ -326,8 +328,13 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({
               closeContextMenu={modalsHook.closeContextMenu}
             />
 
-            {/* Empty state or Tree */}
-            {!hasOriginalFiles ? (
+            {/* Empty state, first-load skeleton, or Tree */}
+            {shouldShowWorkspaceTreeSkeleton({
+              loading: treeHook.loading,
+              hasFiles: hasOriginalFiles,
+            }) ? (
+              <WorkspacePanelSkeleton />
+            ) : !hasOriginalFiles ? (
               <div className=' flex-1 size-full flex items-center justify-center px-12px box-border'>
                 <Empty
                   description={

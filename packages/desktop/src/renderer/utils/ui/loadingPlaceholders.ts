@@ -19,6 +19,14 @@ export function shouldShowConversationListSkeleton(params: {
   return !params.isListHydrated;
 }
 
+/** True while the workspace file tree has no nodes yet but a fetch is in flight. */
+export function shouldShowWorkspaceTreeSkeleton(params: {
+  loading: boolean;
+  hasFiles: boolean;
+}): boolean {
+  return params.loading && !params.hasFiles;
+}
+
 /**
  * True while sider chrome (logo / top nav / footer) should stay skeletoned.
  * Covers both the first history IPC fetch and the lazy history module mount.

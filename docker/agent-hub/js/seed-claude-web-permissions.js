@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 /**
  * Seed Claude Code settings so common unattended tools do not block appliance
- * cron / conversation runs under acceptEdits.
+ * cron / conversation runs when not in full bypassPermissions.
  *
- * On the 一体机 the container runs as root. Claude refuses
- * `--dangerously-skip-permissions`, so wrap-claude-for-root.js rewrites YOLO
- * to `--permission-mode acceptEdits`. That mode auto-accepts file edits but
- * still prompts for network tools and Bash — cron then hangs on Allow /
- * Allow Always.
+ * On the 一体机 the container runs as root. Full-auto YOLO is enabled via
+ * IS_SANDBOX=1 + claude-root-safe-exec.js. This seed covers acceptEdits /
+ * partial modes that still prompt for network tools, Bash, and Write/Edit —
+ * otherwise cron hangs on Allow / Allow Always.
  *
  * Merge allow rules (+ PreToolUse / PermissionRequest auto-allow hooks) into
  * ~/.claude/settings.json without wiping unrelated user settings.
@@ -29,9 +28,15 @@ const settingsPath =
     : '/root/.claude/settings.json');
 
 /** Tools that still prompt under acceptEdits but are required for Hub cron. */
-const UNATTENDED_ALLOW = ['WebSearch', 'WebFetch', 'Bash'];
-const UNATTENDED_MATCHER = 'Bash|WebFetch|WebSearch';
-const LEGACY_MATCHERS = new Set(['WebFetch|WebSearch', 'WebSearch|WebFetch', UNATTENDED_MATCHER]);
+const UNATTENDED_ALLOW = ['WebSearch', 'WebFetch', 'Bash', 'Write', 'Edit'];
+const UNATTENDED_MATCHER = 'Bash|WebFetch|WebSearch|Write|Edit';
+// Keep prior matchers so re-seed replaces them instead of stacking duplicates.
+const LEGACY_MATCHERS = new Set([
+  'WebFetch|WebSearch',
+  'WebSearch|WebFetch',
+  'Bash|WebFetch|WebSearch',
+  UNATTENDED_MATCHER,
+]);
 
 // Modern Claude Code hook payloads (legacy `{"decision":"allow"}` is unreliable).
 const PRE_TOOL_ALLOW_HOOK = {
@@ -128,7 +133,7 @@ try {
   const permChanged = ensureEventHooks(cfg, 'PermissionRequest', PERMISSION_REQUEST_ALLOW_HOOK);
   if (allowChanged || preChanged || permChanged) {
     fs.writeFileSync(settingsPath, `${JSON.stringify(cfg, null, 2)}\n`, { mode: 0o644 });
-    console.log(`[agent-hub] seeded Claude unattended permissions (web+Bash): ${settingsPath}`);
+    console.log(`[agent-hub] seeded Claude unattended permissions (web+Bash+Write): ${settingsPath}`);
   } else {
     console.log(`[agent-hub] Claude unattended permissions already present: ${settingsPath}`);
   }
