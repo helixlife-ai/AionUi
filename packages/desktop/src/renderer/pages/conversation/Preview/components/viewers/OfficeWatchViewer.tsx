@@ -187,6 +187,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, timeoutCode: OfficeWatc
  */
 const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, fileRef, file_path, workspace }) => {
   const { t } = useTranslation();
+  const tRef = useRef(t);
+  tRef.current = t;
   const keys = I18N_KEYS[docType];
 
   const [watchUrl, setWatchUrl] = useState<string | null>(null);
@@ -203,11 +205,12 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, fileRef,
     file_pathRef.current = file_path;
     fileRefRef.current = fileRef;
     const bridge = BRIDGE[docType];
+    const translate = tRef.current;
 
     // A ChatFileRef alone is enough (explorer office tabs have no device path).
     if (!fileRef && !file_path) {
       setLoading(false);
-      setError({ message: t('preview.errors.missingFilePath') });
+      setError({ message: translate('preview.errors.missingFilePath') });
       return;
     }
 
@@ -235,7 +238,7 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, fileRef,
         if (errorCode) {
           setError({
             code: errorCode,
-            message: t(OFFICE_ERROR_I18N_KEYS[errorCode]),
+            message: translate(OFFICE_ERROR_I18N_KEYS[errorCode]),
           });
           setLoading(false);
           return;
@@ -243,7 +246,7 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, fileRef,
 
         const url = result.url;
         if (!url) {
-          throw new Error(t(keys.startFailed));
+          throw new Error(translate(keys.startFailed));
         }
         // Small delay to ensure the watch HTTP server is fully ready for the webview
         await new Promise((r) => setTimeout(r, 300));
@@ -263,12 +266,12 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, fileRef,
           if (errorCode) {
             setError({
               code: errorCode,
-              message: t(OFFICE_ERROR_I18N_KEYS[errorCode]),
+              message: translate(OFFICE_ERROR_I18N_KEYS[errorCode]),
             });
             setLoading(false);
             return;
           }
-          const msg = err instanceof Error ? err.message : t(keys.startFailed);
+          const msg = err instanceof Error ? err.message : translate(keys.startFailed);
           setError({ message: msg });
           setLoading(false);
         }
@@ -286,7 +289,7 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, fileRef,
         bridge.stop.invoke({ file_path: file_pathRef.current, file: fileRefRef.current }).catch(() => {});
       }
     };
-  }, [docType, fileRef, file_path, retryKey, t, workspace]);
+  }, [docType, fileRef, file_path, keys.startFailed, retryKey, workspace]);
 
   if (loading) {
     return (

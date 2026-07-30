@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { renderHook, act, cleanup } from '@testing-library/react';
 import React, { type ReactNode } from 'react';
 import { PreviewProvider, usePreviewContext } from '@/renderer/pages/conversation/Preview/context/PreviewContext';
+import { ipcBridge } from '@/common';
 
 vi.mock('@/common', () => ({
   ipcBridge: {
@@ -19,7 +20,7 @@ vi.mock('@/common', () => ({
     },
     fs: {
       writeFile: { invoke: vi.fn() },
-      getFileMetadata: { invoke: vi.fn() },
+      getFileMetadata: { invoke: vi.fn(() => new Promise(() => {})) },
       readFile: { invoke: vi.fn() },
       getImageBase64: { invoke: vi.fn() },
     },
@@ -45,11 +46,13 @@ describe('PreviewContext', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
     localStorage.clear();
   });
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
   });
 
   it('initializes with closed state', () => {

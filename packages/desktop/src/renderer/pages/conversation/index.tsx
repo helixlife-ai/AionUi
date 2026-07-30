@@ -12,6 +12,7 @@ import { setCurrentConversation } from '@/renderer/pages/conversation/explorer/c
 import { useAutoTitle } from '@/renderer/hooks/chat/useAutoTitle';
 import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conversationCache';
 import { getSnapshotConversationProjectId } from '@/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync';
+import { adoptConversationRequestScope } from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
 
 const ChatConversationIndex: React.FC = () => {
   const { id } = useParams();
@@ -21,6 +22,14 @@ const ChatConversationIndex: React.FC = () => {
   const { syncTitleFromHistory } = useAutoTitle();
   const notFoundHandledIdRef = useRef<string | undefined>(undefined);
   const defaultConversationTitle = t('conversation.welcome.newConversation');
+
+  // Abort previous conversation HTTP before SWR / child effects fire new ones.
+  useLayoutEffect(() => {
+    adoptConversationRequestScope(id ?? null);
+    return () => {
+      adoptConversationRequestScope(null);
+    };
+  }, [id]);
 
   const { data, isLoading, mutate } = useSWR(id ? `conversation/${id}` : null, () => {
     return getConversationOrNull(id!);

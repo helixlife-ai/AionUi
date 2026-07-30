@@ -9,6 +9,7 @@ import type { PreviewContentType } from '@/common/types/office/preview';
 import type { ChatFileRef, ContentEncoding } from '@/common/types/chatFile';
 import { chatFileRefKey, isChatFileRef } from '@/common/types/chatFile';
 import { emitter } from '@/renderer/utils/emitter';
+import { shouldPollPreviewFileMtime } from '@/renderer/utils/hub/shouldPollPreviewFileMtime';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { BROWSER_BLANK_URL, BROWSER_TAB_FALLBACK_TITLE, MAX_BROWSER_TABS } from '../browser/constants';
 import { isBrowserMcpActivity, isBrowserMcpSettled } from '../browser/agentActivity';
