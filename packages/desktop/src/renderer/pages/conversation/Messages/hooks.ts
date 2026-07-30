@@ -659,14 +659,16 @@ const normalizeDbTipsMessage = (msg: TMessage): TMessage => {
 export function normalizeDbMessage(msg: TMessage): TMessage | null {
   if (msg.type === 'tips') {
     const normalized = normalizeDbTipsMessage(msg);
-    const tip = normalized.content;
-    if (
-      tip &&
-      typeof tip === 'object' &&
-      tip.type !== 'error' &&
-      isAgentHubCodexTrustTip(typeof tip.content === 'string' ? tip.content : '')
-    ) {
-      return null;
+    if (normalized.type === 'tips') {
+      const tip = normalized.content;
+      if (
+        tip &&
+        typeof tip === 'object' &&
+        tip.type !== 'error' &&
+        isAgentHubCodexTrustTip(typeof tip.content === 'string' ? tip.content : '')
+      ) {
+        return null;
+      }
     }
     return normalized;
   }
