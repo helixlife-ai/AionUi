@@ -78,9 +78,54 @@ try {
       } catch {
         continue;
       }
-      if (!extra || typeof extra !== 'object' || extra.session_mode !== FROM) continue;
-      extra.session_mode = TO;
+      if (!extra || typeof extra !== 'object') continue;
+      let changed = false;
+      if (extra.session_mode === FROM) {
+        extra.session_mode = TO;
+        changed = true;
+      }
+      // Some rows nest mode under agent_config / runtime blobs.
+      if (extra.agent_config && typeof extra.agent_config === 'object' && extra.agent_config.mode === FROM) {
+        extra.agent_config.mode = TO;
+        changed = true;
+      }
+      if (extra.mode === FROM) {
+        extra.mode = TO;
+        changed = true;
+      }
+      if (!changed) continue;
       update.run(JSON.stringify(extra), row.id);
+      convFixed += 1;
+    }
+  }
+
+  if (tableExists('acp_session') && columnExists('acp_session', 'session_config')) {
+    const rows = db
+      .prepare(
+        `SELECT conversation_id, session_config FROM acp_session
+         WHERE session_config IS NOT NULL AND instr(session_config, ?) > 0`
+      )
+      .all(FROM);
+    const update = db.prepare(`UPDATE acp_session SET session_config = ? WHERE conversation_id = ?`);
+    for (const row of rows) {
+      let cfg;
+      try {
+        cfg = JSON.parse(row.session_config);
+      } catch {
+        continue;
+      }
+      if (!cfg || typeof cfg !== 'object') continue;
+      let changed = false;
+      if (cfg.mode === FROM) {
+        cfg.mode = TO;
+        changed = true;
+      }
+      if (cfg.session_mode === FROM) {
+        cfg.session_mode = TO;
+        changed = true;
+      }
+      if (!changed) continue;
+      update.run(JSON.stringify(cfg), row.conversation_id);
       convFixed += 1;
     }
   }
