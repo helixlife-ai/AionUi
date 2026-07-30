@@ -26,9 +26,7 @@ describe('prefetchConversationRoute', () => {
   });
 
   it('seeds SWR conversation cache without revalidation', async () => {
-    const { seedConversationCache } = await import(
-      '@/renderer/pages/conversation/utils/prefetchConversationRoute'
-    );
+    const { seedConversationCache } = await import('@/renderer/pages/conversation/utils/prefetchConversationRoute');
     const conversation = { id: 'c1', name: 'demo' } as TChatConversation;
     seedConversationCache(conversation);
     expect(mutateMock).toHaveBeenCalledWith('conversation/c1', conversation, false);
@@ -36,9 +34,7 @@ describe('prefetchConversationRoute', () => {
 
   it('refreshes cache when prefetching a concrete conversation id', async () => {
     refreshConversationCacheMock.mockResolvedValue(undefined);
-    const { prefetchConversationRoute } = await import(
-      '@/renderer/pages/conversation/utils/prefetchConversationRoute'
-    );
+    const { prefetchConversationRoute } = await import('@/renderer/pages/conversation/utils/prefetchConversationRoute');
     prefetchConversationRoute('c2');
     expect(refreshConversationCacheMock).toHaveBeenCalledWith('c2');
   });

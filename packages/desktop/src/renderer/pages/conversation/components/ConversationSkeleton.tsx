@@ -98,10 +98,7 @@ export const ConversationPageSkeleton: React.FC = () => {
         <div className='flex-1 min-w-0'>
           <ConversationMessageAreaSkeleton />
         </div>
-        <div
-          className='shrink-0 border-l border-b-base'
-          style={{ width: 280, borderLeft: '1px solid var(--bg-3)' }}
-        >
+        <div className='shrink-0 border-l border-b-base' style={{ width: 280, borderLeft: '1px solid var(--bg-3)' }}>
           <div className='px-16px py-12px border-b border-b-base'>
             <Block variant='pill' style={{ width: 100, height: 14 }} />
           </div>

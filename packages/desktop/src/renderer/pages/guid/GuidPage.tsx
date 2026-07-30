@@ -31,10 +31,7 @@ import { useTypewriterPlaceholder } from './hooks/useTypewriterPlaceholder';
 import { ensureBackendMcpCatalog } from '@/renderer/hooks/mcp/catalog';
 import { prefetchConversationRouteChunk } from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
 import { resolveGuidAssistantDefaults } from './utils/assistantDefaults';
-import {
-  GUID_DEFAULT_PROMPT_CATEGORY_DEFS,
-  type GuidPromptCategory,
-} from './utils/guidDefaultPromptKeys';
+import { GUID_DEFAULT_PROMPT_CATEGORY_DEFS, type GuidPromptCategory } from './utils/guidDefaultPromptKeys';
 import SpeechInputButton from '@/renderer/components/chat/SpeechInputButton';
 import { useOpenFileSelector } from '@/renderer/hooks/file/useOpenFileSelector';
 import { appendSpeechTranscript } from '@/renderer/hooks/system/useSpeechInput';

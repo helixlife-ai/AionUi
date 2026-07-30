@@ -98,10 +98,7 @@ export const openExternalUrl = async (url: string): Promise<void> => {
   // embedded webview (screenshot: Nature loads inside Studio chrome). Never
   // fall through to that path — the client must handle FLUTTER_LAUNCH.
   if (isApplianceWebView()) {
-    console.warn(
-      '[openExternalUrl] appliance webview detected but no launch bridge handled the URL:',
-      url
-    );
+    console.warn('[openExternalUrl] appliance webview detected but no launch bridge handled the URL:', url);
     return;
   }
 

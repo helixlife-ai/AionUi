@@ -15,10 +15,7 @@
  * - Bare relative names are joined to an absolute `workspace` when provided
  * - If unsure, return the original path
  */
-export function resolveOfficePreviewFilePath(
-  filePath: string | null | undefined,
-  workspace?: string | null
-): string {
+export function resolveOfficePreviewFilePath(filePath: string | null | undefined, workspace?: string | null): string {
   if (!filePath) return '';
   const original = filePath.trim();
   if (!original) return '';

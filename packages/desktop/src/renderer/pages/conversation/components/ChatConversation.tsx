@@ -24,10 +24,7 @@ import { emitter } from '../../../utils/emitter';
 import AcpChat from '../platforms/acp/AcpChat';
 import ChatLayout from './ChatLayout';
 import ChatSlider from './ChatSlider.tsx';
-import {
-  ConversationMessageAreaSkeleton,
-  WorkspacePanelSkeleton,
-} from './ConversationSkeleton';
+import { ConversationMessageAreaSkeleton, WorkspacePanelSkeleton } from './ConversationSkeleton';
 import AcpModelSelector from '@/renderer/components/agent/AcpModelSelector';
 import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conversationCache';
 import { getConversationCreateErrorMessage } from '@/renderer/pages/conversation/utils/conversationCreateError';

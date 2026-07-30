@@ -34,9 +34,7 @@ describe('directorySelectionMode', () => {
 
   it('always builds browse URL with show_files for AionCore', () => {
     const url = buildBrowseDirectoryUrl('http://example.test', '/agent_hub');
-    expect(url).toBe(
-      'http://example.test/api/fs/browse?path=%2Fagent_hub&show_files=true&showFiles=true'
-    );
+    expect(url).toBe('http://example.test/api/fs/browse?path=%2Fagent_hub&show_files=true&showFiles=true');
   });
 
   it('maps camelCase and snake_case browse entries', () => {

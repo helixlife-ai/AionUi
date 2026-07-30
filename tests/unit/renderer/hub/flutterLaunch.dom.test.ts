@@ -50,9 +50,7 @@ describe('flutterLaunch', () => {
     };
     expect(isApplianceWebView()).toBe(true);
     expect(tryOpenUrlViaFlutterClient('https://clinicaltrials.ucsf.edu/triple-negative-breast-cancer')).toBe(true);
-    expect(postMessage).toHaveBeenCalledWith(
-      'https://clinicaltrials.ucsf.edu/triple-negative-breast-cancer'
-    );
+    expect(postMessage).toHaveBeenCalledWith('https://clinicaltrials.ucsf.edu/triple-negative-breast-cancer');
   });
 
   it('falls back to DeviceClientLaunch function when FLUTTER_LAUNCH is absent', () => {

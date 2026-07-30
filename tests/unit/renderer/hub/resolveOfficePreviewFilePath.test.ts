@@ -9,11 +9,12 @@ import { describe, expect, it } from 'vitest';
 
 describe('resolveOfficePreviewFilePath', () => {
   it('leaves absolute POSIX paths unchanged', () => {
-    expect(resolveOfficePreviewFilePath('/agent_hub/test_proj2/report.xlsx')).toBe(
-      '/agent_hub/test_proj2/report.xlsx'
-    );
+    expect(resolveOfficePreviewFilePath('/agent_hub/test_proj2/report.xlsx')).toBe('/agent_hub/test_proj2/report.xlsx');
     expect(
-      resolveOfficePreviewFilePath('/agent_hub/肝细胞癌文献检索/HCC_literature_20260728_081846.xlsx', '/agent_hub/肝细胞癌文献检索')
+      resolveOfficePreviewFilePath(
+        '/agent_hub/肝细胞癌文献检索/HCC_literature_20260728_081846.xlsx',
+        '/agent_hub/肝细胞癌文献检索'
+      )
     ).toBe('/agent_hub/肝细胞癌文献检索/HCC_literature_20260728_081846.xlsx');
   });
 
@@ -23,9 +24,7 @@ describe('resolveOfficePreviewFilePath', () => {
   });
 
   it('only prefixes a leading slash for forgotten agent_hub relatives', () => {
-    expect(resolveOfficePreviewFilePath('agent_hub/test_proj2/report.docx')).toBe(
-      '/agent_hub/test_proj2/report.docx'
-    );
+    expect(resolveOfficePreviewFilePath('agent_hub/test_proj2/report.docx')).toBe('/agent_hub/test_proj2/report.docx');
   });
 
   it('joins bare relative names to an absolute workspace', () => {

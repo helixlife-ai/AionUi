@@ -71,10 +71,7 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => (
       <Route element={<ProtectedLayout layout={layout} />}>
         <Route path='/' element={<Navigate to='/guid' replace />} />
         <Route path='/guid' element={withRouteFallback(Guid, <GuidPageSkeleton />)} />
-        <Route
-          path='/conversation/:id'
-          element={withRouteFallback(Conversation, <ConversationPageSkeleton />)}
-        />
+        <Route path='/conversation/:id' element={withRouteFallback(Conversation, <ConversationPageSkeleton />)} />
         <Route
           path='/team/:id'
           element={TEAM_MODE_ENABLED ? withRouteFallback(TeamIndex) : <Navigate to='/guid' replace />}
@@ -105,7 +102,8 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => (
           <Route path='/settings/tools' element={withRouteFallback(ToolsSettings)} />
         )}
         {/* Legacy routes — the previous combined "Capabilities" page is now two pages. */}
-        <Route path='/settings/capabilities' element={<CapabilitiesRedirect />} />        <Route
+        <Route path='/settings/capabilities' element={<CapabilitiesRedirect />} />{' '}
+        <Route
           path='/settings/capabilities/skills/import-history'
           element={<Navigate to='/settings/skills/import-history' replace />}
         />
