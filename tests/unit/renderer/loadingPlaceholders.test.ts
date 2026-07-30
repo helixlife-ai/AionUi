@@ -8,6 +8,7 @@ import {
   isAssistantsCatalogLoading,
   shouldShowConversationListSkeleton,
   shouldShowSiderChromeSkeleton,
+  shouldShowWorkspaceTreeSkeleton,
 } from '@/renderer/utils/ui/loadingPlaceholders';
 import { describe, expect, it } from 'vitest';
 
@@ -28,5 +29,11 @@ describe('loadingPlaceholders', () => {
     expect(shouldShowSiderChromeSkeleton({ isListHydrated: true, isHistoryViewMounted: false })).toBe(true);
     expect(shouldShowSiderChromeSkeleton({ isListHydrated: false, isHistoryViewMounted: true })).toBe(true);
     expect(shouldShowSiderChromeSkeleton({ isListHydrated: true, isHistoryViewMounted: true })).toBe(false);
+  });
+
+  it('shows workspace tree skeleton only while loading an empty tree', () => {
+    expect(shouldShowWorkspaceTreeSkeleton({ loading: true, hasFiles: false })).toBe(true);
+    expect(shouldShowWorkspaceTreeSkeleton({ loading: true, hasFiles: true })).toBe(false);
+    expect(shouldShowWorkspaceTreeSkeleton({ loading: false, hasFiles: false })).toBe(false);
   });
 });

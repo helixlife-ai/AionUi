@@ -11,6 +11,7 @@ import DocumentTitle from '@renderer/components/layout/DocumentTitle';
 import { useCrossSessionRateLimitNotice } from '@/renderer/hooks/system/useCrossSessionRateLimitNotice';
 import { useAuth } from '@renderer/hooks/context/AuthContext';
 import { GuidPageSkeleton } from '@renderer/pages/guid/components/GuidSkeleton';
+import { ConversationPageSkeleton } from '@renderer/pages/conversation/components/ConversationSkeleton';
 import { TEAM_MODE_ENABLED } from '@/common/config/constants';
 import {
   getAgentHubDefaultSettingsPath,
@@ -85,7 +86,7 @@ const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
         <Route element={<ProtectedLayout layout={layout} />}>
           <Route index element={<Navigate to='/guid' replace />} />
           <Route path='/guid' element={withRouteFallback(Guid, <GuidPageSkeleton />)} />
-          <Route path='/conversation/:id' element={withRouteFallback(Conversation)} />
+          <Route path='/conversation/:id' element={withRouteFallback(Conversation, <ConversationPageSkeleton />)} />
           <Route
             path='/team/:id'
             element={TEAM_MODE_ENABLED ? withRouteFallback(TeamIndex) : <Navigate to='/guid' replace />}

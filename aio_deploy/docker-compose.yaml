@@ -15,6 +15,11 @@ services:
       - AIONUI_PORT=25808
       - AIONUI_DATA_DIR=/data
       - AIONUI_ALLOW_REMOTE=1
+      # Claude Code blocks --dangerously-skip-permissions as root unless this is
+      # set (container / sandbox escape hatch). Needed for UI「全自动」.
+      - IS_SANDBOX=1
+      # Clear ACP session_id when last_active_at is older than this (minutes).
+      # Default idle kill is ~5 min; 10 min leaves a grace window before clearing.
       - ACP_IDLE_ANCHOR_CLEAR_MINUTES=${ACP_IDLE_ANCHOR_CLEAR_MINUTES:-10}
       - ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC=${ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC:-60}
       - AIONUI_FS_ROOT=/agent_hub
@@ -81,12 +86,16 @@ services:
           node /etc/agent-hub/js/wrap-codex-for-trust.js \
             || echo "[agent-hub] warn: failed to wrap Codex for trust"
         fi
-        # root 下 --dangerously-skip-permissions 会直接退出,改写为 --permission-mode acceptEdits。
+        # Claude Code is often spawned with --dangerously-skip-permissions.
+        # As root that flag hard-fails unless IS_SANDBOX=1 (set in environment
+        # above). The wrapper also injects IS_SANDBOX for YOLO argv and keeps
+        # true full-auto instead of demoting to acceptEdits.
         if [ -f /etc/agent-hub/js/wrap-claude-for-root.js ]; then
           node /etc/agent-hub/js/wrap-claude-for-root.js \
             || echo "[agent-hub] warn: failed to wrap Claude for root"
         fi
-        # acceptEdits 仍会拦截 WebSearch/WebFetch,预先放行这两个只读工具以免无人值守任务卡住。
+        # Belt-and-suspenders for non-YOLO / acceptEdits paths that still
+        # prompt on WebSearch/WebFetch/Bash/Write. Idempotent merge.
         if [ -f /etc/agent-hub/js/seed-claude-web-permissions.js ]; then
           node /etc/agent-hub/js/seed-claude-web-permissions.js \
             || echo "[agent-hub] warn: failed to seed Claude web permissions"

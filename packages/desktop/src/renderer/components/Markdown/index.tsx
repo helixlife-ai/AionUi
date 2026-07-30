@@ -107,9 +107,9 @@ const MarkdownView: React.FC<MarkdownViewProps> = React.memo(
               </LocalFileLink>
             );
           }
-          return (
-            <a {...anchorProps} href={anchorProps.href} target='_blank' rel='noreferrer' onClick={handleLinkClick} />
-          );
+          // No target=_blank: appliance Flutter WebView treats it as in-app
+          // navigation. Capture-phase guard + openExternalUrl open the system browser.
+          return <a {...anchorProps} href={anchorProps.href} rel='noreferrer' onClick={handleLinkClick} />;
         },
         table: MarkdownTable,
         td: MarkdownTd,

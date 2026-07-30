@@ -24,6 +24,10 @@ import { emitter } from '../../../utils/emitter';
 import AcpChat from '../platforms/acp/AcpChat';
 import ChatLayout from './ChatLayout';
 import ChatSlider from './ChatSlider.tsx';
+import {
+  ConversationMessageAreaSkeleton,
+  WorkspacePanelSkeleton,
+} from './ConversationSkeleton';
 import AcpModelSelector from '@/renderer/components/agent/AcpModelSelector';
 import AcpRuntimeRestartButton from '@/renderer/components/agent/AcpRuntimeRestartButton';
 import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conversationCache';
@@ -426,14 +430,16 @@ const ChatConversation: React.FC<{
     </div>
   );
 
+  const isBootstrapping = !conversation;
+
   return (
     <ChatLayout
       title={conversation?.name}
       {...chatLayoutProps}
       headerExtra={headerExtraNode}
       siderTitle={sliderTitle}
-      sider={<ChatSlider conversation={conversation} />}
-      workspaceEnabled={workspaceEnabled}
+      sider={isBootstrapping ? <WorkspacePanelSkeleton /> : <ChatSlider conversation={conversation} />}
+      workspaceEnabled={isBootstrapping || workspaceEnabled}
       previewHosted={Boolean(conversation?.project_id)}
       workspacePath={conversation?.extra?.workspace}
       workspacePreferenceKey={conversation?.project_id}
@@ -442,7 +448,7 @@ const ChatConversation: React.FC<{
       }
       conversation_id={conversation?.id}
     >
-      {conversationNode}
+      {conversationNode ?? <ConversationMessageAreaSkeleton />}
     </ChatLayout>
   );
 };

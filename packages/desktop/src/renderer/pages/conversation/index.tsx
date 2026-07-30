@@ -106,7 +106,11 @@ const ChatConversationIndex: React.FC = () => {
     navigate('/', { replace: true });
   }, [id, isLoading, data, navigate, t]);
 
-  if (isLoading) return <Spin loading></Spin>;
+  // Keep ChatLayout visible while metadata loads (seeded SWR / deep links).
+  // A bare Spin used to blank the whole content panel for several seconds.
+  if (isLoading && !data) {
+    return <ChatConversation />;
+  }
   return <ChatConversation conversation={data ?? undefined}></ChatConversation>;
 };
 
