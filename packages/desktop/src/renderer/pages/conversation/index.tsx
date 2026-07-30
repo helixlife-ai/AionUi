@@ -1,11 +1,11 @@
 import { ipcBridge } from '@/common';
-import { Message, Spin } from '@arco-design/web-react';
+import { Message } from '@arco-design/web-react';
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import useSWR from 'swr';
 import ChatConversation from './components/ChatConversation';
-import { usePreviewContext } from '@/renderer/pages/conversation/Preview';
+import { usePreviewContext } from '@/renderer/pages/conversation/Preview/context';
 import { useAutoTitle } from '@/renderer/hooks/chat/useAutoTitle';
 import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conversationCache';
 
@@ -63,7 +63,11 @@ const ChatConversationIndex: React.FC = () => {
     navigate('/', { replace: true });
   }, [id, isLoading, data, navigate, t]);
 
-  if (isLoading) return <Spin loading></Spin>;
+  // Keep ChatLayout visible while metadata loads (seeded SWR / deep links).
+  // A bare Spin used to blank the whole content panel for several seconds.
+  if (isLoading && !data) {
+    return <ChatConversation />;
+  }
   return <ChatConversation conversation={data ?? undefined}></ChatConversation>;
 };
 

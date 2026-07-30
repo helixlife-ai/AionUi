@@ -1,12 +1,12 @@
 {
-  "version": "v0.2.0",
+  "version": "v0.2.2",
   "name": "AgentHub",
   "display_name": "Studio",
   "prefix": "http://",
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": "修复了一些已知问题，提升了稳定性。\nStudio 新版启动时从服务器导入旧版会话历史\n优化了产品体验，修复若干bug。",
+  "desc": "优化应用数据存储方案",
   "startup": true,
   "force_update": true,
   "device_limit": [

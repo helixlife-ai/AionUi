@@ -5,18 +5,18 @@
  */
 
 /** True while assistants.list SWR has not produced data yet. */
-export function isAssistantsCatalogLoading(params: {
-  hasData: boolean;
-  isValidating: boolean;
-}): boolean {
+export function isAssistantsCatalogLoading(params: { hasData: boolean; isValidating: boolean }): boolean {
   return !params.hasData && params.isValidating;
 }
 
 /** True until the sidebar conversation store finishes its first IPC fetch. */
-export function shouldShowConversationListSkeleton(params: {
-  isListHydrated: boolean;
-}): boolean {
+export function shouldShowConversationListSkeleton(params: { isListHydrated: boolean }): boolean {
   return !params.isListHydrated;
+}
+
+/** True while the workspace file tree has no nodes yet but a fetch is in flight. */
+export function shouldShowWorkspaceTreeSkeleton(params: { loading: boolean; hasFiles: boolean }): boolean {
+  return params.loading && !params.hasFiles;
 }
 
 /**

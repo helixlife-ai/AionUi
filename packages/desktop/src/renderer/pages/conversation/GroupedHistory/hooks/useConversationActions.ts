@@ -8,6 +8,10 @@ import { ipcBridge } from '@/common';
 import type { TChatConversation } from '@/common/config/storage';
 import { requestConversationSendBoxPrefill } from '@/renderer/hooks/chat/useSendBoxDraft';
 import { refreshConversationCache } from '@/renderer/pages/conversation/utils/conversationCache';
+import {
+  prefetchConversationRouteChunk,
+  seedConversationCache,
+} from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
 import { isLegacyReadOnlyConversationType } from '@/renderer/pages/conversation/utils/conversationRuntime';
 import { emitter } from '@/renderer/utils/emitter';
 import { blockMobileInputFocus, blurActiveElement } from '@/renderer/utils/ui/focus';
@@ -65,6 +69,10 @@ export const useConversationActions = ({
 
       markAsRead(conversation.id);
 
+      // Seed cache + warm the lazy route chunk before navigation so the
+      // conversation page can paint ChatLayout immediately (no white Spin).
+      seedConversationCache(conversation);
+      prefetchConversationRouteChunk();
       void navigate(`/conversation/${conversation.id}`);
       if (onSessionClick) {
         onSessionClick();

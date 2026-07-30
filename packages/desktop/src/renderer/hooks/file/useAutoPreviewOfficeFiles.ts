@@ -9,6 +9,7 @@ import type { ConversationContextValue } from '@/renderer/hooks/context/Conversa
 import { usePreviewContext } from '@/renderer/pages/conversation/Preview';
 import { useAutoPreviewOfficeFilesEnabled } from '@/renderer/hooks/system/useAutoPreviewOfficeFilesEnabled';
 import { getFileTypeInfo } from '@/renderer/utils/file/fileType';
+import { resolveOfficePreviewFilePath } from '@/renderer/utils/hub/resolveOfficePreviewFilePath';
 import { useCallback, useEffect, useRef } from 'react';
 
 const OFFICE_OPEN_DELAY_MS = 1000;
@@ -63,8 +64,15 @@ export const useAutoPreviewOfficeFiles = (
       const timer = setTimeout(() => {
         openTimersRef.current.delete(normalizedFilePath);
 
-        if (!findPreviewTab(contentType, '', { file_path, file_name })) {
-          openPreview('', contentType, { file_path, file_name, title: file_name, workspace, editable: false });
+        const resolvedPath = resolveOfficePreviewFilePath(file_path, workspace);
+        if (!findPreviewTab(contentType, '', { file_path: resolvedPath, file_name })) {
+          openPreview('', contentType, {
+            file_path: resolvedPath,
+            file_name,
+            title: file_name,
+            workspace,
+            editable: false,
+          });
         }
       }, OFFICE_OPEN_DELAY_MS);
 

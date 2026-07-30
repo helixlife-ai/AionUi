@@ -44,7 +44,9 @@ export const SiderFooterSkeleton: React.FC<{ collapsed?: boolean }> = ({ collaps
       data-testid='sider-footer-skeleton'
     >
       <div className={classNames('flex px-8px gap-2px', collapsed ? 'flex-col items-center' : 'items-center')}>
-        <div className={classNames('h-34px flex items-center gap-8px', collapsed ? 'justify-center' : 'flex-1 px-10px')}>
+        <div
+          className={classNames('h-34px flex items-center gap-8px', collapsed ? 'justify-center' : 'flex-1 px-10px')}
+        >
           <div className='aion-skeleton-block aion-skeleton-block--soft size-16px shrink-0' />
           {!collapsed && <div className='aion-skeleton-block aion-skeleton-block--pill h-12px w-48px' />}
         </div>
@@ -68,7 +70,10 @@ export const SiderBrandSkeleton: React.FC<{ collapsed?: boolean }> = ({ collapse
       )}
       data-testid='sider-brand-skeleton'
     >
-      <div className='aion-skeleton-block aion-skeleton-block--soft size-32px shrink-0' style={{ width: 32, height: 32 }} />
+      <div
+        className='aion-skeleton-block aion-skeleton-block--soft size-32px shrink-0'
+        style={{ width: 32, height: 32 }}
+      />
       {!collapsed && <div className='aion-skeleton-block aion-skeleton-block--pill h-14px w-56px' />}
     </div>
   );

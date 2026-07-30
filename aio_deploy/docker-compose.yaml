@@ -1,95 +1,59 @@
 name: agent-hub
 services:
   agent-hub:
-    image: helix-aio.tencentcloudcr.com/application/agent-hub:latest
+    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.2
     container_name: agent-hub
-    # The /agent_hub mount is shared with the documents app (file-browser, runs
-    # as uid 65532). No single gid covers all consumers, so we rely on
-    # world-writable mode (0777) + umask 0000 — acceptable on a single-device
-    # appliance where all apps are trusted (like a NAS shared dir).
     user: '0'
     ports:
-      - '80:25808'
+      - '25808:25808'
     volumes:
-      - ./data:/data
-      # Pre-conversation uploads land at /tmp/aionui (aioncore temp root). Bind
-      # it under ./data so attachments survive image redeploy / container recreate;
-      # otherwise resume hits USER_AGENT_RESOURCE_NOT_FOUND for missing files.
-      - ./data/tmp-aionui:/tmp/aionui
+      - ${APP_STORAGE_DIR:-/var/helix/app_storage}/AgentHub:/data
+      - ${APP_STORAGE_DIR:-/var/helix/app_storage}/AgentHub/tmp-aionui:/tmp/aionui
       - ${APP_STORAGE_DIR:-/var/helix/app_storage}/documents/data/agent_hub:/agent_hub
-      # Codex catalog + js helpers are baked into the image at build time
-      # (/etc/agent-hub/…). Appliance full-update only pulls this compose file,
-      # so do NOT bind-mount aio_deploy siblings from the host.
     working_dir: /agent_hub
     environment:
       - AIONUI_PORT=25808
       - AIONUI_DATA_DIR=/data
       - AIONUI_ALLOW_REMOTE=1
+      # Claude Code blocks --dangerously-skip-permissions as root unless this is
+      # set (container / sandbox escape hatch). Needed for UI「全自动」.
+      - IS_SANDBOX=1
       # Clear ACP session_id when last_active_at is older than this (minutes).
       # Default idle kill is ~5 min; 10 min leaves a grace window before clearing.
       - ACP_IDLE_ANCHOR_CLEAR_MINUTES=${ACP_IDLE_ANCHOR_CLEAR_MINUTES:-10}
       - ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC=${ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC:-60}
-      # File-picker root for the WebUI: browse is capped to this directory so
-      # users never see container internals (app/bin/boot/…). Mounted above.
       - AIONUI_FS_ROOT=/agent_hub
-      # Device serial number — the sole user identifier for the Agent Hub.
       - AIONUI_SERIAL_NUMBER=${SERIAL_NUMBER}
-      # keybalance (helix) proxy — Anthropic-compatible. SN doubles as auth token.
-      - ANTHROPIC_BASE_URL=https://paas-model.jova.bio/api/v1/helix
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://paas-model.jova.bio/api/v1/helix}
       - ANTHROPIC_AUTH_TOKEN=${SERIAL_NUMBER}
       - ANTHROPIC_API_KEY=${SERIAL_NUMBER}
       - ANTHROPIC_DEFAULT_OPUS_MODEL=agenthub-claude
       - ANTHROPIC_DEFAULT_SONNET_MODEL=agenthub-claude
       - ANTHROPIC_DEFAULT_HAIKU_MODEL=agenthub-claude
       - CLAUDE_CODE_MAX_OUTPUT_TOKENS=16000
-      # Codex CLI — API key for the helix proxy (Responses API).
       - OPENAI_API_KEY=${SERIAL_NUMBER}
-      # Codex CLI — helix proxy Responses API endpoint + model. Codex appends
-      # /responses to the base url. Override via env if a different endpoint is needed.
       - CODEX_BASE_URL=${CODEX_BASE_URL:-https://paas-model.jova.bio/api/v1/helix/v1}
       - CODEX_MODEL=${CODEX_MODEL:-agenthub-codex}
-      # Studio(happy)server — 启动时导入该设备 SN 的 Studio 历史会话。
-      # 生产:https://studio-server.newidea.pro;dev:https://studio-server.jova.bio
-      # 默认走 dev 环境;生产部署时显式传 HAPPY_SERVER_URL 覆盖。
       - HAPPY_SERVER_URL=${HAPPY_SERVER_URL:-https://studio-server.jova.bio}
     entrypoint: ['/bin/sh', '-c']
     command:
       - |
-        # umask 0000 → new files 0666, dirs 0777 (world-writable). The /agent_hub
-        # mount is shared with file-browser (uid 65532); world-writable lets them
-        # read/write without gid juggling.
         umask 0000
-        # Ensure the shared /agent_hub mount is world-writable so the documents
-        # app can operate on files created here (or via command line).
-        # Safe to run every start — idempotent.
         chmod -R a+rwX /agent_hub 2>/dev/null || true
         mkdir -p /tmp/aionui/general
-        # Container restart/recreate always kills ACP CLI processes. Stale
-        # acp_session.session_id then makes runtime/ensure fail with
-        # USER_AGENT_RESOURCE_NOT_FOUND / 502. Drop resume anchors on every
-        # start so ensure rebuilds a fresh session (chat history stays in DB).
         if [ -f /data/aionui-backend.db ]; then
           node --experimental-sqlite -e "const {DatabaseSync}=require('node:sqlite'); const db=new DatabaseSync('/data/aionui-backend.db'); const r=db.prepare('UPDATE acp_session SET session_id=NULL WHERE session_id IS NOT NULL AND length(session_id)>0').run(); console.log('[agent-hub] cleared stale acp session anchors:', r.changes); db.close();" \
             || echo "[agent-hub] warn: failed to clear acp session anchors (continuing)"
         fi
-        # One-off repair for cron jobs / conversations / teams persisted before
-        # the agent-full-access -> full-access Codex mode fix (frontend normalize
-        # only covers new saves, not already-stored rows).
+        # 一次性修复:Codex 模式 agent-full-access → full-access 改名前已入库的旧数据。
         if [ -f /etc/agent-hub/js/normalize-codex-session-modes.js ]; then
           node --experimental-sqlite /etc/agent-hub/js/normalize-codex-session-modes.js \
             || echo "[agent-hub] warn: failed to normalize persisted Codex session modes"
         fi
-        # Codex CLI config for the helix proxy, inlined (was a bind-mounted
-        # file). Placeholders __CODEX_BASE_URL__ and __CODEX_MODEL__ are
-        # substituted from the container env (see environment: above).
-        # $$ escapes the $ from docker-compose interpolation so the shell expands it.
-        # Codex reads ~/.codex/config.toml on each invocation.
+        # Codex helix 代理配置($$ 是 compose 转义,shell 里即 $)。Codex 每次调用都读 ~/.codex/config.toml。
         mkdir -p /root/.codex
         CODEX_MODEL_VALUE="$${CODEX_MODEL:-agenthub-codex}"
-        # Install a schema-complete catalog baked into the image
-        # (docker/agent-hub/codex-model-catalog.json → /etc/agent-hub/…).
-        # Hand-written partial catalogs omit required fields (priority,
-        # base_instructions, …) and Codex then ignores config + hangs handshake.
+        # 必须用镜像内完整 catalog:手写的缺必填字段会导致 Codex 忽略配置、握手挂起。
         if [ -f /etc/agent-hub/codex-model-catalog.json ]; then
           node -e "const fs=require('fs'); const src='/etc/agent-hub/codex-model-catalog.json'; const dst='/root/.codex/model-catalog.json'; const j=JSON.parse(fs.readFileSync(src,'utf8')); const slug=process.env.CODEX_MODEL||'agenthub-codex'; if (j.models&&j.models[0]) { j.models[0].slug=slug; j.models[0].display_name='Agent Hub Codex'; } fs.writeFileSync(dst, JSON.stringify(j, null, 2));"
         else
@@ -108,35 +72,35 @@ services:
         wire_api = "responses"' \
           | sed "s|__CODEX_BASE_URL__|$${CODEX_BASE_URL:-}|g; s|__CODEX_MODEL__|$${CODEX_MODEL_VALUE}|g" \
           > /root/.codex/config.toml
-        # If catalog is missing, do not point config at a broken path.
+        # catalog 缺失时不要把 config 指向坏路径。
         if [ ! -f /root/.codex/model-catalog.json ]; then
           sed -i '/^model_catalog_json/d' /root/.codex/config.toml
         fi
-        # Trust conversation workspaces so Codex does not block project-local
-        # config (and surface scary stderr that the UI shows as orange tips).
-        # Old chats live under /data/conversations/**/codex-temp-<id>.
+        # 信任会话工作区,避免 Codex 报 "project not trusted"(旧会话在 /data/conversations/**/codex-temp-*)。
         if [ -f /etc/agent-hub/js/trust-codex-projects.js ]; then
           node /etc/agent-hub/js/trust-codex-projects.js /root/.codex/config.toml \
             || echo "[agent-hub] warn: failed to mark trusted projects"
         fi
-        # Wrap the codex PATH entry so brand-new conversation folders (which
-        # do not exist yet for the sweep above, or the periodic one below)
-        # get trusted synchronously on their very first turn — otherwise the
-        # UI shows a "project not trusted" warning until the next sweep.
+        # 包装 codex 命令:让启动后新建的会话目录在首轮即被信任。
         if [ -f /etc/agent-hub/js/wrap-codex-for-trust.js ]; then
           node /etc/agent-hub/js/wrap-codex-for-trust.js \
             || echo "[agent-hub] warn: failed to wrap Codex for trust"
         fi
-        # Claude Code (acceptEdits) is spawned with --dangerously-skip-permissions.
-        # As root that flag hard-fails (exit 1) → USER_AGENT_DISCONNECTED in UI.
-        # Rewrite argv to --permission-mode acceptEdits for bundled + PATH CLIs.
+        # Claude Code is often spawned with --dangerously-skip-permissions.
+        # As root that flag hard-fails unless IS_SANDBOX=1 (set in environment
+        # above). The wrapper also injects IS_SANDBOX for YOLO argv and keeps
+        # true full-auto instead of demoting to acceptEdits.
         if [ -f /etc/agent-hub/js/wrap-claude-for-root.js ]; then
           node /etc/agent-hub/js/wrap-claude-for-root.js \
             || echo "[agent-hub] warn: failed to wrap Claude for root"
         fi
-        # Proactively drop idle ACP resume anchors while the app runs.
-        # Container-start clear (above) only covers restart; Feishu idle (~hours)
-        # leaves a dead sid that warmup still tries to session/load.
+        # Belt-and-suspenders for non-YOLO / acceptEdits paths that still
+        # prompt on WebSearch/WebFetch/Bash/Write. Idempotent merge.
+        if [ -f /etc/agent-hub/js/seed-claude-web-permissions.js ]; then
+          node /etc/agent-hub/js/seed-claude-web-permissions.js \
+            || echo "[agent-hub] warn: failed to seed Claude web permissions"
+        fi
+        # 后台周期任务:清理运行中变空闲的 ACP anchor + 信任新建的 codex 目录。
         if [ -f /etc/agent-hub/js/clear-idle-acp-sessions.js ] || [ -f /etc/agent-hub/js/trust-codex-projects.js ]; then
           (
             INTERVAL="$${ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC:-60}"
@@ -146,8 +110,6 @@ services:
                 node --experimental-sqlite /etc/agent-hub/js/clear-idle-acp-sessions.js \
                   || echo "[agent-hub] warn: idle ACP anchor clear failed"
               fi
-              # New Feishu/Web chats create codex-temp-* after boot; re-trust so
-              # Codex stderr tips are less likely to be relayed as IM messages.
               if [ -f /etc/agent-hub/js/trust-codex-projects.js ]; then
                 node /etc/agent-hub/js/trust-codex-projects.js /root/.codex/config.toml \
                   || echo "[agent-hub] warn: periodic trust projects failed"
@@ -156,21 +118,16 @@ services:
           ) &
           echo "[agent-hub] started idle ACP clearer + periodic Codex trust (every $${ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC:-60}s)"
         fi
-        # bubblewrap: install in the image (Dockerfile). Do NOT apt-get here —
-        # appliance networks make entrypoint apt hang and the UI stays down.
-        # Start aionui-web in the background so we can run the Studio history
-        # import after the backend has migrated the DB. `wait` keeps the
-        # container's lifecycle tied to aionui-web and forwards signals.
+        # bubblewrap 必须在镜像里装,不要在这里 apt-get(设备网络差会导致启动卡死)。
+        # 后台启动 aionui-web,等 DB 迁移完成后导入 Studio 历史;wait 保持容器生命周期并转发信号。
         /app/aionui-web/aionui-web start &
         AIONUI_PID=$!
-        # Wait until aioncore has migrated the DB (users table readable).
+        # 等 DB 迁移完成(users 表可读)。
         for i in $$(seq 1 60); do
           if [ -f /data/aionui-backend.db ] && node --experimental-sqlite -e "const {DatabaseSync}=require('node:sqlite');const db=new DatabaseSync('/data/aionui-backend.db');db.prepare('SELECT 1 FROM users LIMIT 1').get();db.close()" 2>/dev/null; then break; fi
           sleep 1
         done
-        # Studio history import: pulls this device's SN history from the happy
-        # server, decrypts, and imports into aionui-backend.db. Incremental and
-        # idempotent (per-session); failures never block startup.
+        # 导入 Studio 历史(按 SN 拉取、解密、写入 aionui-backend.db);增量幂等,失败不阻塞启动。
         mkdir -p '/agent_hub/studio 原版'
         node --experimental-sqlite /opt/studio-import/import.mjs >>/data/logs/studio-import.log 2>&1 || true
         wait $$AIONUI_PID

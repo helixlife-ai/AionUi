@@ -23,10 +23,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useExtI18n } from '@/renderer/hooks/system/useExtI18n';
-import {
-  isAgentHubAgentsSettingsHidden,
-  isAgentHubPetSettingsHidden,
-} from '@/renderer/utils/hub/agentHubUiPolicy';
+import { isAgentHubAgentsSettingsHidden, isAgentHubPetSettingsHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { BUILTIN_TAB_IDS, LEGACY_ANCHOR_REMAP } from './SettingsSider';
 import './settings.css';
 
@@ -79,9 +76,7 @@ export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): 
   };
 
   return BUILTIN_TAB_IDS.filter(
-    (id) =>
-      !(id === 'agent' && isAgentHubAgentsSettingsHidden()) &&
-      !(id === 'pet' && isAgentHubPetSettingsHidden())
+    (id) => !(id === 'agent' && isAgentHubAgentsSettingsHidden()) && !(id === 'pet' && isAgentHubPetSettingsHidden())
   ).map((id) => builtinMap[id]);
 }
 

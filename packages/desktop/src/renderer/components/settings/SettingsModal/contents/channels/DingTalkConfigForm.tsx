@@ -17,10 +17,7 @@ import { Button, Dropdown, Empty, Input, Menu, Message, Spin, Tooltip } from '@a
 import { CheckOne, CloseOne, Copy, Delete, Down, Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  buildChannelAssistantBinding,
-  initializeChannelAssistantState,
-} from './assistantBinding';
+import { buildChannelAssistantBinding, initializeChannelAssistantState } from './assistantBinding';
 
 /**
  * Preference row component
@@ -130,10 +127,11 @@ const DingTalkConfigForm: React.FC<DingTalkConfigFormProps> = ({ pluginStatus, m
           channel.getPlatformSettings.invoke({ platform: 'dingtalk' }),
         ]);
 
-        const { availableAssistants, selection, selectedAssistant: nextAssistant } = initializeChannelAssistantState(
-          assistantList,
-          saved.assistant ?? undefined
-        );
+        const {
+          availableAssistants,
+          selection,
+          selectedAssistant: nextAssistant,
+        } = initializeChannelAssistantState(assistantList, saved.assistant ?? undefined);
 
         setAvailableAssistants(availableAssistants);
         setHasBrokenSavedAssistant(selection.hasBrokenSavedAssistant);
@@ -522,13 +520,18 @@ const DingTalkConfigForm: React.FC<DingTalkConfigFormProps> = ({ pluginStatus, m
       {!isAgentHubModelSelectorHidden() && (
         <PreferenceRow
           label={t('settings.assistant.defaultModel', 'Model')}
-          description={t('settings.dingtalk.defaultModelDesc', 'Model used for conversations handled by this assistant')}
+          description={t(
+            'settings.dingtalk.defaultModelDesc',
+            'Model used for conversations handled by this assistant'
+          )}
         >
           <GoogleModelSelector
             selection={showModelSelector ? modelSelection : undefined}
             disabled={!showModelSelector}
             label={
-              !showModelSelector ? t('settings.assistant.autoFollowCliModel', 'Auto-follow CLI runtime model') : undefined
+              !showModelSelector
+                ? t('settings.assistant.autoFollowCliModel', 'Auto-follow CLI runtime model')
+                : undefined
             }
             variant='settings'
           />

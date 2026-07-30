@@ -10,7 +10,7 @@ import { useContainerWidth } from '@/renderer/pages/conversation/hooks/useContai
 import { useLayoutConstraints } from '@/renderer/pages/conversation/hooks/useLayoutConstraints';
 import { useTitleRename } from '@/renderer/pages/conversation/hooks/useTitleRename';
 import { useWorkspaceCollapse } from '@/renderer/pages/conversation/hooks/useWorkspaceCollapse';
-import { PreviewPanel, usePreviewContext } from '@/renderer/pages/conversation/Preview';
+import { usePreviewContext } from '@/renderer/pages/conversation/Preview/context';
 import { dispatchWorkspaceToggleEvent } from '@/renderer/utils/workspace/workspaceEvents';
 import classNames from 'classnames';
 import { isMacEnvironment, isWindowsEnvironment } from '@/renderer/pages/conversation/utils/detectPlatform';
@@ -21,12 +21,15 @@ import {
   WORKSPACE_HEADER_HEIGHT,
   calcLayoutMetrics,
 } from '@/renderer/pages/conversation/utils/layoutCalc';
-import { Layout as ArcoLayout } from '@arco-design/web-react';
+import { Layout as ArcoLayout, Spin } from '@arco-design/web-react';
 import { ExpandLeft, ExpandRight } from '@icon-park/react';
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './chat-layout.css';
 
+const PreviewPanel = React.lazy(
+  () => import('@/renderer/pages/conversation/Preview/components/PreviewPanel/PreviewPanel')
+);
 // headerExtra allows injecting custom actions (e.g., model picker) into the header's right area
 const ChatLayout: React.FC<{
   children: React.ReactNode;
@@ -295,7 +298,15 @@ const ChatLayout: React.FC<{
                     lineStyle: { width: '2px' },
                   })}
                 <div className='h-full w-full overflow-hidden rounded-[15px]'>
-                  <PreviewPanel />
+                  <Suspense
+                    fallback={
+                      <div className='flex items-center justify-center h-full'>
+                        <Spin dot />
+                      </div>
+                    }
+                  >
+                    <PreviewPanel />
+                  </Suspense>
                 </div>
               </div>
             )}

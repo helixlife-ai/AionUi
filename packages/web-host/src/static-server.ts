@@ -192,7 +192,7 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         return;
       }
 
-       // static files + SPA fallback.
+      // static files + SPA fallback.
       // serve-handler adds `Content-Disposition: inline; filename="..."` to every
       // response. Some embedding hosts (Electron <webview>, WebView2) honor the
       // `filename=` attribute and trigger a file download ("Save As index.html")

@@ -29,11 +29,9 @@ import { useGuidModelSelection } from './hooks/useGuidModelSelection';
 import { useGuidSend } from './hooks/useGuidSend';
 import { useTypewriterPlaceholder } from './hooks/useTypewriterPlaceholder';
 import { ensureBackendMcpCatalog } from '@/renderer/hooks/mcp/catalog';
+import { prefetchConversationRouteChunk } from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
 import { resolveGuidAssistantDefaults } from './utils/assistantDefaults';
-import {
-  GUID_DEFAULT_PROMPT_CATEGORY_DEFS,
-  type GuidPromptCategory,
-} from './utils/guidDefaultPromptKeys';
+import { GUID_DEFAULT_PROMPT_CATEGORY_DEFS, type GuidPromptCategory } from './utils/guidDefaultPromptKeys';
 import SpeechInputButton from '@/renderer/components/chat/SpeechInputButton';
 import { useOpenFileSelector } from '@/renderer/hooks/file/useOpenFileSelector';
 import { appendSpeechTranscript } from '@/renderer/hooks/system/useSpeechInput';
@@ -98,6 +96,22 @@ const GuidPage: React.FC = () => {
         );
       })
       .catch(() => setAllSkills([]));
+  }, []);
+
+  // Warm the conversation route chunk while the user is still on Guid so the
+  // first project open does not pay the full lazy-load cost on a slow appliance.
+  useEffect(() => {
+    const run = () => prefetchConversationRouteChunk();
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof idleWindow.requestIdleCallback === 'function') {
+      const id = idleWindow.requestIdleCallback(run, { timeout: 2500 });
+      return () => idleWindow.cancelIdleCallback?.(id);
+    }
+    const timer = window.setTimeout(run, 1200);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {

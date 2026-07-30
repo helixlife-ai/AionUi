@@ -19,6 +19,7 @@ import { useContainerScroll, useContainerScrollTarget } from '../../hooks/useScr
 import { useLocalFilePreview, useThemeDetection } from '../../hooks';
 import { getMarkdownShikiThemes, getMermaidTheme } from '../../theme';
 import { convertLatexDelimiters } from '@/renderer/utils/chat/latexDelimiters';
+import { openExternalUrl } from '@/renderer/utils/platform';
 
 interface MarkdownPreviewProps {
   content: string; // Markdown 内容 / Markdown content
@@ -230,6 +231,15 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({
   const containerRef = externalContainerRef || internalContainerRef; // 使用外部 ref 或内部 ref / Use external ref or internal ref
   const currentTheme = useThemeDetection();
   const handleLocalFileLink = useLocalFilePreview(workspace);
+  const handleExternalLinkClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const href = event.currentTarget.href;
+    if (!href) return;
+    void openExternalUrl(href).catch((error: unknown) => {
+      console.error('[MarkdownViewer] failed to open external link', error);
+    });
+  }, []);
 
   // 使用滚动同步 Hooks / Use scroll sync hooks
   useContainerScroll(containerRef, externalOnScroll);
@@ -298,7 +308,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({
                     );
                   }
                   return (
-                    <a href={href} target='_blank' rel='noreferrer' {...props}>
+                    <a href={href} rel='noreferrer' {...props} onClick={handleExternalLinkClick}>
                       {children}
                     </a>
                   );

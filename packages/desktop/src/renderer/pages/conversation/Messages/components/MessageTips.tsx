@@ -15,6 +15,7 @@ import ButlerDiagnoseButton from '@renderer/components/base/ButlerDiagnoseButton
 import FeedbackButton from '@renderer/components/base/FeedbackButton';
 import CollapsibleContent from '@renderer/components/chat/CollapsibleContent';
 import { iconColors } from '@/renderer/styles/colors';
+import { isAgentHubCodexTrustTip } from '@/renderer/utils/hub/isAgentHubCodexTrustTip';
 
 const icon = {
   success: <CheckOne theme='filled' size='16' fill={iconColors.success} className='m-t-2px' />,
@@ -60,6 +61,10 @@ const MessageTips: React.FC<{ message: IMessageTips }> = ({ message }) => {
   const { t } = useTranslation();
   const { content, type, code, params } = message.content;
   const structuredError = type === 'error' ? message.content.error : undefined;
+  // Agent Hub auto-trusts Codex workspaces; hide the raw English Notice.
+  if (type !== 'error' && isAgentHubCodexTrustTip(content)) {
+    return null;
+  }
   const localizedTipBody = resolveAgentTipBody(content, code, params, t);
   const { json, data } = useFormatContent(localizedTipBody);
 

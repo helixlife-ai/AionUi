@@ -33,7 +33,7 @@ const ChatTitleEditor: React.FC<ChatTitleEditorProps> = ({
   title,
   conversation_id,
   leading,
-  showMinimap=false,
+  showMinimap = false,
 }) => {
   const { t } = useTranslation();
 

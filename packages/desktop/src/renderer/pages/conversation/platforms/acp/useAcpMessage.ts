@@ -17,7 +17,15 @@ import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conve
 import { isConversationProcessing } from '@/renderer/pages/conversation/utils/conversationRuntime';
 import { ensureConversationRuntime } from '@/renderer/pages/conversation/utils/ensureConversationRuntime';
 import type { ThoughtData } from '@/renderer/components/chat/ThoughtDisplay';
+import { isAgentHubCodexTrustTip } from '@/renderer/utils/hub/isAgentHubCodexTrustTip';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+function shouldDropAgentHubTip(message: TMessage | null | undefined): boolean {
+  if (!message || message.type !== 'tips') return false;
+  const tip = message.content;
+  if (!tip || typeof tip !== 'object' || tip.type === 'error') return false;
+  return isAgentHubCodexTrustTip(typeof tip.content === 'string' ? tip.content : '');
+}
 
 export type UseAcpMessageReturn = {
   thought: ThoughtData;
@@ -419,6 +427,10 @@ export const useAcpMessage = (
           // clear it (the same regression the `acp_config_option` case guards against).
           // Error-severity tips are handled earlier by isErrorTipMessage; only info/
           // warning advisories reach here.
+          // Agent Hub: drop Codex untrusted-project Notices (auto-trusted server-side).
+          if (shouldDropAgentHubTip(transformedMessage)) {
+            break;
+          }
           mergeLiveMessage(transformedMessage);
           break;
         case 'request_trace':

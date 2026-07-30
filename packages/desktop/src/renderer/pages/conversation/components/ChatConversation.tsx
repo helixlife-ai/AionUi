@@ -24,6 +24,7 @@ import { emitter } from '../../../utils/emitter';
 import AcpChat from '../platforms/acp/AcpChat';
 import ChatLayout from './ChatLayout';
 import ChatSlider from './ChatSlider.tsx';
+import { ConversationMessageAreaSkeleton, WorkspacePanelSkeleton } from './ConversationSkeleton';
 import AcpModelSelector from '@/renderer/components/agent/AcpModelSelector';
 import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conversationCache';
 import { getConversationCreateErrorMessage } from '@/renderer/pages/conversation/utils/conversationCreateError';
@@ -363,21 +364,23 @@ const ChatConversation: React.FC<{
     </div>
   );
 
+  const isBootstrapping = !conversation;
+
   return (
     <ChatLayout
       title={conversation?.name}
       {...chatLayoutProps}
       headerExtra={headerExtraNode}
       siderTitle={sliderTitle}
-      sider={<ChatSlider conversation={conversation} />}
-      workspaceEnabled={workspaceEnabled}
+      sider={isBootstrapping ? <WorkspacePanelSkeleton /> : <ChatSlider conversation={conversation} />}
+      workspaceEnabled={isBootstrapping || workspaceEnabled}
       workspacePath={conversation?.extra?.workspace}
       isTemporaryWorkspace={
         (conversation?.extra as { is_temporary_workspace?: boolean } | undefined)?.is_temporary_workspace
       }
       conversation_id={conversation?.id}
     >
-      {conversationNode}
+      {conversationNode ?? <ConversationMessageAreaSkeleton />}
     </ChatLayout>
   );
 };

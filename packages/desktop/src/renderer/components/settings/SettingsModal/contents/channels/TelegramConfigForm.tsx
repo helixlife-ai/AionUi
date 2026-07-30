@@ -16,10 +16,7 @@ import { Button, Dropdown, Empty, Input, Menu, Message, Spin, Tooltip } from '@a
 import { CheckOne, CloseOne, Copy, Delete, Down, Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  buildChannelAssistantBinding,
-  initializeChannelAssistantState,
-} from './assistantBinding';
+import { buildChannelAssistantBinding, initializeChannelAssistantState } from './assistantBinding';
 
 /**
  * Preference row component
@@ -127,10 +124,11 @@ const TelegramConfigForm: React.FC<TelegramConfigFormProps> = ({
           channel.getPlatformSettings.invoke({ platform: 'telegram' }),
         ]);
 
-        const { availableAssistants, selection, selectedAssistant: nextAssistant } = initializeChannelAssistantState(
-          assistantList,
-          saved.assistant ?? undefined
-        );
+        const {
+          availableAssistants,
+          selection,
+          selectedAssistant: nextAssistant,
+        } = initializeChannelAssistantState(assistantList, saved.assistant ?? undefined);
 
         setAvailableAssistants(availableAssistants);
         setHasBrokenSavedAssistant(selection.hasBrokenSavedAssistant);

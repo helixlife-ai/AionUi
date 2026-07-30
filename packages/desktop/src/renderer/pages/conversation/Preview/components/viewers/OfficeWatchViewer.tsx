@@ -9,6 +9,7 @@ import { getBaseUrl, isBackendHttpError } from '@/common/adapter/httpBridge';
 import WebviewHost from '@/renderer/components/media/WebviewHost';
 import { openExternalUrl } from '@/renderer/utils/platform';
 import { isElectronDesktop } from '@/renderer/utils/platform';
+import { resolveOfficePreviewFilePath } from '@/renderer/utils/hub/resolveOfficePreviewFilePath';
 import { Button, Spin } from '@arco-design/web-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +21,9 @@ type OfficeWatchErrorCode =
   | 'OFFICECLI_PORT_TIMEOUT'
   | 'OFFICECLI_START_FAILED'
   | 'PATH_OUTSIDE_SANDBOX';
+
+/** Bound hung `officecli watch` starts so the UI does not spin forever. */
+export const OFFICE_PREVIEW_START_TIMEOUT_MS = 45_000;
 
 const BRIDGE = {
   ppt: ipcBridge.pptPreview,
@@ -140,8 +144,31 @@ export function resolveOfficeErrorActions(
     // give them the server-side command instead.
     showServerInstallGuide: !isElectron && officecliMissing,
     showInstallLink: isElectron && code === 'OFFICECLI_NOT_FOUND',
-    showRetry: officecliMissing || code === 'OFFICECLI_PORT_TIMEOUT',
+    showRetry: officecliMissing || code === 'OFFICECLI_PORT_TIMEOUT' || code === 'OFFICECLI_START_FAILED',
   };
+}
+
+/** Only show “install officecli” copy when the backend actually reported a missing/failed binary. */
+export function shouldShowOfficeInstallHint(code: OfficeWatchErrorCode | undefined): boolean {
+  return code === 'OFFICECLI_NOT_FOUND' || code === 'OFFICECLI_INSTALL_FAILED';
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutCode: OfficeWatchErrorCode): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(Object.assign(new Error(timeoutCode), { code: timeoutCode }));
+    }, ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
 }
 
 /**
@@ -164,6 +191,7 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
   const [error, setError] = useState<OfficeWatchErrorState | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const file_pathRef = useRef(file_path);
+  const startedPathRef = useRef<string | null>(null);
 
   useEffect(() => {
     file_pathRef.current = file_path;
@@ -176,6 +204,8 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
     }
 
     let cancelled = false;
+    const resolvedPath = resolveOfficePreviewFilePath(file_path, workspace);
+    startedPathRef.current = resolvedPath;
 
     const unsubStatus = bridge.status.on((evt) => {
       if (cancelled) return;
@@ -188,7 +218,11 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
       setStatus('starting');
       setError(null);
       try {
-        const result = await bridge.start.invoke({ file_path, workspace });
+        const result = await withTimeout(
+          bridge.start.invoke({ file_path: resolvedPath, workspace }),
+          OFFICE_PREVIEW_START_TIMEOUT_MS,
+          'OFFICECLI_PORT_TIMEOUT'
+        );
         const errorCode = normalizeOfficeWatchErrorCode(result.error);
         if (errorCode) {
           setError({
@@ -212,11 +246,16 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
         }
       } catch (err) {
         if (!cancelled) {
+          const timeoutCode =
+            err && typeof err === 'object' && 'code' in err
+              ? normalizeOfficeWatchErrorCode(String((err as { code?: unknown }).code))
+              : undefined;
           const backendCode = isBackendHttpError(err) ? normalizeOfficeWatchErrorCode(err.code) : undefined;
-          if (backendCode) {
+          const errorCode = timeoutCode || backendCode;
+          if (errorCode) {
             setError({
-              code: backendCode,
-              message: t(OFFICE_ERROR_I18N_KEYS[backendCode]),
+              code: errorCode,
+              message: t(OFFICE_ERROR_I18N_KEYS[errorCode]),
             });
             setLoading(false);
             return;
@@ -233,8 +272,9 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
     return () => {
       cancelled = true;
       unsubStatus();
-      if (file_pathRef.current) {
-        bridge.stop.invoke({ file_path: file_pathRef.current }).catch(() => {});
+      const stopPath = startedPathRef.current || file_pathRef.current;
+      if (stopPath) {
+        bridge.stop.invoke({ file_path: stopPath }).catch(() => {});
       }
     };
   }, [docType, file_path, retryKey, t, workspace]);
@@ -262,7 +302,9 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
       <div className='h-full w-full flex items-center justify-center bg-bg-1'>
         <div className='text-center max-w-400px'>
           <div className='text-16px text-danger mb-8px'>{error.message}</div>
-          {!error.code && <div className='text-12px text-t-secondary mb-12px'>{t(keys.installHint)}</div>}
+          {shouldShowOfficeInstallHint(error.code) && (
+            <div className='text-12px text-t-secondary mb-12px'>{t(keys.installHint)}</div>
+          )}
           {showServerInstallGuide && (
             <div className='text-left mb-12px'>
               <div className='text-12px text-t-secondary mb-8px'>{t('preview.office.serverInstall.hint')}</div>

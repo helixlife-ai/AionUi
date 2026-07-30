@@ -31,9 +31,7 @@ export type NormalizedFileMetadata = {
  * AionCore returns snake_case (`is_directory`, `last_modified`); reading only
  * camelCase mis-classified directories as files (Guid workspace picker).
  */
-export function fromBackendFileMetadata(
-  raw: RawFileMetadata | null | undefined
-): NormalizedFileMetadata | null {
+export function fromBackendFileMetadata(raw: RawFileMetadata | null | undefined): NormalizedFileMetadata | null {
   if (!raw || typeof raw !== 'object') {
     return null;
   }
@@ -41,9 +39,7 @@ export function fromBackendFileMetadata(
   const name = typeof raw.name === 'string' ? raw.name : '';
   const path = typeof raw.path === 'string' ? raw.path : '';
   const type = typeof raw.type === 'string' ? raw.type : '';
-  const isDirectory = Boolean(
-    raw.isDirectory ?? raw.is_directory ?? (type.includes('directory') ? true : undefined)
-  );
+  const isDirectory = Boolean(raw.isDirectory ?? raw.is_directory ?? (type.includes('directory') ? true : undefined));
 
   return {
     name,

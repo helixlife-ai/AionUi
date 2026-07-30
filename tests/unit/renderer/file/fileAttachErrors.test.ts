@@ -65,9 +65,7 @@ describe('file attach size/type helpers', () => {
   });
 
   it('maps size and unsupported errors to distinct copy', () => {
-    expect(getFileAttachErrorMessage(t, new Error(FILE_TOO_LARGE_ERROR))).toBe(
-      `too-large:${MAX_UPLOAD_FILE_SIZE_MB}`
-    );
+    expect(getFileAttachErrorMessage(t, new Error(FILE_TOO_LARGE_ERROR))).toBe(`too-large:${MAX_UPLOAD_FILE_SIZE_MB}`);
     expect(getFileAttachErrorMessage(t, new Error(FILE_UNSUPPORTED_ERROR))).toBe('unsupported');
     expect(getFileAttachErrorMessage(t, new Error('Upload failed: 502 Bad Gateway'))).toBe('failed');
   });

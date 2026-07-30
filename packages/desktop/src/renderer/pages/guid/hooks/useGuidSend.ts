@@ -15,6 +15,10 @@ import { type TFunction } from 'i18next';
 import type { NavigateFunction } from 'react-router-dom';
 import { mutate as swrMutate } from 'swr';
 import { getConversationCreateErrorMessage } from '@/renderer/pages/conversation/utils/conversationCreateError';
+import {
+  prefetchConversationRouteChunk,
+  seedConversationCache,
+} from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
 import type { AcpModelInfo } from '../types';
 
 export type GuidSendDeps = {
@@ -197,6 +201,8 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
         };
         sessionStorage.setItem(`aionrs_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
 
+        seedConversationCache(conversation);
+        prefetchConversationRouteChunk();
         await navigate(`/conversation/${conversation.id}`);
       } catch (error: unknown) {
         console.error('Failed to create Aion CLI conversation:', error);
@@ -246,6 +252,8 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
       };
       sessionStorage.setItem(`acp_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
 
+      seedConversationCache(conversation);
+      prefetchConversationRouteChunk();
       await navigate(`/conversation/${conversation.id}`);
     } catch (error: unknown) {
       console.error('Failed to create ACP conversation:', error);
