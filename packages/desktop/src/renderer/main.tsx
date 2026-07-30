@@ -37,8 +37,12 @@ import './utils/ui/runtimePatches';
 
 // Appliance Flutter webview: intercept external links (incl. Shadow DOM markdown)
 import { installApplianceExternalLinkGuard } from '@/renderer/utils/hub/externalLinkGuard';
+import { installConversationHttpAbort } from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
+import { installOfficePreviewHttpAbort } from '@/common/adapter/httpBridge';
 
 installApplianceExternalLinkGuard();
+installConversationHttpAbort();
+installOfficePreviewHttpAbort();
 
 // Browser adapter setup
 import '@/common/adapter/browser';

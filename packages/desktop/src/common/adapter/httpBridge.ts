@@ -147,10 +147,105 @@ export function isBackendHttpError(error: unknown): error is BackendHttpError {
  * returning 404 before the agent has attached) skip the noisy `console.error`
  * and the Sentry breadcrumb that comes with it. The error is still thrown so
  * the caller's existing try/catch keeps working.
+ *
+ * `signal` aborts the underlying `fetch`. When omitted, the optional
+ * conversation-scoped provider (see `setHttpRequestSignalProvider`) is used so
+ * leaving a conversation can free HTTP/1.1 connection slots.
  */
 export type HttpRequestOptions = {
   silentStatuses?: number[];
+  signal?: AbortSignal;
+  /** When false, skip the conversation-scoped default signal. Default true. */
+  useDefaultSignal?: boolean;
 };
+
+export type HttpRequestSignalProvider = () => AbortSignal | undefined;
+
+let requestSignalProvider: HttpRequestSignalProvider | undefined;
+let officePreviewSignalProvider: HttpRequestSignalProvider | undefined;
+
+/**
+ * Register a default AbortSignal provider for all `httpRequest` calls that do
+ * not pass an explicit `signal`. Pass `null` to clear.
+ */
+export function setHttpRequestSignalProvider(provider: HttpRequestSignalProvider | null | undefined): void {
+  requestSignalProvider = provider ?? undefined;
+}
+
+/**
+ * AbortSignal for in-flight Office preview start calls (excel/word/ppt).
+ * Switching xlsx/docx files must cancel the previous start without aborting
+ * the whole conversation.
+ */
+export function setOfficePreviewRequestSignalProvider(
+  provider: HttpRequestSignalProvider | null | undefined
+): void {
+  officePreviewSignalProvider = provider ?? undefined;
+}
+
+let officePreviewRequestController = new AbortController();
+
+export function getOfficePreviewRequestSignal(): AbortSignal {
+  return officePreviewRequestController.signal;
+}
+
+/** Abort previous Office preview start and open a fresh scope for the new file. */
+export function adoptOfficePreviewRequestScope(): AbortSignal {
+  officePreviewRequestController.abort();
+  officePreviewRequestController = new AbortController();
+  return officePreviewRequestController.signal;
+}
+
+/** Abort the current Office start without opening a new scope (cleanup / timeout). */
+export function abortOfficePreviewRequestScope(): void {
+  officePreviewRequestController.abort();
+}
+
+/** Wire Office preview start paths to the active preview scope (once at app boot). */
+export function installOfficePreviewHttpAbort(): void {
+  setOfficePreviewRequestSignalProvider(() => officePreviewRequestController.signal);
+}
+
+export function isHttpAbortError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const name = 'name' in error ? (error as { name?: unknown }).name : undefined;
+  return name === 'AbortError';
+}
+
+function isOfficePreviewStartPath(path: string): boolean {
+  return /\/(?:excel|word|ppt)-preview\/start(?:\?|$)/.test(path);
+}
+
+function mergeAbortSignals(signals: AbortSignal[]): AbortSignal | undefined {
+  if (signals.length === 0) return undefined;
+  if (signals.length === 1) return signals[0];
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') {
+    return AbortSignal.any(signals);
+  }
+  const merged = new AbortController();
+  for (const signal of signals) {
+    if (signal.aborted) {
+      merged.abort();
+      return merged.signal;
+    }
+    signal.addEventListener('abort', () => merged.abort(), { once: true });
+  }
+  return merged.signal;
+}
+
+function resolveRequestSignal(path: string, options?: HttpRequestOptions): AbortSignal | undefined {
+  const signals: AbortSignal[] = [];
+  if (options?.signal) signals.push(options.signal);
+  if (options?.useDefaultSignal !== false) {
+    const conversationSignal = requestSignalProvider?.();
+    if (conversationSignal) signals.push(conversationSignal);
+  }
+  if (isOfficePreviewStartPath(path)) {
+    const officeSignal = officePreviewSignalProvider?.();
+    if (officeSignal) signals.push(officeSignal);
+  }
+  return mergeAbortSignals(signals);
+}
 
 const SENSITIVE_LOG_KEY_PATTERN = /api[_-]?key|authorization|auth[_-]?token|access[_-]?token|refresh[_-]?token|secret/i;
 
@@ -188,11 +283,21 @@ export async function httpRequest<T>(
     body !== undefined ? JSON.stringify(redactForLog(body)).slice(0, 500) : '(no body)'
   );
 
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const signal = resolveRequestSignal(path, options);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal,
+    });
+  } catch (error) {
+    if (isHttpAbortError(error)) {
+      console.debug(`[httpBridge] ${method} ${path} aborted`);
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     // Response body can only be consumed once — read as text, then try JSON
