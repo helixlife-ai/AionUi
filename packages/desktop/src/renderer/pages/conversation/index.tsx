@@ -1,6 +1,6 @@
 import { ipcBridge } from '@/common';
 import { Message } from '@arco-design/web-react';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import useSWR from 'swr';
@@ -8,6 +8,7 @@ import ChatConversation from './components/ChatConversation';
 import { usePreviewContext } from '@/renderer/pages/conversation/Preview/context';
 import { useAutoTitle } from '@/renderer/hooks/chat/useAutoTitle';
 import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conversationCache';
+import { adoptConversationRequestScope } from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
 
 const ChatConversationIndex: React.FC = () => {
   const { id } = useParams();
@@ -17,6 +18,14 @@ const ChatConversationIndex: React.FC = () => {
   const { syncTitleFromHistory } = useAutoTitle();
   const notFoundHandledIdRef = useRef<string | undefined>(undefined);
   const defaultConversationTitle = t('conversation.welcome.newConversation');
+
+  // Abort previous conversation HTTP before SWR / child effects fire new ones.
+  useLayoutEffect(() => {
+    adoptConversationRequestScope(id ?? null);
+    return () => {
+      adoptConversationRequestScope(null);
+    };
+  }, [id]);
 
   const { data, isLoading, mutate } = useSWR(id ? `conversation/${id}` : null, () => {
     return getConversationOrNull(id!);

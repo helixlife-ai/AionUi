@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { renderHook, act, cleanup } from '@testing-library/react';
 import React, { type ReactNode } from 'react';
 import { PreviewProvider, usePreviewContext } from '@/renderer/pages/conversation/Preview/context/PreviewContext';
+import { ipcBridge } from '@/common';
 
 vi.mock('@/common', () => ({
   ipcBridge: {
@@ -19,7 +20,7 @@ vi.mock('@/common', () => ({
     },
     fs: {
       writeFile: { invoke: vi.fn() },
-      getFileMetadata: { invoke: vi.fn() },
+      getFileMetadata: { invoke: vi.fn(() => new Promise(() => {})) },
       readFile: { invoke: vi.fn() },
       getImageBase64: { invoke: vi.fn() },
     },
@@ -45,11 +46,13 @@ describe('PreviewContext', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
     localStorage.clear();
   });
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
   });
 
   it('initializes with closed state', () => {
@@ -101,5 +104,42 @@ describe('PreviewContext', () => {
     });
     expect(result.current.activeTab?.content).toBe('modified');
     expect(result.current.activeTab?.isDirty).toBe(true);
+  });
+
+  it('does not poll file metadata for excel/word office previews', () => {
+    const { result } = renderHook(() => usePreviewContext(), { wrapper });
+    act(() => {
+      result.current.openPreview('', 'excel', {
+        title: 'sheet.xlsx',
+        file_name: 'sheet.xlsx',
+        file_path: '/agent_hub/demo/sheet.xlsx',
+        workspace: '/agent_hub/demo',
+      });
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(ipcBridge.fs.getFileMetadata.invoke).not.toHaveBeenCalled();
+  });
+
+  it('polls file metadata for text previews but skips overlapping in-flight calls', () => {
+    const { result } = renderHook(() => usePreviewContext(), { wrapper });
+    act(() => {
+      result.current.openPreview('hello', 'code', {
+        title: 'a.ts',
+        file_name: 'a.ts',
+        file_path: '/agent_hub/demo/a.ts',
+        workspace: '/agent_hub/demo',
+      });
+    });
+
+    // Immediate check on tab open + one interval tick while the first call hangs.
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(ipcBridge.fs.getFileMetadata.invoke).toHaveBeenCalledTimes(1);
   });
 });

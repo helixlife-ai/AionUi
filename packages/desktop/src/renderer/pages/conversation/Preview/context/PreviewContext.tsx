@@ -7,6 +7,7 @@
 import { ipcBridge } from '@/common';
 import type { PreviewContentType } from '@/common/types/office/preview';
 import { emitter } from '@/renderer/utils/emitter';
+import { shouldPollPreviewFileMtime } from '@/renderer/utils/hub/shouldPollPreviewFileMtime';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 /** DOM 片段数据结构 / DOM snippet data structure */
@@ -622,11 +623,16 @@ export const PreviewProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Only polls the active tab to minimize IPC overhead; checks other tabs once on tab switch.
   // Uses polling instead of fileWatch IPC events because buildEmitter's main→renderer event delivery
   // is unreliable after the first emission in Electron (only the first event reaches the renderer).
+  // Skip office/pdf/url — they are not text-refreshed, and hung metadata calls freeze the UI.
+  const metadataInflightRef = useRef<Set<string>>(new Set());
   const checkFileUpdate = useCallback(
     (tab: PreviewTab) => {
       const file_path = tab.metadata?.file_path;
       if (!file_path || tab.isDirty || savingFilesRef.current.has(file_path)) return;
+      if (!shouldPollPreviewFileMtime(tab.content_type)) return;
+      if (metadataInflightRef.current.has(file_path)) return;
 
+      metadataInflightRef.current.add(file_path);
       void ipcBridge.fs.getFileMetadata
         .invoke({ path: file_path, workspace: tab.metadata?.workspace })
         .then((metadata) => {
@@ -657,6 +663,9 @@ export const PreviewProvider: React.FC<{ children: React.ReactNode }> = ({ child
         })
         .catch((error) => {
           console.error('[PreviewContext] Failed to get file metadata:', file_path, error);
+        })
+        .finally(() => {
+          metadataInflightRef.current.delete(file_path);
         });
     },
     [setTabs]

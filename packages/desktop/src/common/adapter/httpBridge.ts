@@ -147,10 +147,41 @@ export function isBackendHttpError(error: unknown): error is BackendHttpError {
  * returning 404 before the agent has attached) skip the noisy `console.error`
  * and the Sentry breadcrumb that comes with it. The error is still thrown so
  * the caller's existing try/catch keeps working.
+ *
+ * `signal` aborts the underlying `fetch`. When omitted, the optional
+ * conversation-scoped provider (see `setHttpRequestSignalProvider`) is used so
+ * leaving a conversation can free HTTP/1.1 connection slots.
  */
 export type HttpRequestOptions = {
   silentStatuses?: number[];
+  signal?: AbortSignal;
+  /** When false, skip the conversation-scoped default signal. Default true. */
+  useDefaultSignal?: boolean;
 };
+
+export type HttpRequestSignalProvider = () => AbortSignal | undefined;
+
+let requestSignalProvider: HttpRequestSignalProvider | undefined;
+
+/**
+ * Register a default AbortSignal provider for all `httpRequest` calls that do
+ * not pass an explicit `signal`. Pass `null` to clear.
+ */
+export function setHttpRequestSignalProvider(provider: HttpRequestSignalProvider | null | undefined): void {
+  requestSignalProvider = provider ?? undefined;
+}
+
+export function isHttpAbortError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const name = 'name' in error ? (error as { name?: unknown }).name : undefined;
+  return name === 'AbortError';
+}
+
+function resolveRequestSignal(options?: HttpRequestOptions): AbortSignal | undefined {
+  if (options?.signal) return options.signal;
+  if (options?.useDefaultSignal === false) return undefined;
+  return requestSignalProvider?.();
+}
 
 const SENSITIVE_LOG_KEY_PATTERN = /api[_-]?key|authorization|auth[_-]?token|access[_-]?token|refresh[_-]?token|secret/i;
 
@@ -188,11 +219,21 @@ export async function httpRequest<T>(
     body !== undefined ? JSON.stringify(redactForLog(body)).slice(0, 500) : '(no body)'
   );
 
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const signal = resolveRequestSignal(options);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal,
+    });
+  } catch (error) {
+    if (isHttpAbortError(error)) {
+      console.debug(`[httpBridge] ${method} ${path} aborted`);
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     // Response body can only be consumed once — read as text, then try JSON
