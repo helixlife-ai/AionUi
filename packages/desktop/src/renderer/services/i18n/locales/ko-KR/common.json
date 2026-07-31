@@ -180,12 +180,6 @@
       "diagnosticsReportFailed": "진단 전송에 실패했습니다. 나중에 다시 시도해 주세요."
     }
   },
-  "backendWarming": {
-    "title": "시작 중",
-    "description": "백엔드를 준비하는 중입니다. 최초 실행 시 몇 분이 걸릴 수 있습니다.",
-    "hint": "이 페이지를 열어 두세요. 준비되면 자동으로 계속됩니다.",
-    "attempt": "백엔드 확인 중… ({{count}})"
-  },
   "fileAttach.addFiles": "파일 추가",
   "fileAttach.myDevice": "내 기기",
   "fileAttach.failed": "업로드 실패",

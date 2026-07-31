@@ -21,7 +21,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 describe('agentHubUiPolicy', () => {
-  it('enables the backend warming screen for Agent Hub cold start UX', () => {
+  it('enables backend readiness gating for Agent Hub cold start', () => {
     expect(isAgentHubBackendWarmingScreenEnabled()).toBe(true);
   });
 

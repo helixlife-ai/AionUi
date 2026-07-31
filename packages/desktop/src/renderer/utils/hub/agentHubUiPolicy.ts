@@ -5,9 +5,9 @@
  */
 
 /**
- * Agent Hub / appliance: show an explicit “backend warming” screen and poll
- * aioncore readiness before mounting the main shell (perceived cold-start UX).
- * Desktop upstream keeps the plain bootstrap skeleton when this is false.
+ * Agent Hub / appliance: poll aioncore readiness before mounting the main shell.
+ * Boot UI stays on the shared AppBootstrapSkeleton / HTML splash (no modal).
+ * Desktop upstream skips the wait when this is false.
  */
 export function isAgentHubBackendWarmingScreenEnabled(): boolean {
   return true;
