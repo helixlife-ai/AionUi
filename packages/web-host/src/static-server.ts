@@ -14,6 +14,7 @@ import http, { type IncomingMessage, type Server, type ServerResponse } from 'no
 import { networkInterfaces } from 'node:os';
 import net, { type Socket } from 'node:net';
 import serveHandler from 'serve-handler';
+import { enableStaticGzip } from './static-gzip.js';
 
 export type StaticServerOptions = {
   staticDir: string;
@@ -202,6 +203,9 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
       // header via res.writeHead(status, headers) as well as res.setHeader, so
       // both paths must be intercepted.
       stripContentDisposition(res);
+      // Gzip JS/CSS/HTML when the client supports it — appliance cold start
+      // otherwise ships ~9MB uncompressed (DevTools Size === Transferred).
+      enableStaticGzip(req, res);
       // static files + SPA fallback
       await serveHandler(req, res, {
         public: opts.staticDir,
