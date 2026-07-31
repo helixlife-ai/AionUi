@@ -1,12 +1,12 @@
 {
-  "version": "v0.2.3",
+  "version": "v0.2.4",
   "name": "AgentHub",
   "display_name": "Studio",
   "prefix": "http://",
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": "优化对话启动性能和office预览性能",
+  "desc": "优化office预览性能",
   "startup": true,
   "force_update": true,
   "device_limit": [

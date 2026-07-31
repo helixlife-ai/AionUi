@@ -1,8 +1,7 @@
 name: agent-hub
 services:
   agent-hub:
-    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.1
-    pull_policy: never
+    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.4
     container_name: agent-hub
     user: '0'
     ports:
