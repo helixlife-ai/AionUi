@@ -9,6 +9,7 @@
  */
 
 import { type ChildProcess, spawn } from 'node:child_process';
+import { mkdirSync, statSync } from 'node:fs';
 import { connect, createServer, type Socket } from 'node:net';
 import { cleanupRegisteredAgentProcesses } from './agent-process-registry.js';
 import type { AppMetadata, BackendBinaryResolver } from './types.js';
@@ -198,7 +199,7 @@ export function buildSpawnArgs(config: SpawnConfig): string[] {
     config.appVersion,
   ];
   if (config.isPackaged) args.push('--managed-resources-mode', 'bundled');
-  if (!config.isPackaged) args.push('--dump-prompts');
+  if (!config.isPackaged && process.env.AIONUI_DUMP_PROMPTS === '1') args.push('--dump-prompts');
   if (config.logDir) args.push('--log-dir', config.logDir);
   if (config.workDir) args.push('--work-dir', config.workDir);
   if (config.local) args.push('--local');
@@ -231,6 +232,20 @@ const FETCH_FORBIDDEN_PORTS = new Set([
 const FETCH_COMPATIBLE_PORT_MAX_ATTEMPTS = 50;
 const AIONCORE_LISTENING_PREFIX = 'AIONCORE_LISTENING ';
 const BACKEND_PORT_REPORT_TIMEOUT_MS = 30_000;
+
+// Benign boundary code emitted by an aioncore instance that yielded the
+// data-dir instance guard to a peer that already owns it (Sentry 135525166).
+// This is a transient, self-recoverable condition — the owning peer is expected
+// to finish (or a crash-orphan is expected to self-exit and release the guard),
+// so the launcher retries with bounded backoff rather than surfacing a fatal
+// startup failure.
+const PEER_ALREADY_RUNNING_BOUNDARY_CODE = 'BOOTSTRAP_PEER_ALREADY_RUNNING';
+const PEER_RETRY_MAX_ATTEMPTS = 5;
+const PEER_RETRY_BACKOFF_MS = [250, 500, 1000, 1500];
+
+function delayMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function isFetchForbiddenPort(port: number): boolean {
   return FETCH_FORBIDDEN_PORTS.has(port);
@@ -364,6 +379,18 @@ function getResolveDiagnostics(error: unknown): Partial<BackendStartupErrorDetai
   return diagnostics as Partial<BackendStartupErrorDetails>;
 }
 
+function ensureBackendStartupDirectory(dir: string | undefined): void {
+  if (!dir || dir.trim() === '') return;
+  // Stat first: a directory that already exists needs no preparation. Relying
+  // on mkdirSync's recursive EEXIST tolerance instead breaks on Windows drive
+  // roots (e.g. work dir set to `D:\`): CreateDirectory on a drive root
+  // reports access-denied rather than already-exists, so mkdirSync throws
+  // EPERM even with `recursive: true` and even though the directory is fully
+  // usable — deterministically failing every backend startup (ELECTRON-3S4).
+  if (statSync(dir, { throwIfNoEntry: false })?.isDirectory()) return;
+  mkdirSync(dir, { recursive: true });
+}
+
 function waitForChildProcessEnd(childProcess: ChildProcess): Promise<void> {
   return new Promise((resolve) => {
     let settled = false;
@@ -487,7 +514,48 @@ export class BackendLifecycleManager {
     return this._status;
   }
 
+  private isPeerAlreadyRunningError(error: unknown): boolean {
+    return (
+      error instanceof BackendStartupError && error.details.backendBoundaryCode === PEER_ALREADY_RUNNING_BOUNDARY_CODE
+    );
+  }
+
   async start(
+    dbPath: string,
+    logDir?: string,
+    dirs?: BackendDirConfig,
+    options?: BackendStartOptions,
+    preferredPort?: number,
+    launchFlags: BackendLaunchFlags = {}
+  ): Promise<number> {
+    // Bounded retry loop for the transient "a peer aioncore already owns this
+    // data directory" case (Sentry 135525166). The owning peer either finishes
+    // startup and keeps running, or a crash-orphan self-exits and releases the
+    // data-dir instance guard. Non-peer errors are thrown immediately with no
+    // retry. Runtime crash restarts (handleCrash / maxRestarts) are a separate,
+    // orthogonal mechanism for an already-running backend.
+    let lastPeerError: unknown;
+    for (let attempt = 0; attempt < PEER_RETRY_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        return await this.attemptStart(dbPath, logDir, dirs, options, preferredPort, launchFlags);
+      } catch (error) {
+        if (!this.isPeerAlreadyRunningError(error) || attempt >= PEER_RETRY_MAX_ATTEMPTS - 1) {
+          throw error;
+        }
+        lastPeerError = error;
+        const backoff = PEER_RETRY_BACKOFF_MS[Math.min(attempt, PEER_RETRY_BACKOFF_MS.length - 1)];
+        console.warn(
+          `[aioncore] a peer already owns the data directory; retrying startup in ${backoff}ms (attempt ${attempt + 1}/${PEER_RETRY_MAX_ATTEMPTS})`
+        );
+        await delayMs(backoff);
+      }
+    }
+    // Unreachable in practice: the loop either returns on success or throws on
+    // the final attempt. Kept as an explicit safety net for the peer path.
+    throw lastPeerError ?? new Error('aioncore startup failed after peer retries');
+  }
+
+  private async attemptStart(
     dbPath: string,
     logDir?: string,
     dirs?: BackendDirConfig,
@@ -575,6 +643,17 @@ export class BackendLifecycleManager {
       recoverCorruptedDatabase: launchFlags.recoverCorruptedDatabase === true,
     });
     console.log(`[aioncore] starting: ${binaryPath} ${args.join(' ')}`);
+
+    try {
+      ensureBackendStartupDirectory(dbPath);
+      ensureBackendStartupDirectory(logDir);
+      ensureBackendStartupDirectory(dirs?.cacheDir);
+      ensureBackendStartupDirectory(dirs?.workDir);
+      ensureBackendStartupDirectory(dirs?.logDir);
+    } catch (error) {
+      this._status = 'error';
+      throw makeStartupError('spawn', 'aioncore startup directory preparation failed', error);
+    }
 
     try {
       this.childProcess = spawn(binaryPath, args, {

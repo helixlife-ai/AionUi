@@ -102,9 +102,17 @@
     },
     "localDataRepair": {
       "title": "本機資料修復失敗",
-      "description": "AionUi 已開啟，但 AionCore 在修復本機代理快取資料時停止。重新安裝 AionUi 可能無法解決此問題。請傳送診斷報告或聯絡支援，以便檢查本機資料庫。",
+      "description": "AionUi 已開啟，但 AionCore 在準備本機啟動資料時停止，例如 assistant 或代理記錄。重新安裝 AionUi 可能無法解決此問題。請傳送診斷報告或聯絡支援，以便檢查本機資料庫。",
       "sendDiagnostics": "傳送診斷",
       "diagnosticsSent": "診斷已傳送",
+      "diagnosticsReportSuccess": "診斷報告已傳送",
+      "diagnosticsReportFailed": "診斷報告傳送失敗"
+    },
+    "startupDirectory": {
+      "title": "啟動目錄無法使用",
+      "description": "AionUi 已開啟，但因為設定的工作目錄或日誌目錄不存在、無法存取或權限受限，AionCore 無法啟動。請確認這些目錄存在且可寫入，然後重新啟動 AionUi。",
+      "sendDiagnostics": "傳送診斷報告",
+      "diagnosticsSent": "診斷報告已傳送",
       "diagnosticsReportSuccess": "診斷報告已傳送",
       "diagnosticsReportFailed": "診斷報告傳送失敗"
     },
@@ -118,11 +126,22 @@
       "diagnosticsReportSuccess": "診斷報告已傳送",
       "diagnosticsReportFailed": "診斷報告傳送失敗",
       "rebuildFailed": "備份舊資料庫並重建新資料庫失敗"
+    },
+    "transientConcurrentStartup": {
+      "title": "AionUi 正在啟動",
+      "description": "此視窗開啟時，另一個 AionUi 啟動程序仍在使用本機資料。這是暫時的，您的資料是安全的——無需重新安裝。請稍候片刻後重試，或重新啟動 AionUi。",
+      "sendDiagnostics": "傳送診斷",
+      "diagnosticsSent": "診斷已傳送",
+      "diagnosticsReportSuccess": "診斷報告已傳送",
+      "diagnosticsReportFailed": "診斷報告傳送失敗",
+      "diagnosticsHint": "如果此問題反覆出現，您可以傳送診斷報告。"
     }
   },
   "fileAttach.addFiles": "新增檔案",
   "fileAttach.myDevice": "我的裝置",
   "fileAttach.failed": "上傳失敗",
+  "fileAttach.tooLarge": "上傳的檔案超過{{maxSizeMb}}MB",
+  "fileAttach.unsupported": "不支援的檔案格式",
   "fileAttach.uploading": "上傳中...",
   "fileAttach.uploadSuccess": "上傳成功",
   "fileAttach.cancelUpload": "取消上傳",
@@ -139,5 +158,7 @@
   "unit": {
     "minute_short": "分",
     "second_short": "秒"
-  }
+  },
+  "selectedCount": "已選 {{count}}",
+  "selectedSkills": "已選技能"
 }

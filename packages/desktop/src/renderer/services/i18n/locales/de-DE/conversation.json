@@ -1,7 +1,7 @@
 {
   "welcome": {
     "title": "Hallo, was hast du heute vor?",
-    "placeholder": "Nachricht senden, Dateien hochladen, Ordner öffnen oder geplante Aufgabe erstellen...",
+    "placeholder": "Nachricht senden, Dateien hochladen, Ordner öffnen, eine geplante Aufgabe erstellen oder / für Befehle eingeben...",
     "linkFolder": "Ordner öffnen",
     "newConversation": "Neuer Chat",
     "selectModel": "Modell auswählen",
@@ -30,6 +30,7 @@
     "saveName": "Speichern",
     "cancelEdit": "Abbrechen",
     "rename": "Umbenennen",
+    "createCronTask": "Geplante Aufgabe erstellen",
     "renameTitle": "Chat umbenennen",
     "renamePlaceholder": "Bitte neuen Namen eingeben",
     "renameSuccess": "Erfolgreich umbenannt",
@@ -72,7 +73,8 @@
     "removeProject": "Projekt entfernen",
     "removeProjectConfirm": "Projekt \"{{name}}\" entfernen? Die {{count}} zugehörige(n) Unterhaltung(en) werden ebenfalls entfernt.",
     "newConversationInProject": "Neuer Chat in diesem Projekt",
-    "deleting": "Wird gelöscht..."
+    "deleting": "Wird gelöscht...",
+    "reorderPinned": "Ziehen, um angeheftete Unterhaltung neu anzuordnen"
   },
   "historySearch": {
     "tooltip": "Nachrichten durchsuchen",
@@ -476,8 +478,8 @@
     "error": "Nebenfrage konnte nicht beantwortet werden."
   },
   "commandQueue": {
-    "title": "Wartende Befehle",
-    "clear": "Warteschlange leeren",
+    "title": "Entwurfsbox",
+    "clear": "Entwurfsbox leeren",
     "edit": "Bearbeiten",
     "editing": "Bearbeitung",
     "editPlaceholder": "Wartenden Befehl vor der Ausführung aktualisieren.",
@@ -492,7 +494,19 @@
     "queueFull": "Warteschlange ist voll. Entferne einen Befehl, bevor du weitere hinzufügst.",
     "inputTooLong": "Dieser wartende Befehl ist zu lang. Kürze ihn vor dem Senden.",
     "tooManyFiles": "Zu viele Dateien sind an diesen wartenden Befehl angehängt.",
-    "queueTooLarge": "Warteschlangendaten sind zu groß zum sicheren Speichern. Entferne zuerst einige Befehle."
+    "queueTooLarge": "Warteschlangendaten sind zu groß zum sicheren Speichern. Entferne zuerst einige Befehle.",
+    "sendNow": "Jetzt senden",
+    "modeToggle": "Sendemodus umschalten",
+    "help": "Hilfe",
+    "helpIntro": "Nachrichten, die du während der KI-Antwort sendest, warten hier.",
+    "helpAuto": ": werden nach jeder Antwort automatisch nacheinander gesendet.",
+    "helpManual": ": werden hier aufbewahrt, ohne zu senden; sende jede mit „Jetzt senden“.",
+    "clearConfirmTitle": "Sende-Entwurfsbox leeren?",
+    "clearConfirmContent": "Alle ausstehenden Nachrichten werden entfernt. Dies kann nicht rückgängig gemacht werden.",
+    "mode": {
+      "auto": "Auto senden",
+      "manual": "Manuell senden"
+    }
   },
   "contextUsage": {
     "contextUsed": "Kontext verwendet"
@@ -535,18 +549,25 @@
       "loaded": "Geladen",
       "failed": "Fehlgeschlagen",
       "unsupported": "Nicht unterstützt"
-    }
+    },
+    "selected": "Ausgewählte MCP"
   },
   "runtimePreparing": {
     "sendboxHint": "Laufzeit-Umgebung wird vorbereitet. Der erste Start kann etwas länger dauern."
   },
   "sendbox": {
-    "hint": "Tippe / für Befehle, @ um Dateien zu referenzieren"
+    "hint": "Tippe / für Befehle, @ um Dateien zu referenzieren, ↑/↓ für den Nachrichtenverlauf"
   },
   "agentTip": {
     "codes": {
       "ACP_EMPTY_TURN": {
         "body": "Diese Anfrage hat keine sichtbare Antwort erzeugt."
+      },
+      "ACP_EMPTY_TURN_NEEDS_AUTH": {
+        "body": "Diese Anfrage hat keine sichtbare Antwort erzeugt. Wenn Sie bereits angemeldet sind, kann es sich um ein vorübergehendes Backend- oder Verbindungsproblem handeln – versuchen Sie es erneut oder starten Sie eine neue Unterhaltung. Wenn Sie noch nicht angemeldet sind, können Sie sich anmelden – {{hint}}."
+      },
+      "ACP_EMPTY_TURN_TOKEN_LIMIT": {
+        "body": "Diese Anfrage hat keine sichtbare Antwort erzeugt. Die aktuelle Unterhaltung nähert sich möglicherweise der Kontextlängenbegrenzung – versuchen Sie es erneut oder starten Sie eine neue Unterhaltung und versuchen Sie es noch einmal."
       },
       "ACP_EMPTY_TURN_MAX_TOKENS": {
         "body": "Diese Anfrage hat das Ausgabe-Token-Limit des Modells erreicht, bevor eine sichtbare Antwort erzeugt wurde."

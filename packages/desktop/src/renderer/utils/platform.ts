@@ -10,6 +10,7 @@
  */
 
 import { getBaseUrl } from '@/common/adapter/httpBridge';
+import { isApplianceWebView, tryOpenUrlViaFlutterClient } from '@/renderer/utils/hub/flutterLaunch';
 
 /**
  * Check if running in Electron desktop environment
@@ -75,15 +76,31 @@ export const resolveExtensionAssetUrl = (url: string | undefined): string | unde
 
 /**
  * Open external URL in the appropriate context
+ * - Flutter appliance webview: FLUTTER_LAUNCH.postMessage → system browser
  * - Electron: uses shell.openExternal via IPC (opens on local machine)
  * - WebUI: uses window.open in client browser (opens on remote client)
  *
  * 在适当的环境中打开外部链接
+ * - Flutter 一体机 WebView: 经 FLUTTER_LAUNCH 跳出到系统浏览器
  * - Electron: 通过 IPC 调用 shell.openExternal（在本地机器打开）
  * - WebUI: 使用 window.open 在客户端浏览器打开（在远程客户端打开）
  */
 export const openExternalUrl = async (url: string): Promise<void> => {
   if (!url) return;
+
+  // Prefer the appliance bridge so Q&A / markdown links leave the embedded
+  // webview and open in the device's external browser.
+  if (tryOpenUrlViaFlutterClient(url)) {
+    return;
+  }
+
+  // Inside the Flutter client, window.open / target=_blank stays in the
+  // embedded webview (screenshot: Nature loads inside Studio chrome). Never
+  // fall through to that path — the client must handle FLUTTER_LAUNCH.
+  if (isApplianceWebView()) {
+    console.warn('[openExternalUrl] appliance webview detected but no launch bridge handled the URL:', url);
+    return;
+  }
 
   if (isElectronDesktop()) {
     const { ipcBridge } = await import('@/common');

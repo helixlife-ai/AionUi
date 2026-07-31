@@ -100,9 +100,9 @@ const MarkdownView: React.FC<MarkdownViewProps> = React.memo(
               </LocalFileLink>
             );
           }
-          return (
-            <a {...anchorProps} href={anchorProps.href} target='_blank' rel='noreferrer' onClick={handleLinkClick} />
-          );
+          // No target=_blank: appliance Flutter WebView treats it as in-app
+          // navigation. Capture-phase guard + openExternalUrl open the system browser.
+          return <a {...anchorProps} href={anchorProps.href} rel='noreferrer' onClick={handleLinkClick} />;
         },
         table: ({ node: _node, ...rest }: Record<string, unknown>) => (
           <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
@@ -134,7 +134,7 @@ const MarkdownView: React.FC<MarkdownViewProps> = React.memo(
             const src = decodeURIComponent(imgProps.src || '');
             return <LocalImageView src={src} alt={imgProps.alt || ''} className={imgProps.className} />;
           }
-          return <img {...imgProps} />;
+          return <img {...imgProps} alt={imgProps.alt || ''} />;
         },
       }),
       [codeStyle, hiddenCodeCopyButton, handleLinkClick, onLocalFileLink]

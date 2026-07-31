@@ -4,20 +4,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Button, Modal, Spin } from '@arco-design/web-react';
+import { Button, Spin } from '@arco-design/web-react';
 import { IconFile, IconFolder, IconUp } from '@arco-design/web-react/icon';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getBaseUrl } from '@/common/adapter/httpBridge';
 import { useAuth } from '@renderer/hooks/context/AuthContext';
 import { stripWindowsVerbatimPrefix } from '@/renderer/utils/file/fileSelection';
+import AionModal from '@/renderer/components/base/AionModal';
+import {
+  buildBrowseDirectoryUrl,
+  canSelectDirectoryItem,
+  filterBrowseItemsForMode,
+  mapBrowseDirectoryItem,
+  type DirectorySelectionItem,
+  type DirectorySelectionMode,
+} from '@/renderer/utils/file/directorySelectionMode';
 
-interface DirectoryItem {
-  name: string;
-  path: string;
-  isDirectory: boolean;
-  isFile?: boolean;
-}
+type DirectoryItem = DirectorySelectionItem;
 
 interface DirectoryData {
   items: DirectoryItem[];
@@ -28,6 +32,7 @@ interface DirectoryData {
 interface DirectorySelectionModalProps {
   visible: boolean;
   isFileMode?: boolean;
+  selectionMode?: DirectorySelectionMode;
   onConfirm: (paths: string[] | undefined) => void;
   onCancel: () => void;
 }
@@ -35,16 +40,32 @@ interface DirectorySelectionModalProps {
 const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
   visible,
   isFileMode = false,
+  selectionMode: selectionModeProp,
   onConfirm,
   onCancel,
 }) => {
   const { t } = useTranslation();
+  const selectionMode: DirectorySelectionMode = selectionModeProp ?? (isFileMode ? 'file' : 'directory');
+  const modalTitle =
+    selectionMode === 'hybrid'
+      ? `📁 ${t('fileSelection.selectFileOrDirectory')}`
+      : selectionMode === 'file'
+        ? `📄 ${t('fileSelection.selectFile')}`
+        : `📁 ${t('fileSelection.selectDirectory')}`;
+  const selectionHint =
+    selectionMode === 'hybrid'
+      ? t('fileSelection.pleaseSelectFileOrDirectory')
+      : selectionMode === 'file'
+        ? t('fileSelection.pleaseSelectFile')
+        : t('fileSelection.pleaseSelectDirectory');
   const { fsRoot } = useAuth();
   const [loading, setLoading] = useState(false);
   const [directoryData, setDirectoryData] = useState<DirectoryData>({ items: [], canGoUp: false });
   const [selectedPath, setSelectedPath] = useState<string>('');
   const [currentPath, setCurrentPath] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const loadAbortRef = useRef<AbortController | null>(null);
+  const loadSeqRef = useRef(0);
 
   // When fsRoot is set (WebUI container mode), the picker is capped to that
   // directory: it starts there and the up-arrow is hidden at the root so users
@@ -55,23 +76,35 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
 
   const loadDirectory = useCallback(
     async (dirPath = '') => {
+      loadAbortRef.current?.abort();
+      const controller = new AbortController();
+      loadAbortRef.current = controller;
+      const loadSeq = ++loadSeqRef.current;
+
       setLoading(true);
       setError(null);
       try {
-        const showFiles = isFileMode ? 'true' : 'false';
-        const response = await fetch(
-          `${getBaseUrl()}/api/fs/browse?path=${encodeURIComponent(dirPath)}&showFiles=${showFiles}`,
-          {
-            method: 'GET',
-            credentials: 'include',
-          }
-        );
+        // Always request files via show_files=true (never use heavy /api/fs/dir).
+        // Directory-only mode filters files client-side so a folders-only browse
+        // response/cache cannot blank a file picker.
+        const response = await fetch(buildBrowseDirectoryUrl(getBaseUrl(), dirPath), {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted || loadSeq !== loadSeqRef.current) {
+          return;
+        }
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
           setError(errorData.error || `HTTP ${response.status}`);
           return;
         }
         const envelope = await response.json();
+        if (controller.signal.aborted || loadSeq !== loadSeqRef.current) {
+          return;
+        }
         // Backend wraps the payload in { success, data, ... }.
         const data = envelope && typeof envelope === 'object' && 'data' in envelope ? envelope.data : envelope;
         if (!data || !Array.isArray(data.items)) {
@@ -81,48 +114,59 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
         // Older backends return Windows verbatim paths (`\\?\C:\DEV`), which
         // break agent spawning when stored as a workspace (issue #3191).
         // 旧版后端会返回 `\\?\` 前缀的 Windows 路径，存为工作区后会导致 agent 启动失败。
+        const browseItems = (data.items as Parameters<typeof mapBrowseDirectoryItem>[0][])
+          .map((item) => mapBrowseDirectoryItem(item, stripWindowsVerbatimPrefix))
+          .filter((item): item is DirectoryItem => Boolean(item));
+
         const normalized: DirectoryData = {
           ...data,
-          items: (data.items as DirectoryItem[]).map((item) => ({
-            ...item,
-            path: stripWindowsVerbatimPrefix(item.path),
-          })),
+          items: filterBrowseItemsForMode(browseItems, selectionMode),
           parentPath:
             typeof data.parentPath === 'string' ? stripWindowsVerbatimPrefix(data.parentPath) : data.parentPath,
         };
         setDirectoryData(normalized);
         setCurrentPath(dirPath);
       } catch (err) {
+        if (controller.signal.aborted || (err instanceof DOMException && err.name === 'AbortError')) {
+          return;
+        }
         console.error('Failed to load directory:', err);
         setError(err instanceof Error ? err.message : 'Failed to load directory');
       } finally {
-        setLoading(false);
+        if (loadSeq === loadSeqRef.current) {
+          setLoading(false);
+        }
       }
     },
-    [isFileMode]
+    [selectionMode]
   );
 
   useEffect(() => {
     if (visible) {
       setSelectedPath('');
       loadDirectory(fsRoot ?? '').catch((error) => console.error('Failed to load initial directory:', error));
+    } else {
+      loadAbortRef.current?.abort();
     }
+
+    return () => {
+      loadAbortRef.current?.abort();
+    };
   }, [visible, loadDirectory, fsRoot]);
+
+  const handleSelect = (path: string) => {
+    setSelectedPath(path);
+  };
 
   const handleItemClick = (item: DirectoryItem) => {
     if (item.isDirectory) {
       loadDirectory(item.path).catch((error) => console.error('Failed to load directory:', error));
+      return;
     }
-  };
 
-  // Double-click behavior removed - single click now handles directory navigation
-  // 移除双击行为 - 单击现在处理目录导航
-  const handleItemDoubleClick = (_item: DirectoryItem) => {
-    // No-op: single click already handles navigation
-  };
-
-  const handleSelect = (path: string) => {
-    setSelectedPath(path);
+    if (canSelectDirectoryItem(item, selectionMode)) {
+      handleSelect(item.path);
+    }
   };
 
   const handleGoUp = () => {
@@ -141,45 +185,63 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
   const handleConfirm = () => {
     if (selectedPath) {
       onConfirm([selectedPath]);
+      return;
+    }
+    // Directory-only: confirming after navigating into a folder selects that folder
+    // even if the user did not click the per-row "Select" button.
+    if (selectionMode === 'directory' && currentPath) {
+      onConfirm([currentPath]);
     }
   };
 
-  const canSelect = (item: DirectoryItem) => {
-    return isFileMode ? item.isFile : item.isDirectory;
-  };
+  const canSelect = (item: DirectoryItem) => canSelectDirectoryItem(item, selectionMode);
 
   return (
     // This picker is opened *from* other modals (team/cron create dialogs sit at
     // zIndex 10000, the cron workspace menu at 10020), so it must float above all
     // of them — it's the topmost layer while choosing a folder.
-    <Modal
+    <AionModal
+      variant='standard'
       visible={visible}
-      title={isFileMode ? '📄 ' + t('fileSelection.selectFile') : '📁 ' + t('fileSelection.selectDirectory')}
+      header={{
+        title: modalTitle,
+        showClose: true,
+      }}
       onCancel={onCancel}
       onOk={handleConfirm}
-      okButtonProps={{ disabled: !selectedPath }}
+      okButtonProps={{
+        disabled: !selectedPath && !(selectionMode === 'directory' && Boolean(currentPath)),
+      }}
       className='w-[90vw] md:w-[600px]'
       style={{ width: 'min(600px, 90vw)' }}
       wrapStyle={{ zIndex: 10050 }}
       maskStyle={{ zIndex: 10040 }}
-      footer={
-        <div className='w-full flex justify-between items-center'>
-          <div
-            className='text-t-secondary text-14px overflow-hidden text-ellipsis whitespace-nowrap max-w-[70vw]'
-            title={selectedPath || currentPath}
-          >
-            {selectedPath ||
-              currentPath ||
-              (isFileMode ? t('fileSelection.pleaseSelectFile') : t('fileSelection.pleaseSelectDirectory'))}
+      footer={{
+        render: () => (
+          <div className='w-full flex justify-between items-center'>
+            <div
+              className='text-t-secondary text-14px overflow-hidden text-ellipsis whitespace-nowrap max-w-[70vw]'
+              title={selectedPath || currentPath}
+            >
+              {selectedPath || currentPath || selectionHint}
+            </div>
+            <div className='flex gap-10px'>
+              <Button onClick={onCancel} className='px-20px min-w-80px' style={{ borderRadius: 8 }}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                type='primary'
+                onClick={handleConfirm}
+                disabled={!selectedPath && !(selectionMode === 'directory' && currentPath)}
+                className='px-20px min-w-80px'
+                style={{ borderRadius: 8 }}
+              >
+                {t('common.confirm')}
+              </Button>
+            </div>
           </div>
-          <div className='flex gap-10px'>
-            <Button onClick={onCancel}>{t('common.cancel')}</Button>
-            <Button type='primary' onClick={handleConfirm} disabled={!selectedPath}>
-              {t('common.confirm')}
-            </Button>
-          </div>
-        </div>
-      }
+        ),
+      }}
     >
       <Spin loading={loading} className='w-full'>
         <div className='w-full border border-b-base rd-4px overflow-hidden' style={{ height: 'min(400px, 60vh)' }}>
@@ -201,13 +263,17 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
                 </Button>
               </div>
             )}
-            {directoryData.items.map((item, index) => (
+            {!error && !loading && directoryData.items.length === 0 && (
+              <div className='p-16px text-center text-t-secondary text-13px'>
+                {t('fileSelection.emptyDirectory', { defaultValue: 'This folder is empty' })}
+              </div>
+            )}
+            {directoryData.items.map((item) => (
               <div
-                key={index}
+                key={item.path}
                 className='flex items-center justify-between p-10px border-b border-b-light cursor-pointer hover:bg-hover transition'
                 style={selectedPath === item.path ? { background: 'var(--brand-light)' } : {}}
                 onClick={() => handleItemClick(item)}
-                onDoubleClick={() => handleItemDoubleClick(item)}
               >
                 <div className='flex items-center flex-1 min-w-0'>
                   {item.isDirectory ? (
@@ -234,7 +300,7 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({
           </div>
         </div>
       </Spin>
-    </Modal>
+    </AionModal>
   );
 };
 

@@ -19,6 +19,7 @@ import { useContainerScroll, useContainerScrollTarget } from '../../hooks/useScr
 import { useLocalFilePreview, useThemeDetection } from '../../hooks';
 import { getMarkdownShikiThemes, getMermaidTheme } from '../../theme';
 import { convertLatexDelimiters } from '@/renderer/utils/chat/latexDelimiters';
+import { openExternalUrl } from '@/renderer/utils/platform';
 
 interface MarkdownPreviewProps {
   content: string; // Markdown 内容 / Markdown content
@@ -181,6 +182,35 @@ const normalizeLocalFileSchemeLinks = (markdown: string): string => {
   return markdown.replace(/file:\/\//gi, '');
 };
 
+// Streamdown's built-in heading components are memoized by node position only
+// (children are ignored), so headings keep stale text when content re-renders —
+// especially with rehype-raw, which drops positions. Plain overrides keep the
+// built-in classes but always render the current text.
+const HEADING_COMPONENTS = Object.fromEntries(
+  (
+    [
+      ['h1', 'text-3xl'],
+      ['h2', 'text-2xl'],
+      ['h3', 'text-xl'],
+      ['h4', 'text-lg'],
+      ['h5', 'text-base'],
+      ['h6', 'text-sm'],
+    ] as const
+  ).map(([tag, size], index) => [
+    tag,
+    ({ children, className, node: _node, ...props }: React.HTMLAttributes<HTMLHeadingElement> & { node?: unknown }) =>
+      React.createElement(
+        tag,
+        {
+          className: ['mt-6 mb-2 font-semibold', size, className].filter(Boolean).join(' '),
+          'data-streamdown': `heading-${index + 1}`,
+          ...props,
+        },
+        children
+      ),
+  ])
+);
+
 /**
  * Markdown 预览组件
  * Markdown preview component
@@ -201,6 +231,15 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({
   const containerRef = externalContainerRef || internalContainerRef; // 使用外部 ref 或内部 ref / Use external ref or internal ref
   const currentTheme = useThemeDetection();
   const handleLocalFileLink = useLocalFilePreview(workspace);
+  const handleExternalLinkClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const href = event.currentTarget.href;
+    if (!href) return;
+    void openExternalUrl(href).catch((error: unknown) => {
+      console.error('[MarkdownViewer] failed to open external link', error);
+    });
+  }, []);
 
   // 使用滚动同步 Hooks / Use scroll sync hooks
   useContainerScroll(containerRef, externalOnScroll);
@@ -258,6 +297,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({
               remarkPlugins={[...Object.values(defaultRemarkPlugins), remarkBreaks]}
               rehypePlugins={[defaultRehypePlugins.raw, defaultRehypePlugins.sanitize, defaultRehypePlugins.katex]}
               components={{
+                ...HEADING_COMPONENTS,
                 a({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) {
                   const localFileReference = resolveLocalFileLinkReference(typeof href === 'string' ? href : '');
                   if (localFileReference) {
@@ -268,7 +308,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({
                     );
                   }
                   return (
-                    <a href={href} target='_blank' rel='noreferrer' {...props}>
+                    <a href={href} rel='noreferrer' {...props} onClick={handleExternalLinkClick}>
                       {children}
                     </a>
                   );

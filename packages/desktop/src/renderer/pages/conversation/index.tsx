@@ -1,40 +1,44 @@
 import { ipcBridge } from '@/common';
-import { Message, Spin } from '@arco-design/web-react';
-import React, { useEffect, useRef } from 'react';
+import { Message } from '@arco-design/web-react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import useSWR from 'swr';
 import ChatConversation from './components/ChatConversation';
-import { usePreviewContext } from '@/renderer/pages/conversation/Preview';
+import { usePreviewContext } from '@/renderer/pages/conversation/Preview/context';
 import { useAutoTitle } from '@/renderer/hooks/chat/useAutoTitle';
 import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conversationCache';
+import { adoptConversationRequestScope } from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
 
 const ChatConversationIndex: React.FC = () => {
   const { id } = useParams();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { closePreview } = usePreviewContext();
+  const { closePreviewIfWorkspaceChanged } = usePreviewContext();
   const { syncTitleFromHistory } = useAutoTitle();
-  const previousConversationIdRef = useRef<string | undefined>(undefined);
   const notFoundHandledIdRef = useRef<string | undefined>(undefined);
   const defaultConversationTitle = t('conversation.welcome.newConversation');
 
-  useEffect(() => {
-    if (!id) return;
-
-    // 切换会话时自动关闭预览面板，避免跨会话残留
-    // Close preview on every conversation change, including initial mount
-    // (component may remount via React Router, resetting the ref to undefined)
-    if (previousConversationIdRef.current !== id) {
-      closePreview();
-    }
-
-    previousConversationIdRef.current = id;
-  }, [id, closePreview]);
+  // Abort previous conversation HTTP before SWR / child effects fire new ones.
+  useLayoutEffect(() => {
+    adoptConversationRequestScope(id ?? null);
+    return () => {
+      adoptConversationRequestScope(null);
+    };
+  }, [id]);
 
   const { data, isLoading, mutate } = useSWR(id ? `conversation/${id}` : null, () => {
     return getConversationOrNull(id!);
   });
+
+  // Close preview only when the workspace changes, not on every conversation
+  // switch. Same-workspace conversations (same project) keep the preview open.
+  // The ref lives in PreviewContext (app-root level) so it survives remounts.
+  useEffect(() => {
+    if (!data) return;
+    const workspace = (data.extra as { workspace?: string } | undefined)?.workspace ?? null;
+    closePreviewIfWorkspaceChanged(workspace);
+  }, [data, closePreviewIfWorkspaceChanged]);
 
   useEffect(() => {
     if (!id) return;
@@ -68,7 +72,11 @@ const ChatConversationIndex: React.FC = () => {
     navigate('/', { replace: true });
   }, [id, isLoading, data, navigate, t]);
 
-  if (isLoading) return <Spin loading></Spin>;
+  // Keep ChatLayout visible while metadata loads (seeded SWR / deep links).
+  // A bare Spin used to blank the whole content panel for several seconds.
+  if (isLoading && !data) {
+    return <ChatConversation />;
+  }
   return <ChatConversation conversation={data ?? undefined}></ChatConversation>;
 };
 

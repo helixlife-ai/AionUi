@@ -18,11 +18,7 @@ import { CheckOne, CloseOne, Copy, Delete, Down, Refresh } from '@icon-park/reac
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { QRCodeSVG } from 'qrcode.react';
-import {
-  buildChannelAssistantBinding,
-  getDefaultChannelAssistant,
-  resolveChannelAssistantSelection,
-} from './assistantBinding';
+import { buildChannelAssistantBinding, initializeChannelAssistantState } from './assistantBinding';
 
 type LoginState = 'idle' | 'loading_qr' | 'showing_qr' | 'scanned' | 'connected';
 
@@ -206,14 +202,13 @@ const WeixinConfigForm: React.FC<WeixinConfigFormProps> = ({ pluginStatus, model
           channel.getPlatformSettings.invoke({ platform: 'weixin' }),
         ]);
 
-        setAvailableAssistants(assistantList);
+        const {
+          availableAssistants,
+          selection,
+          selectedAssistant: nextAssistant,
+        } = initializeChannelAssistantState(assistantList, saved.assistant ?? undefined);
 
-        const selection = resolveChannelAssistantSelection(saved.assistant ?? undefined, assistantList);
-        const nextAssistant =
-          assistantList.find((assistant) => assistant.id === selection.assistantId) ||
-          (!selection.hasBrokenSavedAssistant ? getDefaultChannelAssistant(assistantList) : undefined) ||
-          null;
-
+        setAvailableAssistants(availableAssistants);
         setHasBrokenSavedAssistant(selection.hasBrokenSavedAssistant);
         setSelectedAssistant(nextAssistant);
       } catch (error) {

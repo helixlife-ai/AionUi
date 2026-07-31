@@ -15,6 +15,10 @@ import { type TFunction } from 'i18next';
 import type { NavigateFunction } from 'react-router-dom';
 import { mutate as swrMutate } from 'swr';
 import { getConversationCreateErrorMessage } from '@/renderer/pages/conversation/utils/conversationCreateError';
+import {
+  prefetchConversationRouteChunk,
+  seedConversationCache,
+} from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
 import type { AcpModelInfo } from '../types';
 
 export type GuidSendDeps = {
@@ -33,6 +37,7 @@ export type GuidSendDeps = {
   selectedAssistantBackend: string;
   selectedMode: string;
   selectedAcpModel: string | null;
+  selectedThoughtLevelValue?: string;
   currentAcpCachedModelInfo: AcpModelInfo | null;
   current_model: TProviderWithModel | undefined;
 
@@ -80,6 +85,7 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
     selectedAssistantBackend,
     selectedMode,
     selectedAcpModel,
+    selectedThoughtLevelValue,
     currentAcpCachedModelInfo,
     current_model,
     guidDisabledBuiltinSkills,
@@ -142,6 +148,7 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
     const assistantOverrides = {
       model: assistantOverrideModel,
       permission: selectedMode || undefined,
+      thought_level: selectedThoughtLevelValue || undefined,
       skill_ids: enabled_skills_to_send,
       disabled_builtin_skill_ids: excludeBuiltinSkills,
       mcp_ids: assistantOverrideMcpIds,
@@ -194,6 +201,8 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
         };
         sessionStorage.setItem(`aionrs_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
 
+        seedConversationCache(conversation);
+        prefetchConversationRouteChunk();
         await navigate(`/conversation/${conversation.id}`);
       } catch (error: unknown) {
         console.error('Failed to create Aion CLI conversation:', error);
@@ -243,6 +252,8 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
       };
       sessionStorage.setItem(`acp_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
 
+      seedConversationCache(conversation);
+      prefetchConversationRouteChunk();
       await navigate(`/conversation/${conversation.id}`);
     } catch (error: unknown) {
       console.error('Failed to create ACP conversation:', error);
@@ -256,6 +267,7 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
     selectedAssistantBackend,
     selectedMode,
     selectedAcpModel,
+    selectedThoughtLevelValue,
     currentAcpCachedModelInfo,
     current_model,
     guidDisabledBuiltinSkills,

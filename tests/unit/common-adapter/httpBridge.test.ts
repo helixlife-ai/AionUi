@@ -25,6 +25,11 @@ import {
   wsMappedEmitter,
   stubEmitter,
   httpRequest,
+  setHttpRequestSignalProvider,
+  setOfficePreviewRequestSignalProvider,
+  adoptOfficePreviewRequestScope,
+  installOfficePreviewHttpAbort,
+  isHttpAbortError,
 } from '@/common/adapter/httpBridge';
 
 type FakeSocketEventMap = {
@@ -76,6 +81,13 @@ describe('httpBridge', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+    setHttpRequestSignalProvider(null);
+    setOfficePreviewRequestSignalProvider(null);
+  });
+
+  afterEach(() => {
+    setHttpRequestSignalProvider(null);
+    setOfficePreviewRequestSignalProvider(null);
   });
 
   afterEach(() => {
@@ -465,6 +477,7 @@ describe('httpBridge', () => {
         method: 'GET',
         headers: {},
         body: undefined,
+        signal: undefined,
       });
     });
 
@@ -482,6 +495,72 @@ describe('httpBridge', () => {
 
       expect(fetchSpy.mock.calls[0][1]?.body).toBe('{"key":"value"}');
       expect(fetchSpy.mock.calls[0][1]?.headers).toEqual({ 'Content-Type': 'application/json' });
+    });
+
+    it('attaches explicit and default abort signals to fetch', async () => {
+      const fetchSpy = vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ data: {} }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        )
+      );
+      vi.stubGlobal('fetch', fetchSpy);
+      vi.spyOn(console, 'debug').mockImplementation(() => {});
+
+      const explicit = new AbortController();
+      await httpRequest('GET', '/api/explicit', undefined, { signal: explicit.signal });
+      expect(fetchSpy.mock.calls[0][1]?.signal).toBe(explicit.signal);
+
+      const fallback = new AbortController();
+      setHttpRequestSignalProvider(() => fallback.signal);
+      await httpRequest('GET', '/api/default');
+      expect(fetchSpy.mock.calls[1][1]?.signal).toBe(fallback.signal);
+
+      await httpRequest('GET', '/api/opt-out', undefined, { useDefaultSignal: false });
+      expect(fetchSpy.mock.calls[2][1]?.signal).toBeUndefined();
+    });
+
+    it('attaches the office preview signal only to Office start paths', async () => {
+      const fetchSpy = vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ data: {} }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        )
+      );
+      vi.stubGlobal('fetch', fetchSpy);
+      vi.spyOn(console, 'debug').mockImplementation(() => {});
+
+      installOfficePreviewHttpAbort();
+      const officeSignal = adoptOfficePreviewRequestScope();
+
+      await httpRequest('POST', '/api/excel-preview/start', { file_path: '/a.xlsx' });
+      expect(fetchSpy.mock.calls[0][1]?.signal).toBe(officeSignal);
+
+      await httpRequest('POST', '/api/excel-preview/stop', { file_path: '/a.xlsx' });
+      expect(fetchSpy.mock.calls[1][1]?.signal).toBeUndefined();
+
+      const previous = officeSignal;
+      const next = adoptOfficePreviewRequestScope();
+      expect(previous.aborted).toBe(true);
+      expect(next.aborted).toBe(false);
+
+      await httpRequest('POST', '/api/word-preview/start', { file_path: '/b.docx' });
+      expect(fetchSpy.mock.calls[2][1]?.signal).toBe(next);
+    });
+
+    it('rethrows abort errors without treating them as backend failures', async () => {
+      const abortError = Object.assign(new Error('Aborted'), { name: 'AbortError' });
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
+      vi.spyOn(console, 'debug').mockImplementation(() => {});
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      await expect(httpRequest('GET', '/api/aborted')).rejects.toBe(abortError);
+      expect(isHttpAbortError(abortError)).toBe(true);
+      expect(errorSpy).not.toHaveBeenCalled();
     });
   });
 

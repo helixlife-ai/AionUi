@@ -7,13 +7,20 @@
 import type { Assistant } from '@/common/types/agent/assistantTypes';
 import {
   buildChannelAssistantBinding,
+  filterChannelAssistantOptions,
   getDefaultChannelAssistant,
+  initializeChannelAssistantState,
   resolveChannelAssistantId,
   resolveChannelAssistantSelection,
 } from '@/renderer/components/settings/SettingsModal/contents/channels/assistantBinding';
 import { describe, expect, it } from 'vitest';
 
-function assistant(overrides: Partial<Assistant> & Pick<Assistant, 'id' | 'name' | 'preset_agent_type'>): Assistant {
+function assistant(
+  overrides: Partial<Assistant> & Pick<Assistant, 'id' | 'name'> & { preset_agent_type?: string }
+): Assistant {
+  const runtimeKey = overrides.preset_agent_type ?? 'claude';
+  const isAionrs = runtimeKey === 'aionrs';
+
   return {
     id: overrides.id,
     source: overrides.source ?? 'user',
@@ -24,14 +31,17 @@ function assistant(overrides: Partial<Assistant> & Pick<Assistant, 'id' | 'name'
     avatar: overrides.avatar,
     enabled: overrides.enabled ?? true,
     sort_order: overrides.sort_order ?? 1000,
-    preset_agent_type: overrides.preset_agent_type,
+    agent_id: `agent-${runtimeKey}`,
+    agent: isAionrs
+      ? { type: 'aionrs', source: 'internal' }
+      : { type: 'acp', source: 'builtin', acp_backend: runtimeKey },
     enabled_skills: [],
     custom_skill_names: [],
     disabled_builtin_skills: [],
     prompts: [],
     prompts_i18n: {},
     models: [],
-    agent_status: 'online',
+    agent_status: overrides.agent_status ?? 'online',
     team_selectable: true,
     deletable: true,
     ...overrides,
@@ -84,5 +94,33 @@ describe('channel assistant binding helpers', () => {
     expect(buildChannelAssistantBinding(assistants[1])).toEqual({
       assistant_id: 'bare-claude',
     });
+  });
+
+  it('reuses guid agentSelection catalog for channel assistant pickers', () => {
+    const catalog = [
+      assistant({ id: 'bare-aionrs', name: 'Aion CLI', source: 'generated', preset_agent_type: 'aionrs' }),
+      assistant({ id: 'bare-claude', name: 'Claude Code', source: 'generated', preset_agent_type: 'claude' }),
+      assistant({ id: 'bare-codex', name: 'Codex CLI', source: 'generated', preset_agent_type: 'codex' }),
+      assistant({ id: 'user-writer', name: 'Writer', source: 'user', preset_agent_type: 'claude' }),
+    ];
+
+    expect(filterChannelAssistantOptions(catalog).map((item) => item.id)).toEqual([
+      'bare-claude',
+      'bare-codex',
+      'user-writer',
+    ]);
+  });
+
+  it('initializes channel assistant state from the guid-compatible catalog', () => {
+    const catalog = [
+      assistant({ id: 'bare-aionrs', name: 'Aion CLI', source: 'generated', preset_agent_type: 'aionrs' }),
+      assistant({ id: 'bare-claude', name: 'Claude Code', source: 'generated', preset_agent_type: 'claude' }),
+    ];
+
+    const state = initializeChannelAssistantState(catalog, { assistant_id: 'bare-aionrs' });
+
+    expect(state.availableAssistants.map((item) => item.id)).toEqual(['bare-claude']);
+    expect(state.selection.hasBrokenSavedAssistant).toBe(true);
+    expect(state.selectedAssistant).toBeNull();
   });
 });

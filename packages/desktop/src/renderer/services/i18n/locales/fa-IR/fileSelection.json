@@ -1,6 +1,9 @@
 {
   "selectFile": "انتخاب فایل",
   "selectDirectory": "انتخاب پوشه",
+  "selectFileOrDirectory": "انتخاب فایل یا پوشه",
   "pleaseSelectFile": "لطفاً یک فایل انتخاب کنید",
-  "pleaseSelectDirectory": "لطفاً یک پوشه انتخاب کنید"
+  "pleaseSelectDirectory": "لطفاً یک پوشه انتخاب کنید",
+  "pleaseSelectFileOrDirectory": "لطفاً یک فایل یا پوشه انتخاب کنید",
+  "emptyDirectory": "این پوشه خالی است"
 }

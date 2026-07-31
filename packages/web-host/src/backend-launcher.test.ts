@@ -14,6 +14,11 @@ vi.mock('node:child_process', () => ({
   spawn: vi.fn(),
 }));
 
+vi.mock('node:fs', () => ({
+  mkdirSync: vi.fn(),
+  statSync: vi.fn(),
+}));
+
 vi.mock('node:net', () => ({
   createServer: vi.fn(),
   connect: vi.fn(),
@@ -24,9 +29,16 @@ vi.mock('./agent-process-registry.js', () => ({
 }));
 
 import { spawn } from 'node:child_process';
+import { mkdirSync, statSync } from 'node:fs';
 import { connect, createServer } from 'node:net';
 import { cleanupRegisteredAgentProcesses } from './agent-process-registry.js';
-import { buildSpawnArgs, buildSpawnEnv, findAvailablePort, BackendLifecycleManager } from './backend-launcher.js';
+import {
+  buildSpawnArgs,
+  buildSpawnEnv,
+  findAvailablePort,
+  BackendLifecycleManager,
+  BackendStartupError,
+} from './backend-launcher.js';
 import type { AppMetadata } from './types.js';
 
 const APP_META: AppMetadata = {
@@ -138,23 +150,50 @@ describe('buildSpawnArgs', () => {
       isPackaged: false,
     });
     expect(args).toContain('debug');
-    expect(args).toContain('--dump-prompts');
+    expect(args).not.toContain('--dump-prompts');
     expect(args).not.toContain('--managed-resources-mode');
     expect(args).not.toContain('--log-dir');
     expect(args).not.toContain('--local');
   });
 
+  it('passes prompt dump flag in development only when AIONUI_DUMP_PROMPTS is enabled', () => {
+    const prev = process.env.AIONUI_DUMP_PROMPTS;
+    process.env.AIONUI_DUMP_PROMPTS = '1';
+    try {
+      const args = buildSpawnArgs({
+        port: 1,
+        dbPath: '/d',
+        local: false,
+        appVersion: '0.0.1',
+        isPackaged: false,
+      });
+
+      expect(args).toContain('--dump-prompts');
+    } finally {
+      if (prev === undefined) delete process.env.AIONUI_DUMP_PROMPTS;
+      else process.env.AIONUI_DUMP_PROMPTS = prev;
+    }
+  });
+
   it('passes bundled managed resources mode when packaged', () => {
-    const args = buildSpawnArgs({
-      port: 1,
-      dbPath: '/d',
-      local: false,
-      appVersion: '0.0.1',
-      isPackaged: true,
-    });
-    expect(args).toContain('--managed-resources-mode');
-    expect(args).toContain('bundled');
-    expect(args).not.toContain('--dump-prompts');
+    const prev = process.env.AIONUI_DUMP_PROMPTS;
+    process.env.AIONUI_DUMP_PROMPTS = '1';
+    try {
+      const args = buildSpawnArgs({
+        port: 1,
+        dbPath: '/d',
+        local: false,
+        appVersion: '0.0.1',
+        isPackaged: true,
+      });
+
+      expect(args).toContain('--managed-resources-mode');
+      expect(args).toContain('bundled');
+      expect(args).not.toContain('--dump-prompts');
+    } finally {
+      if (prev === undefined) delete process.env.AIONUI_DUMP_PROMPTS;
+      else process.env.AIONUI_DUMP_PROMPTS = prev;
+    }
   });
 
   it('passes corrupted database recovery authorization only when requested', () => {
@@ -376,6 +415,10 @@ describe('BackendLifecycleManager.start (success path)', () => {
       expect(opts.env.AIONUI_WORK_DIR).toBe('/w');
       expect(opts.env.AIONUI_LOG_DIR).toBe('/l');
       expect((spawnCall[2] as { detached?: boolean }).detached).toBe(process.platform !== 'win32');
+      expect(mkdirSync).toHaveBeenCalledWith('/db/path', { recursive: true });
+      expect(mkdirSync).toHaveBeenCalledWith('/log/dir', { recursive: true });
+      expect(mkdirSync).toHaveBeenCalledWith('/w', { recursive: true });
+      expect(mkdirSync).toHaveBeenCalledWith('/l', { recursive: true });
 
       expect(fetchSpy).toHaveBeenCalled();
       expect(infoSpy).toHaveBeenCalledWith(
@@ -389,6 +432,69 @@ describe('BackendLifecycleManager.start (success path)', () => {
 });
 
 describe('BackendLifecycleManager.start (health timeout)', () => {
+  it('fails before spawn when startup directory preparation fails', async () => {
+    vi.mocked(mkdirSync).mockImplementationOnce(() => {
+      throw new Error('EPERM: operation not permitted, mkdir /db/path');
+    });
+
+    const mgr = new BackendLifecycleManager(APP_META_PACKAGED, () => '/abs/path/aioncore');
+
+    await expect(
+      mgr.start('/db/path', '/log/dir', {
+        cacheDir: '/cache',
+        workDir: '/work',
+        logDir: '/log',
+      })
+    ).rejects.toMatchObject({
+      name: 'BackendStartupError',
+      details: expect.objectContaining({
+        causeMessage: 'EPERM: operation not permitted, mkdir /db/path',
+        stage: 'spawn',
+      }),
+    });
+
+    expect(spawn).not.toHaveBeenCalled();
+    expect(mgr.status).toBe('error');
+  });
+
+  it('skips mkdir for a pre-existing work dir so a Windows drive root can start (ELECTRON-3S4)', async () => {
+    // Windows drive roots exist but can never be mkdir'd: CreateDirectory on
+    // `D:\` reports access-denied (not already-exists), so mkdirSync throws
+    // EPERM even with recursive:true. Directory preparation must stat first
+    // and skip mkdir for directories that already exist.
+    vi.mocked(statSync).mockImplementation(((p: unknown) =>
+      p === 'D:\\' ? { isDirectory: () => true } : undefined) as unknown as typeof statSync);
+    vi.mocked(mkdirSync).mockImplementation(((p: unknown) => {
+      if (p === 'D:\\') throw new Error('EPERM: operation not permitted, mkdir D:\\');
+      return undefined;
+    }) as unknown as typeof mkdirSync);
+    // Halt startup deterministically right after directory preparation: a
+    // spawn that throws proves preparation passed without hanging on health.
+    vi.mocked(spawn).mockImplementationOnce(() => {
+      throw new Error('halted by test after directory preparation');
+    });
+
+    try {
+      const mgr = new BackendLifecycleManager(APP_META_PACKAGED, () => '/abs/path/aioncore');
+      const error = await mgr
+        .start('/db/path', '/log/dir', { cacheDir: '/cache', workDir: 'D:\\', logDir: '/log' })
+        .catch((e: unknown) => e as Error);
+
+      // Startup got PAST directory preparation and reached spawn.
+      expect((error as Error).message).toContain('spawn threw before startup');
+      expect((error as Error).message).not.toContain('directory preparation failed');
+      expect(mkdirSync).not.toHaveBeenCalledWith('D:\\', expect.anything());
+      expect(spawn).toHaveBeenCalled();
+    } finally {
+      // Implementations survive the global clearAllMocks; reset so later
+      // tests keep the default no-op fs/spawn mocks (an unconsumed spawn
+      // mockImplementationOnce would otherwise leak into the next test).
+      vi.mocked(statSync).mockReset();
+      vi.mocked(mkdirSync).mockReset();
+      vi.mocked(spawn).mockReset();
+    }
+  });
+
   it('captures backend boundary code and stage from early-exit stderr', async () => {
     vi.useFakeTimers();
     vi.mocked(createServer).mockImplementation(
@@ -1119,5 +1225,75 @@ describe('BackendLifecycleManager crash restart', () => {
     });
 
     errorSpy.mockRestore();
+  });
+});
+
+// T-A4 — bounded peer-already-running retry (Sentry 135525166).
+type AttemptStartSpyTarget = { attemptStart: (...args: unknown[]) => Promise<number> };
+
+function makePeerAlreadyRunningError(): BackendStartupError {
+  return new BackendStartupError('aioncore exited before health check passed', {
+    stage: 'early_exit',
+    appVersion: APP_META.version,
+    backendBoundaryCode: 'BOOTSTRAP_PEER_ALREADY_RUNNING',
+    backendBoundaryStage: 'instance_guard.acquire',
+  });
+}
+
+describe('BackendLifecycleManager.start peer retry', () => {
+  it('retries with bounded backoff and succeeds once the peer releases the data dir', async () => {
+    vi.useFakeTimers();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const mgr = new BackendLifecycleManager(APP_META, () => '/abs/path/aioncore');
+    const attemptStart = vi
+      .spyOn(mgr as unknown as AttemptStartSpyTarget, 'attemptStart')
+      .mockRejectedValueOnce(makePeerAlreadyRunningError())
+      .mockRejectedValueOnce(makePeerAlreadyRunningError())
+      .mockResolvedValueOnce(58672);
+
+    const started = mgr.start('/data/aionui-backend.db');
+    await vi.runAllTimersAsync();
+
+    await expect(started).resolves.toBe(58672);
+    expect(attemptStart).toHaveBeenCalledTimes(3);
+
+    warnSpy.mockRestore();
+  });
+
+  it('throws the peer boundary error after exhausting the retry budget', async () => {
+    vi.useFakeTimers();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const mgr = new BackendLifecycleManager(APP_META, () => '/abs/path/aioncore');
+    const attemptStart = vi
+      .spyOn(mgr as unknown as AttemptStartSpyTarget, 'attemptStart')
+      .mockRejectedValue(makePeerAlreadyRunningError());
+
+    const started = mgr.start('/data/aionui-backend.db');
+    const assertion = expect(started).rejects.toMatchObject({
+      details: { backendBoundaryCode: 'BOOTSTRAP_PEER_ALREADY_RUNNING' },
+    });
+    await vi.runAllTimersAsync();
+    await assertion;
+
+    // 5 attempts: initial + 4 retries.
+    expect(attemptStart).toHaveBeenCalledTimes(5);
+
+    warnSpy.mockRestore();
+  });
+
+  it('does not retry a non-peer startup failure', async () => {
+    const mgr = new BackendLifecycleManager(APP_META, () => '/abs/path/aioncore');
+    const nonPeerError = new BackendStartupError('assistant storage bootstrap failed', {
+      stage: 'early_exit',
+      appVersion: APP_META.version,
+      backendBoundaryCode: 'BOOTSTRAP_SERVER_FAILED',
+      backendBoundaryStage: 'router.assistant.bootstrap',
+    });
+    const attemptStart = vi
+      .spyOn(mgr as unknown as AttemptStartSpyTarget, 'attemptStart')
+      .mockRejectedValue(nonPeerError);
+
+    await expect(mgr.start('/data/aionui-backend.db')).rejects.toBe(nonPeerError);
+    expect(attemptStart).toHaveBeenCalledTimes(1);
   });
 });

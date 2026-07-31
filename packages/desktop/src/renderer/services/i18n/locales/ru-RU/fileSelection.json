@@ -1,6 +1,9 @@
 {
   "selectFile": "Выбрать файл",
-  "selectDirectory": "Выбрать директорию",
-  "pleaseSelectFile": "Пожалуйста, выберите файл",
-  "pleaseSelectDirectory": "Пожалуйста, выберите директорию"
+  "selectDirectory": "Выбрать каталог",
+  "selectFileOrDirectory": "Выбрать файл или каталог",
+  "pleaseSelectFile": "Выберите файл",
+  "pleaseSelectDirectory": "Выберите каталог",
+  "pleaseSelectFileOrDirectory": "Выберите файл или каталог",
+  "emptyDirectory": "Эта папка пуста"
 }

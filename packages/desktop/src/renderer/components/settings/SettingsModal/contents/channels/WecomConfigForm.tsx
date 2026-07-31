@@ -17,11 +17,7 @@ import { Button, Dropdown, Empty, Input, Menu, Message, Spin, Tooltip } from '@a
 import { CheckOne, CloseOne, Copy, Delete, Down, Refresh } from '@icon-park/react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  buildChannelAssistantBinding,
-  getDefaultChannelAssistant,
-  resolveChannelAssistantSelection,
-} from './assistantBinding';
+import { buildChannelAssistantBinding, initializeChannelAssistantState } from './assistantBinding';
 
 /**
  * Preference row component
@@ -135,14 +131,13 @@ const WecomConfigForm: React.FC<WecomConfigFormProps> = ({
           channel.getPlatformSettings.invoke({ platform: 'wecom' }),
         ]);
 
-        setAvailableAssistants(assistantList);
+        const {
+          availableAssistants,
+          selection,
+          selectedAssistant: nextAssistant,
+        } = initializeChannelAssistantState(assistantList, saved.assistant ?? undefined);
 
-        const selection = resolveChannelAssistantSelection(saved.assistant ?? undefined, assistantList);
-        const nextAssistant =
-          assistantList.find((assistant) => assistant.id === selection.assistantId) ||
-          (!selection.hasBrokenSavedAssistant ? getDefaultChannelAssistant(assistantList) : undefined) ||
-          null;
-
+        setAvailableAssistants(availableAssistants);
         setHasBrokenSavedAssistant(selection.hasBrokenSavedAssistant);
         setSelectedAssistant(nextAssistant);
       } catch (error) {
@@ -498,7 +493,9 @@ const WecomConfigForm: React.FC<WecomConfigFormProps> = ({
             selection={showModelSelector ? modelSelection : undefined}
             disabled={!showModelSelector}
             label={
-              !showModelSelector ? t('settings.assistant.autoFollowCliModel', 'Auto-follow CLI runtime model') : undefined
+              !showModelSelector
+                ? t('settings.assistant.autoFollowCliModel', 'Auto-follow CLI runtime model')
+                : undefined
             }
             variant='settings'
           />

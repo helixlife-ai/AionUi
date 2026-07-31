@@ -4,69 +4,111 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { bridge } from '@office-ai/platform';
-import React, { useCallback, useEffect, useState } from 'react';
+import { ipcBridge } from '@/common';
+import { bridge } from '@/common/platform/bridge';
 import { SHOW_OPEN_REQUEST_EVENT } from '@/common/adapter/constant';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import DirectorySelectionModal from '@renderer/components/settings/DirectorySelectionModal';
+import {
+  resolveDirectorySelectionMode,
+  type DirectorySelectionMode,
+} from '@/renderer/utils/file/directorySelectionMode';
 
-interface DirectorySelectionRequest {
+type DirectorySelectionRequest = {
   id: string;
   isFileMode?: boolean;
+  selectionMode?: DirectorySelectionMode;
   properties?: string[];
-}
+};
 
+type OpenDialogOptions = {
+  defaultPath?: string;
+  properties?: string[];
+  filters?: unknown;
+};
+
+/**
+ * WebUI host for `ipcBridge.dialog.showOpen`.
+ *
+ * Electron handles show-open in the main process. In the browser, native dialogs
+ * are unavailable — this hook registers a renderer-local provider that opens
+ * DirectorySelectionModal and resolves the invoke() Promise with the chosen paths.
+ */
 export const useDirectorySelection = () => {
   const [visible, setVisible] = useState(false);
   const [requestData, setRequestData] = useState<DirectorySelectionRequest | null>(null);
+  const pendingResolveRef = useRef<((paths: string[] | undefined) => void) | null>(null);
+
+  const finish = useCallback((paths: string[] | undefined) => {
+    const resolve = pendingResolveRef.current;
+    pendingResolveRef.current = null;
+    setVisible(false);
+    setRequestData(null);
+    resolve?.(paths);
+  }, []);
 
   const handleConfirm = useCallback(
     (paths: string[] | undefined) => {
+      if (pendingResolveRef.current) {
+        finish(paths);
+        return;
+      }
+      // Legacy path: backend emitted show-open-request; complete via bridge callback.
       if (requestData) {
-        // Bridge 框架的回调事件命名规则: subscribe.callback-{event-name}{id}
-        const callbackEventName = `subscribe.callback-show-open${requestData.id}`;
-        // 使用全局函数发送回调到 bridge emitter
-        if ((window as any).__emitBridgeCallback) {
-          (window as any).__emitBridgeCallback(callbackEventName, paths);
-        }
+        bridge.emit(`subscribe.callback-show-open${requestData.id}`, paths);
       }
       setVisible(false);
       setRequestData(null);
     },
-    [requestData]
+    [finish, requestData]
   );
 
   const handleCancel = useCallback(() => {
+    if (pendingResolveRef.current) {
+      finish(undefined);
+      return;
+    }
     if (requestData) {
-      // Bridge 框架的回调事件命名规则: subscribe.callback-{event-name}{id}
-      const callbackEventName = `subscribe.callback-show-open${requestData.id}`;
-      // 使用全局函数发送回调到 bridge emitter
-      if ((window as any).__emitBridgeCallback) {
-        (window as any).__emitBridgeCallback(callbackEventName, undefined);
-      }
+      bridge.emit(`subscribe.callback-show-open${requestData.id}`, undefined);
     }
     setVisible(false);
     setRequestData(null);
-  }, [requestData]);
+  }, [finish, requestData]);
 
   useEffect(() => {
-    const handleShowOpenRequest = (data: DirectorySelectionRequest) => {
-      // 判断是文件选择还是目录选择
-      let isFileMode = data.isFileMode === true;
+    const disposeProvider = ipcBridge.dialog.showOpen.provider((options?: OpenDialogOptions) => {
+      return new Promise<string[] | undefined>((resolve) => {
+        // Replace any in-flight picker (rare) so the latest invoke wins.
+        pendingResolveRef.current?.(undefined);
+        pendingResolveRef.current = resolve;
 
-      // 从 properties 自动推断
-      if (!isFileMode && data.properties) {
-        isFileMode = data.properties.includes('openFile') && !data.properties.includes('openDirectory');
-      }
+        const selectionMode = resolveDirectorySelectionMode(options?.properties);
+        setRequestData({
+          id: 'renderer-local',
+          properties: options?.properties,
+          selectionMode,
+          isFileMode: selectionMode === 'file',
+        });
+        setVisible(true);
+      });
+    });
 
-      setRequestData({ ...data, isFileMode });
+    // Back-compat: older aioncore builds may push show-open-request over WS.
+    const disposeLegacy = bridge.on(SHOW_OPEN_REQUEST_EVENT, (data: DirectorySelectionRequest) => {
+      const selectionMode = data.selectionMode ?? resolveDirectorySelectionMode(data.properties);
+      setRequestData({
+        ...data,
+        isFileMode: selectionMode === 'file',
+        selectionMode,
+      });
       setVisible(true);
-    };
-
-    // 监听来自 browser.ts 的文件选择请求
-    bridge.on(SHOW_OPEN_REQUEST_EVENT, handleShowOpenRequest);
+    });
 
     return () => {
-      bridge.off(SHOW_OPEN_REQUEST_EVENT, handleShowOpenRequest);
+      disposeProvider();
+      disposeLegacy();
+      pendingResolveRef.current?.(undefined);
+      pendingResolveRef.current = null;
     };
   }, []);
 
@@ -74,6 +116,7 @@ export const useDirectorySelection = () => {
     <DirectorySelectionModal
       visible={visible}
       isFileMode={requestData?.isFileMode}
+      selectionMode={requestData?.selectionMode}
       onConfirm={handleConfirm}
       onCancel={handleCancel}
     />

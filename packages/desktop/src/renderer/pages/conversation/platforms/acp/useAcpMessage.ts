@@ -17,7 +17,15 @@ import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conve
 import { isConversationProcessing } from '@/renderer/pages/conversation/utils/conversationRuntime';
 import { ensureConversationRuntime } from '@/renderer/pages/conversation/utils/ensureConversationRuntime';
 import type { ThoughtData } from '@/renderer/components/chat/ThoughtDisplay';
+import { isAgentHubCodexTrustTip } from '@/renderer/utils/hub/isAgentHubCodexTrustTip';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+function shouldDropAgentHubTip(message: TMessage | null | undefined): boolean {
+  if (!message || message.type !== 'tips') return false;
+  const tip = message.content;
+  if (!tip || typeof tip !== 'object' || tip.type === 'error') return false;
+  return isAgentHubCodexTrustTip(typeof tip.content === 'string' ? tip.content : '');
+}
 
 export type UseAcpMessageReturn = {
   thought: ThoughtData;
@@ -56,7 +64,10 @@ function fetchAcpSlashCommands(conversation_id: string): Promise<SlashCommandIte
   return promise;
 }
 
-export const useAcpMessage = (conversation_id: string, options?: { skipWarmup?: boolean }): UseAcpMessageReturn => {
+export const useAcpMessage = (
+  conversation_id: string,
+  options?: { skipWarmup?: boolean; prepareRuntime?: () => Promise<void> }
+): UseAcpMessageReturn => {
   const mergeLiveMessage = useMergeLiveMessage();
   const [running, setRunning] = useState(false);
   const [hasHydratedRunningState, setHasHydratedRunningState] = useState(false);
@@ -213,6 +224,7 @@ export const useAcpMessage = (conversation_id: string, options?: { skipWarmup?: 
           'request_trace',
           'acp_context_usage',
           'acp_model_info',
+          'acp_config_option',
           'codex_model_info',
           'available_commands',
           'slash_commands_updated',
@@ -377,6 +389,12 @@ export const useAcpMessage = (conversation_id: string, options?: { skipWarmup?: 
         case 'acp_model_info':
           // Model info updates are handled by AcpModelSelector, no action needed here
           break;
+        case 'acp_config_option':
+          // Config-options catalog updates (async model/mode discovery for the
+          // direct-CLI backends) are consumed by useAcpConfigOptions to re-project
+          // the picker. No turn-state change here — must NOT fall through to the
+          // default arm, which would setRunning(true) and light a spurious timer bar.
+          break;
         case 'slash_commands_updated':
           // Slash commands became available (often during bootstrap when
           // agent_status events are suppressed). Update acpStatus so
@@ -400,6 +418,21 @@ export const useAcpMessage = (conversation_id: string, options?: { skipWarmup?: 
           }
           break;
         }
+        case 'tips':
+          // Advisory tips (backend `Notice`: a rejected mode/model/effort switch, or a
+          // codex out-of-turn warning/deprecation). Render the advisory but do NOT touch
+          // turn state — a config-reject Notice can arrive while idle (dispatched by the
+          // PUT /config-options path, not a turn), so falling through to the `default`
+          // arm's setRunning(true) would light a spurious timer bar with no terminal to
+          // clear it (the same regression the `acp_config_option` case guards against).
+          // Error-severity tips are handled earlier by isErrorTipMessage; only info/
+          // warning advisories reach here.
+          // Agent Hub: drop Codex untrusted-project Notices (auto-trusted server-side).
+          if (shouldDropAgentHubTip(transformedMessage)) {
+            break;
+          }
+          mergeLiveMessage(transformedMessage);
+          break;
         case 'request_trace':
           {
             const trace = message.data as Record<string, unknown>;
@@ -550,9 +583,10 @@ export const useAcpMessage = (conversation_id: string, options?: { skipWarmup?: 
   // StreamRelay is listening, so the initial load must come from HTTP.
   // In team mode, runtime preparation is coordinated by the team send box.
   useEffect(() => {
-    if (options?.skipWarmup) return;
+    if (options?.skipWarmup && !options.prepareRuntime) return;
     let cancelled = false;
-    void ensureConversationRuntime(conversation_id)
+    const runtimeReady = options?.prepareRuntime?.() ?? ensureConversationRuntime(conversation_id);
+    void runtimeReady
       .then(() => {
         if (cancelled) return;
         return fetchAcpSlashCommands(conversation_id);
@@ -566,7 +600,7 @@ export const useAcpMessage = (conversation_id: string, options?: { skipWarmup?: 
     return () => {
       cancelled = true;
     };
-  }, [conversation_id, options?.skipWarmup]);
+  }, [conversation_id, options?.prepareRuntime, options?.skipWarmup]);
 
   const resetState = useCallback(() => {
     turnFinishedRef.current = true;
@@ -582,14 +616,15 @@ export const useAcpMessage = (conversation_id: string, options?: { skipWarmup?: 
   }, []);
 
   const fetchSlashCommands = useCallback(() => {
-    void ensureConversationRuntime(conversation_id)
+    const runtimeReady = options?.prepareRuntime?.() ?? ensureConversationRuntime(conversation_id);
+    void runtimeReady
       .then(() => fetchAcpSlashCommands(conversation_id))
       .then((commands) => {
         if (!commands.length) return;
         setSlashCommands(commands);
       })
       .catch(() => {});
-  }, [conversation_id]);
+  }, [conversation_id, options?.prepareRuntime]);
 
   return {
     thought,

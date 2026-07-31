@@ -1,95 +1,134 @@
 name: agent-hub
 services:
   agent-hub:
-    image: helix-aio.tencentcloudcr.com/application/agent-hub:latest
+    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.3
     container_name: agent-hub
-    pull_policy: never
-    # The /agent_hub mount is shared with the documents app (file-browser, runs
-    # as uid 65532) and openclaw (uid 1000). No single gid covers all consumers,
-    # so we rely on world-writable mode (0777) + umask 0000 — acceptable on a
-    # single-device appliance where all apps are trusted (like a NAS shared dir).
-    user: "0"
+    user: '0'
     ports:
       - '25808:25808'
     volumes:
-      - ./data:/data
+      - ${APP_STORAGE_DIR:-/var/helix/app_storage}/AgentHub:/data
+      - ${APP_STORAGE_DIR:-/var/helix/app_storage}/AgentHub/tmp-aionui:/tmp/aionui
       - ${APP_STORAGE_DIR:-/var/helix/app_storage}/documents/data/agent_hub:/agent_hub
-      - ./openclaw-models.patch.json:/tmp/openclaw-models.patch.json:ro
-      - ./codex-config.toml:/tmp/codex-config.toml:ro
     working_dir: /agent_hub
     environment:
       - AIONUI_PORT=25808
       - AIONUI_DATA_DIR=/data
       - AIONUI_ALLOW_REMOTE=1
-      # File-picker root for the WebUI: browse is capped to this directory so
-      # users never see container internals (app/bin/boot/…). Mounted above.
+      # Claude Code blocks --dangerously-skip-permissions as root unless this is
+      # set (container / sandbox escape hatch). Needed for UI「全自动」.
+      - IS_SANDBOX=1
+      # Clear ACP session_id when last_active_at is older than this (minutes).
+      # Default idle kill is ~5 min; 10 min leaves a grace window before clearing.
+      - ACP_IDLE_ANCHOR_CLEAR_MINUTES=${ACP_IDLE_ANCHOR_CLEAR_MINUTES:-10}
+      - ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC=${ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC:-60}
       - AIONUI_FS_ROOT=/agent_hub
-      # Device serial number — the sole user identifier for the Agent Hub.
       - AIONUI_SERIAL_NUMBER=${SERIAL_NUMBER}
-      # keybalance (helix) proxy — Anthropic-compatible. SN doubles as auth token.
-      - ANTHROPIC_BASE_URL=https://paas-model.jova.bio/api/v1/helix
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://paas-model.jova.bio/api/v1/helix}
       - ANTHROPIC_AUTH_TOKEN=${SERIAL_NUMBER}
       - ANTHROPIC_API_KEY=${SERIAL_NUMBER}
       - ANTHROPIC_DEFAULT_OPUS_MODEL=agenthub-claude
       - ANTHROPIC_DEFAULT_SONNET_MODEL=agenthub-claude
       - ANTHROPIC_DEFAULT_HAIKU_MODEL=agenthub-claude
       - CLAUDE_CODE_MAX_OUTPUT_TOKENS=16000
-      # OpenClaw models provider — same SN as auth token for helix proxy.
-      - OPENCLAW_API_KEY=${SERIAL_NUMBER}
-      # Codex CLI — API key for the helix proxy (Responses API).
       - OPENAI_API_KEY=${SERIAL_NUMBER}
-      # Codex CLI — helix proxy Responses API endpoint + model. Codex appends
-      # /responses to the base url. Override via env if a different endpoint is needed.
       - CODEX_BASE_URL=${CODEX_BASE_URL:-https://paas-model.jova.bio/api/v1/helix/v1}
       - CODEX_MODEL=${CODEX_MODEL:-agenthub-codex}
-    entrypoint: ["/bin/sh", "-c"]
+      - HAPPY_SERVER_URL=${HAPPY_SERVER_URL:-https://studio-server.jova.bio}
+    entrypoint: ['/bin/sh', '-c']
     command:
       - |
-        # umask 0000 → new files 0666, dirs 0777 (world-writable). The /agent_hub
-        # mount is shared with file-browser (uid 65532) and openclaw (uid 1000);
-        # world-writable lets all of them read/write without gid juggling.
         umask 0000
-        # Ensure the shared /agent_hub mount is world-writable so the documents
-        # app and openclaw can operate on files created here (or via command line).
-        # Safe to run every start — idempotent.
         chmod -R a+rwX /agent_hub 2>/dev/null || true
-        mkdir -p /root/.openclaw
-        # Write the OpenClaw models provider config directly. `openclaw config patch`
-        # is unreliable here (ordering race with gateway-created config, and the
-        # gateway overwrites the file on start). Writing the JSON ourselves before
-        # the gateway starts avoids both issues.
-        if [ -f /tmp/openclaw-models.patch.json ]; then
-          node -e '
-            const fs = require("fs");
-            const raw = fs.readFileSync("/tmp/openclaw-models.patch.json", "utf8")
-              .replace(/__OPENCLAW_API_KEY__/g, process.env.OPENCLAW_API_KEY || "");
-            const patch = JSON.parse(raw);
-            let cfg = {};
-            try { cfg = JSON.parse(fs.readFileSync("/root/.openclaw/openclaw.json", "utf8")); } catch {}
-            cfg.models = cfg.models || {};
-            cfg.models.mode = patch.models.mode || "merge";
-            cfg.models.providers = Object.assign({}, cfg.models.providers, patch.models.providers);
-            fs.writeFileSync("/root/.openclaw/openclaw.json", JSON.stringify(cfg, null, 2) + "\n");
-          ' 2>/dev/null || true
+        mkdir -p /tmp/aionui/general
+        if [ -f /data/aionui-backend.db ]; then
+          node --experimental-sqlite -e "const {DatabaseSync}=require('node:sqlite'); const db=new DatabaseSync('/data/aionui-backend.db'); const r=db.prepare('UPDATE acp_session SET session_id=NULL WHERE session_id IS NOT NULL AND length(session_id)>0').run(); console.log('[agent-hub] cleared stale acp session anchors:', r.changes); db.close();" \
+            || echo "[agent-hub] warn: failed to clear acp session anchors (continuing)"
         fi
-        # Resolve the Codex CLI config template. Placeholders __CODEX_BASE_URL__
-        # and __CODEX_MODEL__ are substituted from the container env at runtime.
-        # $$ escapes the $ from docker-compose interpolation so the shell expands it.
+        # 一次性修复:Codex 模式 agent-full-access → full-access 改名前已入库的旧数据。
+        if [ -f /etc/agent-hub/js/normalize-codex-session-modes.js ]; then
+          node --experimental-sqlite /etc/agent-hub/js/normalize-codex-session-modes.js \
+            || echo "[agent-hub] warn: failed to normalize persisted Codex session modes"
+        fi
+        # Codex helix 代理配置($$ 是 compose 转义,shell 里即 $)。Codex 每次调用都读 ~/.codex/config.toml。
         mkdir -p /root/.codex
-        if [ -f /tmp/codex-config.toml ]; then
-          sed "s|__CODEX_BASE_URL__|$${CODEX_BASE_URL:-}|g; s|__CODEX_MODEL__|$${CODEX_MODEL:-}|g" \
-            /tmp/codex-config.toml > /root/.codex/config.toml
+        CODEX_MODEL_VALUE="$${CODEX_MODEL:-agenthub-codex}"
+        # 必须用镜像内完整 catalog:手写的缺必填字段会导致 Codex 忽略配置、握手挂起。
+        if [ -f /etc/agent-hub/codex-model-catalog.json ]; then
+          node -e "const fs=require('fs'); const src='/etc/agent-hub/codex-model-catalog.json'; const dst='/root/.codex/model-catalog.json'; const j=JSON.parse(fs.readFileSync(src,'utf8')); const slug=process.env.CODEX_MODEL||'agenthub-codex'; if (j.models&&j.models[0]) { j.models[0].slug=slug; j.models[0].display_name='Agent Hub Codex'; } fs.writeFileSync(dst, JSON.stringify(j, null, 2));"
+        else
+          echo "[agent-hub] warn: codex-model-catalog.json missing; Codex may warn about unknown model metadata"
         fi
-        # Start the OpenClaw gateway in the background. The ACP OpenClaw agent
-        # (`openclaw acp`) connects to this gateway on 127.0.0.1:18789; without
-        # it the agent fails with "ACP bridge failed: connect ECONNREFUSED".
-        # --bind loopback: only listen locally (ACP agent is same-container).
-        # --auth none: no token needed for loopback (container is trusted).
-        openclaw gateway run --allow-unconfigured --bind loopback --auth none >/data/logs/openclaw-gateway.log 2>&1 &
-        # Wait for the gateway to report ready before launching aionui-web.
-        for i in $(seq 1 20); do
-          if grep -q "gateway. ready" /data/logs/openclaw-gateway.log 2>/dev/null; then break; fi
-          sleep 0.5
+        printf '%s\n' '# Top-level defaults (applied without -p) so codex exec uses the helix
+        # provider automatically. [profiles.*] requires explicit -p selection.
+        model = "__CODEX_MODEL__"
+        model_provider = "helix"
+        model_catalog_json = "/root/.codex/model-catalog.json"
+
+        [model_providers.helix]
+        name = "Helix"
+        base_url = "__CODEX_BASE_URL__"
+        env_key = "OPENAI_API_KEY"
+        wire_api = "responses"' \
+          | sed "s|__CODEX_BASE_URL__|$${CODEX_BASE_URL:-}|g; s|__CODEX_MODEL__|$${CODEX_MODEL_VALUE}|g" \
+          > /root/.codex/config.toml
+        # catalog 缺失时不要把 config 指向坏路径。
+        if [ ! -f /root/.codex/model-catalog.json ]; then
+          sed -i '/^model_catalog_json/d' /root/.codex/config.toml
+        fi
+        # 信任会话工作区,避免 Codex 报 "project not trusted"(旧会话在 /data/conversations/**/codex-temp-*)。
+        if [ -f /etc/agent-hub/js/trust-codex-projects.js ]; then
+          node /etc/agent-hub/js/trust-codex-projects.js /root/.codex/config.toml \
+            || echo "[agent-hub] warn: failed to mark trusted projects"
+        fi
+        # 包装 codex 命令:让启动后新建的会话目录在首轮即被信任。
+        if [ -f /etc/agent-hub/js/wrap-codex-for-trust.js ]; then
+          node /etc/agent-hub/js/wrap-codex-for-trust.js \
+            || echo "[agent-hub] warn: failed to wrap Codex for trust"
+        fi
+        # Claude Code is often spawned with --dangerously-skip-permissions.
+        # As root that flag hard-fails unless IS_SANDBOX=1 (set in environment
+        # above). The wrapper also injects IS_SANDBOX for YOLO argv and keeps
+        # true full-auto instead of demoting to acceptEdits.
+        if [ -f /etc/agent-hub/js/wrap-claude-for-root.js ]; then
+          node /etc/agent-hub/js/wrap-claude-for-root.js \
+            || echo "[agent-hub] warn: failed to wrap Claude for root"
+        fi
+        # Belt-and-suspenders for non-YOLO / acceptEdits paths that still
+        # prompt on WebSearch/WebFetch/Bash/Write. Idempotent merge.
+        if [ -f /etc/agent-hub/js/seed-claude-web-permissions.js ]; then
+          node /etc/agent-hub/js/seed-claude-web-permissions.js \
+            || echo "[agent-hub] warn: failed to seed Claude web permissions"
+        fi
+        # 后台周期任务:清理运行中变空闲的 ACP anchor + 信任新建的 codex 目录。
+        if [ -f /etc/agent-hub/js/clear-idle-acp-sessions.js ] || [ -f /etc/agent-hub/js/trust-codex-projects.js ]; then
+          (
+            INTERVAL="$${ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC:-60}"
+            while true; do
+              sleep "$${INTERVAL}"
+              if [ -f /etc/agent-hub/js/clear-idle-acp-sessions.js ]; then
+                node --experimental-sqlite /etc/agent-hub/js/clear-idle-acp-sessions.js \
+                  || echo "[agent-hub] warn: idle ACP anchor clear failed"
+              fi
+              if [ -f /etc/agent-hub/js/trust-codex-projects.js ]; then
+                node /etc/agent-hub/js/trust-codex-projects.js /root/.codex/config.toml \
+                  || echo "[agent-hub] warn: periodic trust projects failed"
+              fi
+            done
+          ) &
+          echo "[agent-hub] started idle ACP clearer + periodic Codex trust (every $${ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC:-60}s)"
+        fi
+        # bubblewrap 必须在镜像里装,不要在这里 apt-get(设备网络差会导致启动卡死)。
+        # 后台启动 aionui-web,等 DB 迁移完成后导入 Studio 历史;wait 保持容器生命周期并转发信号。
+        /app/aionui-web/aionui-web start &
+        AIONUI_PID=$!
+        # 等 DB 迁移完成(users 表可读)。
+        for i in $$(seq 1 60); do
+          if [ -f /data/aionui-backend.db ] && node --experimental-sqlite -e "const {DatabaseSync}=require('node:sqlite');const db=new DatabaseSync('/data/aionui-backend.db');db.prepare('SELECT 1 FROM users LIMIT 1').get();db.close()" 2>/dev/null; then break; fi
+          sleep 1
         done
-        exec /app/aionui-web/aionui-web start
+        # 导入 Studio 历史(按 SN 拉取、解密、写入 aionui-backend.db);增量幂等,失败不阻塞启动。
+        mkdir -p '/agent_hub/studio 原版'
+        node --experimental-sqlite /opt/studio-import/import.mjs >>/data/logs/studio-import.log 2>&1 || true
+        wait $$AIONUI_PID
     restart: unless-stopped

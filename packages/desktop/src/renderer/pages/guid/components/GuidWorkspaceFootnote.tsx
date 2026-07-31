@@ -6,6 +6,7 @@
 
 import { ipcBridge } from '@/common';
 import { addRecentWorkspace, getRecentWorkspaces } from '@/renderer/components/workspace';
+import { AionInlineSearchInput } from '@/renderer/components/base';
 import { Tooltip } from '@arco-design/web-react';
 import { Close, Down } from '@icon-park/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -17,6 +18,7 @@ type GuidWorkspaceFootnoteProps = {
   workspaceDir: string;
   onSelectWorkspace: (dir: string) => void;
   onClearWorkspace: () => void;
+  onAddWorkspaceFiles: (paths: string[]) => void;
 };
 
 const FolderIcon = ({ size = 12 }: { size?: number }) => (
@@ -51,6 +53,7 @@ const GuidWorkspaceFootnote: React.FC<GuidWorkspaceFootnoteProps> = ({
   workspaceDir,
   onSelectWorkspace,
   onClearWorkspace,
+  onAddWorkspaceFiles: _onAddWorkspaceFiles,
 }) => {
   const { t } = useTranslation();
   const recentWorkspaces = getRecentWorkspaces();
@@ -63,13 +66,18 @@ const GuidWorkspaceFootnote: React.FC<GuidWorkspaceFootnoteProps> = ({
 
   const handleBrowseWorkspace = useCallback(() => {
     setOpen(false);
+    // Directory-only: this control sets the Guid workspace, not file attachments.
+    // (File attach uses the + button.) Avoid openFile so hybrid picker cannot
+    // return a file that was then mis-routed when metadata used snake_case.
     ipcBridge.dialog.showOpen
       .invoke({ properties: ['openDirectory', 'createDirectory'] })
-      .then((dirs) => {
-        if (dirs && dirs[0]) {
-          addRecentWorkspace(dirs[0]);
-          onSelectWorkspace(dirs[0]);
+      .then((paths) => {
+        const selectedPath = paths?.[0];
+        if (!selectedPath) {
+          return;
         }
+        addRecentWorkspace(selectedPath);
+        onSelectWorkspace(selectedPath);
       })
       .catch((error) => {
         console.error('Failed to open directory dialog:', error);
@@ -143,25 +151,13 @@ const GuidWorkspaceFootnote: React.FC<GuidWorkspaceFootnoteProps> = ({
   const dropdownEl = open
     ? createPortal(
         <div ref={dropdownRef} className={styles.wsDropdown} style={dropdownStyle}>
-          <div className={styles.wsDropdownSearch}>
-            <svg
-              width='12'
-              height='12'
-              fill='none'
-              stroke='currentColor'
-              strokeWidth='2'
-              viewBox='0 0 24 24'
-              style={{ flexShrink: 0, color: 'var(--color-text-3)' }}
-            >
-              <circle cx='11' cy='11' r='8' />
-              <path d='M21 21l-4.35-4.35' />
-            </svg>
-            <input
+          <div className='mb-8px'>
+            <AionInlineSearchInput
+              className='w-full'
               ref={searchRef}
-              className={styles.wsDropdownSearchInput}
-              placeholder={t('guid.workspace.searchPlaceholder')}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={setSearchQuery}
+              placeholder={t('guid.workspace.searchPlaceholder')}
             />
           </div>
 

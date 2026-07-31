@@ -347,6 +347,36 @@ describe('LocalAgents', () => {
     expect(getBoundAssistants(aionrsAgent, assistants)).toEqual([]);
   });
 
+  it('pins Kimi ahead of localeCompare order in the official list', () => {
+    useManagedAgents.mockReturnValue({
+      agents: [
+        ...makeAgents(),
+        {
+          id: 'acp-kimi',
+          name: 'Kimi',
+          agent_type: 'acp',
+          agent_source: 'builtin',
+          backend: 'kimi',
+          enabled: true,
+          available: false,
+          installed: false,
+          status: 'missing',
+        },
+      ],
+      revalidate: vi.fn(),
+      refreshCatalog: vi.fn(),
+    });
+
+    render(<LocalAgents />);
+
+    // Aion CLI is hidden by Agent Hub. Kimi still pins ahead of Claude Code
+    // (alphabetically Claude Code < Kimi), proving the partner pin rule.
+    expect(screen.queryByText('Aion CLI')).toBeNull();
+    const kimi = screen.getByText('Kimi');
+    const claude = screen.getByText('Claude Code');
+    expect(claude.compareDocumentPosition(kimi) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+  });
+
   it('renders agent management as a single diagnostics page without local/remote tabs', () => {
     useManagedAgents.mockReturnValue({
       agents: makeAgents(),
@@ -389,5 +419,35 @@ describe('LocalAgents', () => {
       expect(messageError).toHaveBeenCalledWith('permission denied');
     });
     expect(refreshCatalog).not.toHaveBeenCalled();
+  });
+
+  it('renders the availability filter as underline tabs and switches the visible official agents', () => {
+    useManagedAgents.mockReturnValue({
+      agents: makeAgents(),
+      revalidate: vi.fn(),
+      refreshCatalog: vi.fn(),
+    });
+
+    render(<LocalAgents />);
+
+    // Filter tabs render as buttons (underline-tab style), not an Arco radio group.
+    const allTab = screen.getByTestId('settings-tab-all');
+    const availableTab = screen.getByTestId('settings-tab-available');
+    const unavailableTab = screen.getByTestId('settings-tab-unavailable');
+    expect(allTab.tagName).toBe('BUTTON');
+
+    // Aion CLI is hidden by Agent Hub. Default "all" shows remaining official agents.
+    expect(screen.queryByText('Aion CLI')).toBeNull();
+    expect(screen.getByText('Claude Code')).toBeInTheDocument();
+
+    // "available" has no online official agents after Hub runtime filtering.
+    fireEvent.click(availableTab);
+    expect(screen.queryByText('Aion CLI')).toBeNull();
+    expect(screen.queryByText('Claude Code')).toBeNull();
+
+    // "unavailable" keeps the non-online official agent.
+    fireEvent.click(unavailableTab);
+    expect(screen.queryByText('Aion CLI')).toBeNull();
+    expect(screen.getByText('Claude Code')).toBeInTheDocument();
   });
 });

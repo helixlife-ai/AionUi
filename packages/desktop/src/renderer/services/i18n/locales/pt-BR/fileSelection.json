@@ -1,6 +1,9 @@
 {
-  "selectFile": "Selecionar Arquivo",
-  "selectDirectory": "Selecionar Diretório",
-  "pleaseSelectFile": "Por favor, selecione um arquivo",
-  "pleaseSelectDirectory": "Por favor, selecione um diretório"
+  "selectFile": "Selecionar arquivo",
+  "selectDirectory": "Selecionar diretório",
+  "selectFileOrDirectory": "Selecionar arquivo ou diretório",
+  "pleaseSelectFile": "Selecione um arquivo",
+  "pleaseSelectDirectory": "Selecione um diretório",
+  "pleaseSelectFileOrDirectory": "Selecione um arquivo ou diretório",
+  "emptyDirectory": "Esta pasta está vazia"
 }

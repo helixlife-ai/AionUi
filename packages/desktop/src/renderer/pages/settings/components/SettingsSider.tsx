@@ -13,6 +13,7 @@ import {
   Puzzle,
   Speed,
   System,
+  Toolkit,
 } from '@icon-park/react';
 import classNames from 'classnames';
 import React, { useMemo } from 'react';
@@ -20,12 +21,18 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Tooltip } from '@arco-design/web-react';
 import { getSiderTooltipProps } from '@/renderer/utils/ui/siderTooltip';
+import {
+  isAgentHubAgentsSettingsHidden,
+  isAgentHubPetSettingsHidden,
+  isAgentHubToolsSettingsHidden,
+} from '@/renderer/utils/hub/agentHubUiPolicy';
 
 /** Builtin settings tab IDs in display order (must match router paths). */
 export const BUILTIN_TAB_IDS = [
   'agent',
   // 'model',
-  'capabilities',
+  'skills',
+  'tools',
   'webui',
   'pet',
   // 'system',
@@ -38,18 +45,20 @@ export const BUILTIN_TAB_IDS = [
  * This keeps older extensions working without requiring them to update.
  */
 export const LEGACY_ANCHOR_REMAP: Record<string, string> = {
-  'skills-hub': 'capabilities',
-  tools: 'capabilities',
+  'skills-hub': 'skills',
+  capabilities: 'skills',
   display: 'webui',
+  ...(isAgentHubToolsSettingsHidden() ? { tools: 'skills' } : {}),
 };
 
 /**
  * Group headers displayed above specific builtin tabs.
  * The header is rendered once, immediately before the first item whose id matches.
  * Extension tabs anchored between these builtins inherit the enclosing group visually.
+ * When Agents is hidden (phase-1), AI Core header anchors on skills instead.
  */
 const GROUP_HEADER_BEFORE: Record<string, string> = {
-  agent: 'settings.groupAiCore',
+  ...(isAgentHubAgentsSettingsHidden() ? { skills: 'settings.groupAiCore' } : { agent: 'settings.groupAiCore' }),
   webui: 'settings.groupApp',
   about: 'settings.groupAbout',
 };
@@ -85,11 +94,17 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
         icon: <Speed />,
         path: 'agent',
       },
-      capabilities: {
-        id: 'capabilities',
-        label: t('settings.capabilities', { defaultValue: 'Capabilities' }),
+      skills: {
+        id: 'skills',
+        label: t('settings.skills', { defaultValue: 'Skills' }),
         icon: <Lightning />,
-        path: 'capabilities',
+        path: 'skills',
+      },
+      tools: {
+        id: 'tools',
+        label: t('settings.tools', { defaultValue: 'Tools' }),
+        icon: <Toolkit />,
+        path: 'tools',
       },
       webui: {
         id: 'webui',
@@ -103,7 +118,14 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
     };
 
     // Start with ordered builtin IDs, hiding desktop-only tabs in browser mode
-    const result: SiderItem[] = BUILTIN_TAB_IDS.filter((id) => isDesktop || id !== 'pet').map((id) => builtinMap[id]);
+    // and Agent Hub policy-gated tabs (Agents / Tools / Pet).
+    const result: SiderItem[] = BUILTIN_TAB_IDS.filter(
+      (id) =>
+        (isDesktop || id !== 'pet') &&
+        !(id === 'agent' && isAgentHubAgentsSettingsHidden()) &&
+        !(id === 'tools' && isAgentHubToolsSettingsHidden()) &&
+        !(id === 'pet' && isAgentHubPetSettingsHidden())
+    ).map((id) => builtinMap[id]);
 
     // Extension tabs with position anchoring
     const beforeMap = new Map<string, IExtensionSettingsTab[]>();

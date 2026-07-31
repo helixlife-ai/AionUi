@@ -16,6 +16,7 @@ import {
 } from '@/renderer/pages/conversation/Preview/constants';
 import { classifyPreviewError, previewErrorToI18nKey } from '@/renderer/utils/previewError';
 import { removeWorkspaceEntry, renameWorkspaceEntry } from '@/renderer/utils/file/workspaceFs';
+import { resolveOfficePreviewFilePath } from '@/renderer/utils/hub/resolveOfficePreviewFilePath';
 import { useCallback } from 'react';
 import type { MessageApi, RenameModalState, DeleteModalState } from '../types';
 import type { FileOrFolderItem } from '@/renderer/utils/file/fileTypes';
@@ -295,24 +296,23 @@ export function useWorkspaceFileOps(options: UseWorkspaceFileOpsOptions) {
           }
         }
 
+        const previewFilePath =
+          contentType === 'pdf' || contentType === 'word' || contentType === 'excel' || contentType === 'ppt'
+            ? resolveOfficePreviewFilePath(nodeData.fullPath, workspace)
+            : nodeData.fullPath;
+
         // 打开预览面板并传入文件元数据 / Open preview panel with file metadata.
-        // replace: reuse the single browse preview tab instead of stacking tabs.
-        openPreview(
-          content,
-          contentType,
-          {
-            title: nodeData.name,
-            file_name: nodeData.name,
-            file_path: nodeData.fullPath,
-            workspace: workspace,
-            language: ext,
-            truncated: isLargeTextTruncated,
-            // Markdown 和图片文件默认为只读模式
-            // Markdown and image files default to read-only mode
-            editable: contentType === 'markdown' || contentType === 'image' || isLargeTextTruncated ? false : undefined,
-          },
-          { replace: true }
-        );
+        openPreview(content, contentType, {
+          title: nodeData.name,
+          file_name: nodeData.name,
+          file_path: previewFilePath,
+          workspace: workspace,
+          language: ext,
+          truncated: isLargeTextTruncated,
+          // Markdown 和图片文件默认为只读模式
+          // Markdown and image files default to read-only mode
+          editable: contentType === 'markdown' || contentType === 'image' || isLargeTextTruncated ? false : undefined,
+        });
       } catch (error) {
         const kind = classifyPreviewError(error);
         messageApi.error(t(previewErrorToI18nKey(kind)));

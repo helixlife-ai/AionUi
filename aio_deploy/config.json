@@ -1,25 +1,19 @@
 {
-  "version": "v0.1.0",
+  "version": "v0.2.3",
   "name": "AgentHub",
-  "desc": "内测初始版本",
+  "display_name": "Studio",
+  "prefix": "http://",
+  "suffix": ":25808/#/guid",
+  "main_app": true,
+  "order": 0,
+  "desc": "优化对话启动性能和office预览性能",
+  "startup": true,
+  "force_update": true,
   "device_limit": [
     {
-      "key": "any",
-      "operator": "==",
-      "value": [
-        {
-          "key": "device_model",
-          "operator": "==",
-          "value": "HLX-AIO-1P"
-        },
-        {
-          "key": "device_model",
-          "operator": "==",
-          "value": "HLX-AIO-1B"
-        }
-      ]
+      "key": "script_version",
+      "operator": ">=",
+      "value": "v1.8.4"
     }
-  ],
-  "startup": true,
-  "force_update": true
+  ]
 }

@@ -1,7 +1,7 @@
 {
   "welcome": {
     "title": "Hola, ¿qué tienes planeado hoy?",
-    "placeholder": "Envía un mensaje, sube archivos, abre una carpeta o crea una tarea programada...",
+    "placeholder": "Envía un mensaje, sube archivos, abre una carpeta, crea una tarea programada o escribe / para ver los comandos...",
     "linkFolder": "Abrir carpeta",
     "newConversation": "Nuevo chat",
     "selectModel": "Seleccionar modelo",
@@ -30,6 +30,7 @@
     "saveName": "Guardar",
     "cancelEdit": "Cancelar",
     "rename": "Renombrar",
+    "createCronTask": "Crear tarea programada",
     "renameTitle": "Renombrar chat",
     "renamePlaceholder": "Ingresa un nuevo nombre",
     "renameSuccess": "Renombrado correctamente",
@@ -72,7 +73,8 @@
     "removeProject": "Quitar proyecto",
     "removeProjectConfirm": "¿Quitar el proyecto \"{{name}}\"? Sus {{count}} conversación(es) también se quitarán.",
     "newConversationInProject": "Nuevo chat en este proyecto",
-    "deleting": "Eliminando..."
+    "deleting": "Eliminando...",
+    "reorderPinned": "Arrastra para reordenar la conversación fijada"
   },
   "historySearch": {
     "tooltip": "Buscar mensajes",
@@ -476,8 +478,8 @@
     "error": "Error al responder la pregunta lateral."
   },
   "commandQueue": {
-    "title": "Comandos en cola",
-    "clear": "Limpiar cola",
+    "title": "Borradores",
+    "clear": "Vaciar borradores",
     "edit": "Editar",
     "editing": "Editando",
     "editPlaceholder": "Actualiza el comando en cola antes de que se ejecute.",
@@ -492,7 +494,19 @@
     "queueFull": "La cola está llena. Quita un comando antes de agregar más.",
     "inputTooLong": "Este comando en cola es demasiado largo. Acórtalo antes de enviar.",
     "tooManyFiles": "Hay demasiados archivos adjuntos en este comando en cola.",
-    "queueTooLarge": "Los datos de la cola son demasiado grandes para persistir de forma segura. Quita algunos comandos primero."
+    "queueTooLarge": "Los datos de la cola son demasiado grandes para persistir de forma segura. Quita algunos comandos primero.",
+    "sendNow": "Enviar ahora",
+    "modeToggle": "Cambiar modo de envío",
+    "help": "Ayuda",
+    "helpIntro": "Los mensajes que envías mientras la IA responde esperan aquí.",
+    "helpAuto": ": se envían automáticamente uno a uno cuando termina cada respuesta.",
+    "helpManual": ": se guardan aquí sin enviar; envía cada uno con Enviar ahora.",
+    "clearConfirmTitle": "¿Vaciar la bandeja de borradores de envío?",
+    "clearConfirmContent": "Se eliminarán todos los mensajes pendientes. Esta acción no se puede deshacer.",
+    "mode": {
+      "auto": "Envío automático",
+      "manual": "Envío manual"
+    }
   },
   "contextUsage": {
     "contextUsed": "contexto usado"
@@ -535,18 +549,25 @@
       "loaded": "Cargado",
       "failed": "Falló",
       "unsupported": "No compatible"
-    }
+    },
+    "selected": "MCP seleccionado"
   },
   "runtimePreparing": {
     "sendboxHint": "Preparando el entorno de ejecución. El primer inicio puede tardar un poco más."
   },
   "sendbox": {
-    "hint": "Escribe / para comandos, @ para referenciar archivos"
+    "hint": "Escribe / para comandos, @ para referenciar archivos y ↑/↓ para el historial de mensajes"
   },
   "agentTip": {
     "codes": {
       "ACP_EMPTY_TURN": {
         "body": "Esta solicitud no produjo ninguna respuesta visible."
+      },
+      "ACP_EMPTY_TURN_NEEDS_AUTH": {
+        "body": "Esta solicitud no produjo ninguna respuesta visible. Si ya has iniciado sesión, puede tratarse de un problema temporal del backend o de conexión: inténtalo de nuevo o inicia una nueva conversación. Si aún no has iniciado sesión, puedes iniciar sesión: {{hint}}."
+      },
+      "ACP_EMPTY_TURN_TOKEN_LIMIT": {
+        "body": "Esta solicitud no produjo ninguna respuesta visible. La conversación actual podría estar acercándose al límite de longitud de contexto: inténtalo de nuevo o inicia una nueva conversación y vuelve a intentarlo."
       },
       "ACP_EMPTY_TURN_MAX_TOKENS": {
         "body": "Esta solicitud alcanzó el límite de tokens de salida del modelo antes de producir alguna respuesta visible."

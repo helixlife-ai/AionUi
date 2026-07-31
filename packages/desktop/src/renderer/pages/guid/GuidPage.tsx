@@ -5,14 +5,20 @@
  */
 
 import { ipcBridge } from '@/common';
+import { buildGuidSlashCommands } from '@/common/chat/slash/guidSlashCommands';
+import type { SlashCommandItem } from '@/common/chat/slash/types';
 import type { IMcpServer, TProviderWithModel } from '@/common/config/storage';
 import { resolveLocaleKey } from '@/common/utils';
 import type { AssistantDetail } from '@/common/types/agent/assistantTypes';
 
 import { useInputFocusRing } from '@/renderer/hooks/chat/useInputFocusRing';
+import { appendPromptToDraft } from '@/renderer/hooks/chat/useSendBoxDraft';
+import { getFuzzyMatchIndices, useSlashCommandController } from '@/renderer/hooks/chat/useSlashCommandController';
 import { openExternalUrl } from '@/renderer/utils/platform';
+import SlashCommandMenu, { type SlashCommandMenuItem } from '@/renderer/components/chat/SlashCommandMenu';
 import AssistantSelectionArea from './components/AssistantSelectionArea';
 import GuidActionRow from './components/GuidActionRow';
+import { GuidAgentsLoadingSkeleton } from './components/GuidSkeleton';
 import GuidInputCard from './components/GuidInputCard';
 import GuidModelSelector from './components/GuidModelSelector';
 import GuidPromptCarousel from './components/GuidPromptCarousel';
@@ -23,12 +29,11 @@ import { useGuidModelSelection } from './hooks/useGuidModelSelection';
 import { useGuidSend } from './hooks/useGuidSend';
 import { useTypewriterPlaceholder } from './hooks/useTypewriterPlaceholder';
 import { ensureBackendMcpCatalog } from '@/renderer/hooks/mcp/catalog';
+import { prefetchConversationRouteChunk } from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
 import { resolveGuidAssistantDefaults } from './utils/assistantDefaults';
-import {
-  GUID_DEFAULT_PROMPT_CATEGORY_DEFS,
-  type GuidPromptCategory,
-} from './utils/guidDefaultPromptKeys';
+import { GUID_DEFAULT_PROMPT_CATEGORY_DEFS, type GuidPromptCategory } from './utils/guidDefaultPromptKeys';
 import SpeechInputButton from '@/renderer/components/chat/SpeechInputButton';
+import { useOpenFileSelector } from '@/renderer/hooks/file/useOpenFileSelector';
 import { appendSpeechTranscript } from '@/renderer/hooks/system/useSpeechInput';
 import { useLiveTranscriptInsertion } from '@/renderer/hooks/system/useLiveTranscriptInsertion';
 import { ConfigProvider } from '@arco-design/web-react';
@@ -37,6 +42,17 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
 import styles from './index.module.css';
+
+type GuidNavigationState = {
+  resetAssistant?: boolean;
+  selectedAssistantId?: string;
+  prefillPrompt?: string;
+  prefillFiles?: string[];
+  preservePrefillDraft?: boolean;
+  focusPrefill?: boolean;
+  workspace?: string;
+  [key: string]: unknown;
+};
 
 const GuidPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -82,6 +98,22 @@ const GuidPage: React.FC = () => {
       .catch(() => setAllSkills([]));
   }, []);
 
+  // Warm the conversation route chunk while the user is still on Guid so the
+  // first project open does not pay the full lazy-load cost on a slow appliance.
+  useEffect(() => {
+    const run = () => prefetchConversationRouteChunk();
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof idleWindow.requestIdleCallback === 'function') {
+      const id = idleWindow.requestIdleCallback(run, { timeout: 2500 });
+      return () => idleWindow.cancelIdleCallback?.(id);
+    }
+    const timer = window.setTimeout(run, 1200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     void ensureBackendMcpCatalog()
       .then(({ allServers }) => {
@@ -119,10 +151,7 @@ const GuidPage: React.FC = () => {
   // regular ACP backend with its own model selector).
   const modelSelection = useGuidModelSelection('aionrs');
 
-  const navState = location.state as {
-    resetAssistant?: boolean;
-    selectedAssistantId?: string;
-  } | null;
+  const navState = location.state as GuidNavigationState | null;
   const resetAssistantRequested = navState?.resetAssistant === true;
   const preselectAssistantId = navState?.selectedAssistantId;
   const agentSelection = useGuidAssistantSelection({
@@ -133,6 +162,15 @@ const GuidPage: React.FC = () => {
 
   const guidInput = useGuidInput({
     locationState: location.state as { workspace?: string } | null,
+  });
+  const appendSelectedFiles = useCallback(
+    (files: string[]) => {
+      guidInput.setFiles((prevFiles) => [...prevFiles, ...files]);
+    },
+    [guidInput.setFiles]
+  );
+  const { onSlashBuiltinCommand } = useOpenFileSelector({
+    onFilesSelected: appendSelectedFiles,
   });
 
   const resetMentionOpen = useCallback<React.Dispatch<React.SetStateAction<boolean>>>(() => {}, []);
@@ -152,6 +190,78 @@ const GuidPage: React.FC = () => {
     () => resolveGuidAssistantDefaults(selectedAssistantDetail),
     [selectedAssistantDetail]
   );
+  const selectedSkillNames = useMemo(() => {
+    const disabledBuiltinSkillSet = new Set(
+      guidDisabledBuiltinSkills ?? resolvedAssistantDefaults.disabledBuiltinSkillIds
+    );
+    const enabledSkillSet = new Set(guidEnabledSkills ?? resolvedAssistantDefaults.skillIds);
+
+    return allSkills
+      .filter((skill) => (skill.isAuto ? !disabledBuiltinSkillSet.has(skill.name) : enabledSkillSet.has(skill.name)))
+      .map((skill) => skill.name);
+  }, [
+    allSkills,
+    guidDisabledBuiltinSkills,
+    guidEnabledSkills,
+    resolvedAssistantDefaults.disabledBuiltinSkillIds,
+    resolvedAssistantDefaults.skillIds,
+  ]);
+  const skillDescriptionByName = useMemo(
+    () => new Map(allSkills.map((skill) => [skill.name, skill.description])),
+    [allSkills]
+  );
+  const guidBuiltinSlashCommands = useMemo<SlashCommandItem[]>(
+    () => [
+      {
+        name: 'open',
+        description: t('conversation.workspace.addFile', { defaultValue: 'Add File' }),
+        kind: 'builtin',
+        source: 'builtin',
+      },
+    ],
+    [t]
+  );
+  const guidSlashCommands = useMemo(
+    () =>
+      buildGuidSlashCommands({
+        builtinCommands: guidBuiltinSlashCommands,
+        agentCommands: agentSelection.currentAgentAvailableCommands,
+        selectedSkills: selectedSkillNames,
+        descriptionByName: skillDescriptionByName,
+        skillFallbackDescription: t('conversation.skills.slashHint', { defaultValue: 'Skill' }),
+      }),
+    [
+      agentSelection.currentAgentAvailableCommands,
+      guidBuiltinSlashCommands,
+      selectedSkillNames,
+      skillDescriptionByName,
+      t,
+    ]
+  );
+  const slashController = useSlashCommandController({
+    input: guidInput.input,
+    commands: guidSlashCommands,
+    onExecuteBuiltin: (name) => {
+      onSlashBuiltinCommand(name);
+      guidInput.setInput('');
+    },
+    onSelectTemplate: (name) => {
+      guidInput.setInput(`/${name} `);
+    },
+  });
+  const slashMenuItems = useMemo<SlashCommandMenuItem[]>(
+    () =>
+      slashController.filteredCommands.map((command) => ({
+        key: command.name,
+        label: `/${command.name}`,
+        description: command.description,
+        badge: command.hint,
+        highlightIndices: slashController.query
+          ? getFuzzyMatchIndices(command.name, slashController.query)?.map((index) => index + 1)
+          : undefined,
+      })),
+    [slashController.filteredCommands, slashController.query]
+  );
 
   const send = useGuidSend({
     // Input state
@@ -169,6 +279,7 @@ const GuidPage: React.FC = () => {
     selectedAssistantBackend: agentSelection.selectedAssistantBackend,
     selectedMode: agentSelection.selectedMode,
     selectedAcpModel: agentSelection.selectedAcpModel,
+    selectedThoughtLevelValue: agentSelection.selectedThoughtLevelValue,
     currentAcpCachedModelInfo: agentSelection.currentAcpCachedModelInfo,
     current_model: modelSelection.current_model,
 
@@ -203,13 +314,17 @@ const GuidPage: React.FC = () => {
 
   const handleInputKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
+      if (slashController.onKeyDown(event)) {
+        return;
+      }
+
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         if (!guidInput.input.trim()) return;
         send.sendMessageHandler();
       }
     },
-    [guidInput.input, send.sendMessageHandler]
+    [guidInput.input, send.sendMessageHandler, slashController]
   );
 
   const handleSelectAssistant = useCallback(
@@ -221,33 +336,16 @@ const GuidPage: React.FC = () => {
 
   // Typewriter placeholder
   const typewriterPlaceholder = useTypewriterPlaceholder(t('conversation.welcome.placeholder'));
-  const selectedAssistantRecord = useMemo(() => {
-    if (!selectedAssistantId) return undefined;
-    const selectedId = agentSelection.selectedAssistantId;
-    const strippedId = selectedId.replace(/^builtin-/, '');
-    const candidates = new Set([selectedId, `builtin-${strippedId}`, strippedId]);
-    return agentSelection.assistants.find((item) => candidates.has(item.id));
-  }, [agentSelection.assistants, selectedAssistantId, agentSelection.selectedAssistantId]);
+  // Agent Hub: always use the curated categorized carousel (title + indicators),
+  // even when the selected assistant ships its own recommended prompts.
   const selectedAssistantPromptCategories = useMemo((): GuidPromptCategory[] => {
     if (!selectedAssistantId) return [];
-    const resolvedPrompts =
-      selectedAssistantDetail?.prompts.recommended_i18n?.[localeKey] ||
-      selectedAssistantDetail?.prompts.recommended_i18n?.['en-US'] ||
-      selectedAssistantDetail?.prompts.recommended ||
-      selectedAssistantRecord?.prompts_i18n?.[localeKey] ||
-      selectedAssistantRecord?.prompts_i18n?.['en-US'] ||
-      selectedAssistantRecord?.prompts ||
-      [];
-
-    if (resolvedPrompts.length > 0) {
-      return [{ prompts: resolvedPrompts }];
-    }
 
     return GUID_DEFAULT_PROMPT_CATEGORY_DEFS.map((category) => ({
       title: t(category.titleKey),
       prompts: category.promptKeys.map((key) => t(key)),
     }));
-  }, [localeKey, selectedAssistantDetail, selectedAssistantRecord, selectedAssistantId, t]);
+  }, [selectedAssistantId, t]);
 
   const handleSelectPrompt = useCallback(
     (prompt: string) => {
@@ -272,10 +370,12 @@ const GuidPage: React.FC = () => {
 
   const appliedAssistantDefaultsKeyRef = useRef<string | null>(null);
   const manualModelSelectionAssistantRef = useRef<string | null>(null);
+  const manualThoughtLevelSelectionAssistantRef = useRef<string | null>(null);
   useEffect(() => {
     if (!selectedAssistantId || !selectedAssistantDetail) {
       appliedAssistantDefaultsKeyRef.current = null;
       manualModelSelectionAssistantRef.current = null;
+      manualThoughtLevelSelectionAssistantRef.current = null;
       return;
     }
 
@@ -286,6 +386,7 @@ const GuidPage: React.FC = () => {
       preferences: {
         last_model_id: selectedAssistantDetail.preferences.last_model_id,
         last_permission_value: selectedAssistantDetail.preferences.last_permission_value,
+        last_thought_level_value: selectedAssistantDetail.preferences.last_thought_level_value,
         last_mcp_ids: selectedAssistantDetail.preferences.last_mcp_ids,
       },
       availableModels: {
@@ -296,6 +397,7 @@ const GuidPage: React.FC = () => {
         })),
       },
       availableModes: agentSelection.currentAgentModeOptions.map((mode) => mode.value),
+      availableThoughtLevels: agentSelection.currentThoughtLevelOption?.options.map((option) => option.value) ?? [],
     });
     if (appliedAssistantDefaultsKeyRef.current === signature) {
       return;
@@ -306,6 +408,7 @@ const GuidPage: React.FC = () => {
       const resolvedDefaults = resolveGuidAssistantDefaults(selectedAssistantDetail);
       const effectiveBackend = agentSelection.selectedAssistantBackend;
       const shouldApplyDefaultModel = manualModelSelectionAssistantRef.current !== selectedAssistantId;
+      const shouldApplyDefaultThoughtLevel = manualThoughtLevelSelectionAssistantRef.current !== selectedAssistantId;
 
       if (shouldApplyDefaultModel && effectiveBackend === 'aionrs') {
         if (resolvedDefaults.modelId) {
@@ -347,6 +450,20 @@ const GuidPage: React.FC = () => {
           }
         }
       }
+      if (shouldApplyDefaultThoughtLevel && agentSelection.currentThoughtLevelOption) {
+        const availableThoughtLevelValues = new Set(
+          agentSelection.currentThoughtLevelOption.options.map((option) => option.value)
+        );
+        if (resolvedDefaults.thoughtLevel && availableThoughtLevelValues.has(resolvedDefaults.thoughtLevel)) {
+          agentSelection.setSelectedThoughtLevelValue(resolvedDefaults.thoughtLevel, { persistPreference: false });
+        } else {
+          const fallbackThoughtLevel =
+            agentSelection.currentThoughtLevelOption.currentValue ||
+            agentSelection.currentThoughtLevelOption.options[0]?.value ||
+            '';
+          agentSelection.setSelectedThoughtLevelValue(fallbackThoughtLevel, { persistPreference: false });
+        }
+      }
       setGuidSelectedMcpServerIds(resolvedDefaults.mcpIds);
     };
 
@@ -356,9 +473,11 @@ const GuidPage: React.FC = () => {
   }, [
     agentSelection.currentAcpCachedModelInfo?.available_models,
     agentSelection.currentAgentModeOptions,
+    agentSelection.currentThoughtLevelOption,
     agentSelection.selectedAssistantBackend,
     agentSelection.setSelectedAcpModel,
     agentSelection.setSelectedMode,
+    agentSelection.setSelectedThoughtLevelValue,
     modelSelection.modelList,
     modelSelection.resetCurrentModel,
     modelSelection.setCurrentModel,
@@ -376,6 +495,13 @@ const GuidPage: React.FC = () => {
     (model: React.SetStateAction<string | null>) => {
       manualModelSelectionAssistantRef.current = selectedAssistantId;
       agentSelection.setSelectedAcpModel(model, { persistPreference: !hasSelectedAssistant });
+    },
+    [agentSelection, hasSelectedAssistant, selectedAssistantId]
+  );
+  const setGuidSelectedThoughtLevel = useCallback(
+    (value: string) => {
+      manualThoughtLevelSelectionAssistantRef.current = selectedAssistantId;
+      agentSelection.setSelectedThoughtLevelValue(value, { persistPreference: !hasSelectedAssistant });
     },
     [agentSelection, hasSelectedAssistant, selectedAssistantId]
   );
@@ -404,15 +530,20 @@ const GuidPage: React.FC = () => {
   // one such follow-up pass skip the clear, preserving the seeded prompt.
   const skipNextClearRef = useRef(false);
   useLayoutEffect(() => {
-    const prefillState = location.state as { prefillPrompt?: string; prefillFiles?: string[] } | null;
+    const prefillState = location.state as GuidNavigationState | null;
     const prefillPrompt = prefillState?.prefillPrompt;
     const prefillFiles = prefillState?.prefillFiles;
+    const preserveCurrentDraft = Boolean(prefillState?.preservePrefillDraft || skipNextClearRef.current);
     if (prefillPrompt && consumedPrefillKeyRef.current !== location.key) {
       // Consume prompt + optional attachments (e.g. bug-report screenshots) once.
       consumedPrefillKeyRef.current = location.key;
       skipNextClearRef.current = true;
-      guidInput.setInput(prefillPrompt);
-      guidInput.setFiles(prefillFiles && prefillFiles.length > 0 ? prefillFiles : []);
+      if (prefillState.preservePrefillDraft) {
+        guidInput.setInput((draft) => appendPromptToDraft(draft, prefillPrompt));
+      } else {
+        guidInput.setInput(prefillPrompt);
+        guidInput.setFiles(prefillFiles && prefillFiles.length > 0 ? prefillFiles : []);
+      }
     } else if (skipNextClearRef.current) {
       // This pass is the state-clearing replace() right after a prefill — keep
       // the seeded input instead of clearing it.
@@ -422,10 +553,29 @@ const GuidPage: React.FC = () => {
       guidInput.setFiles([]);
     }
     guidInput.setLoading(false);
-    if (!(location.state as { workspace?: string } | null)?.workspace) {
+    if (!preserveCurrentDraft && !(location.state as { workspace?: string } | null)?.workspace) {
       guidInput.setDir('');
     }
   }, [guidInput.setDir, guidInput.setFiles, guidInput.setInput, guidInput.setLoading, location.key, location.state]);
+
+  // A draft-preserving prefill is an action, not durable navigation state.
+  // Strip it after consumption so browser history or a remount cannot replay it.
+  useEffect(() => {
+    const prefillState = location.state as GuidNavigationState | null;
+    if (!prefillState?.preservePrefillDraft || !prefillState.prefillPrompt) return;
+
+    const {
+      prefillPrompt: _prefillPrompt,
+      prefillFiles: _prefillFiles,
+      preservePrefillDraft: _preservePrefillDraft,
+      focusPrefill: _focusPrefill,
+      ...remainingState
+    } = prefillState;
+    navigate(`${location.pathname}${location.search}${location.hash}`, {
+      replace: true,
+      state: Object.keys(remainingState).length > 0 ? remainingState : null,
+    });
+  }, [location.hash, location.pathname, location.search, location.state, navigate]);
 
   // Clear resetAssistant from location.state after the hook has consumed it,
   // so that re-renders don't re-trigger the reset logic.
@@ -456,6 +606,8 @@ const GuidPage: React.FC = () => {
       currentAcpCachedModelInfo={agentSelection.currentAcpCachedModelInfo}
       selectedAcpModel={agentSelection.selectedAcpModel}
       setSelectedAcpModel={setGuidSelectedAcpModel}
+      thoughtLevelOption={isGeminiMode ? null : agentSelection.currentThoughtLevelOption}
+      onThoughtLevelSelect={setGuidSelectedThoughtLevel}
     />
   );
 
@@ -473,6 +625,15 @@ const GuidPage: React.FC = () => {
       files={guidInput.files}
       onFilesUploaded={guidInput.handleFilesUploaded}
       modelSelectorNode={modelSelectorNode}
+      isGeminiMode={isGeminiMode}
+      modelList={modelSelection.modelList}
+      current_model={modelSelection.current_model}
+      setCurrentModel={setGuidCurrentModel}
+      currentAcpCachedModelInfo={agentSelection.currentAcpCachedModelInfo}
+      selectedAcpModel={agentSelection.selectedAcpModel}
+      setSelectedAcpModel={setGuidSelectedAcpModel}
+      thoughtLevelOption={isGeminiMode ? null : agentSelection.currentThoughtLevelOption}
+      onThoughtLevelSelect={setGuidSelectedThoughtLevel}
       modeBackend={agentSelection.selectedAssistantBackend}
       selectedMode={agentSelection.selectedMode}
       dynamicModes={agentSelection.currentAgentModeOptions}
@@ -496,6 +657,23 @@ const GuidPage: React.FC = () => {
       onSend={send.sendMessageHandler}
     />
   );
+  const slashCommandMenuNode = slashController.isOpen ? (
+    <SlashCommandMenu
+      title={t('messages.slash.title', { defaultValue: 'Commands' })}
+      hint={t('messages.slash.hint', { defaultValue: 'Type / to open command menu' })}
+      items={slashMenuItems}
+      activeIndex={slashController.activeIndex}
+      loading={false}
+      onHoverItem={slashController.setActiveIndex}
+      onSelectItem={(item) => {
+        const targetIndex = slashController.filteredCommands.findIndex((command) => command.name === item.key);
+        if (targetIndex >= 0) {
+          slashController.onSelectByIndex(targetIndex);
+        }
+      }}
+      emptyText={t('messages.slash.empty', { defaultValue: 'No commands found' })}
+    />
+  ) : null;
 
   return (
     <ConfigProvider getPopupContainer={() => guidContainerRef.current || document.body}>
@@ -505,43 +683,52 @@ const GuidPage: React.FC = () => {
             <p className='text-2xl font-semibold mb-0 text-0 text-center'>{t('conversation.welcome.title')}</p>
           </div>
 
-          <AssistantSelectionArea
-            selectedAssistantId={agentSelection.selectedAssistantId}
-            assistants={agentSelection.assistants}
-            localeKey={localeKey}
-            onSelectAssistant={handleSelectAssistant}
-          />
+          {agentSelection.isAssistantsLoading ? (
+            <GuidAgentsLoadingSkeleton />
+          ) : (
+            <>
+              <AssistantSelectionArea
+                selectedAssistantId={agentSelection.selectedAssistantId}
+                assistants={agentSelection.assistants}
+                localeKey={localeKey}
+                onSelectAssistant={handleSelectAssistant}
+              />
 
-          <GuidInputCard
-            input={guidInput.input}
-            onInputChange={handleInputChange}
-            onKeyDown={handleInputKeyDown}
-            onPaste={guidInput.onPaste}
-            onFocus={guidInput.handleTextareaFocus}
-            onBlur={guidInput.handleTextareaBlur}
-            placeholder={typewriterPlaceholder || t('conversation.welcome.placeholder')}
-            isInputActive={guidInput.isInputFocused}
-            isFileDragging={guidInput.isFileDragging}
-            activeBorderColor={activeBorderColor}
-            inactiveBorderColor={inactiveBorderColor}
-            activeShadow={activeShadow}
-            dragHandlers={guidInput.dragHandlers}
-            files={guidInput.files}
-            onRemoveFile={guidInput.handleRemoveFile}
-            actionRow={actionRowNode}
-            workspaceDir={guidInput.dir}
-            onSelectWorkspace={(dir) => guidInput.setDir(dir)}
-            onClearWorkspace={() => guidInput.setDir('')}
-          />
+              <GuidInputCard
+                focusRequestKey={navState?.focusPrefill && navState.prefillPrompt ? location.key : undefined}
+                input={guidInput.input}
+                onInputChange={handleInputChange}
+                onKeyDown={handleInputKeyDown}
+                onPaste={guidInput.onPaste}
+                onFocus={guidInput.handleTextareaFocus}
+                onBlur={guidInput.handleTextareaBlur}
+                placeholder={typewriterPlaceholder || t('conversation.welcome.placeholder')}
+                isInputActive={guidInput.isInputFocused}
+                isFileDragging={guidInput.isFileDragging}
+                activeBorderColor={activeBorderColor}
+                inactiveBorderColor={inactiveBorderColor}
+                activeShadow={activeShadow}
+                dragHandlers={guidInput.dragHandlers}
+                files={guidInput.files}
+                onRemoveFile={guidInput.handleRemoveFile}
+                actionRow={actionRowNode}
+                slashCommandMenu={slashCommandMenuNode}
+                workspaceDir={guidInput.dir}
+                onSelectWorkspace={(dir) => guidInput.setDir(dir)}
+                onClearWorkspace={() => guidInput.setDir('')}
+                onAddWorkspaceFiles={guidInput.handleFilesUploaded}
+              />
 
-          {selectedAssistantPromptCategories.length > 0 ? (
-            <div className='mt-18px w-full animate-fade-in'>
-              <div className={`${styles.assistantPromptHint} mb-10px text-left`}>
-                {t('guid.promptExamplesHint', { defaultValue: 'Try these example prompts:' })}
-              </div>
-              <GuidPromptCarousel categories={selectedAssistantPromptCategories} onSelect={handleSelectPrompt} />
-            </div>
-          ) : null}
+              {selectedAssistantPromptCategories.length > 0 ? (
+                <div className='mt-18px w-full animate-fade-in'>
+                  <div className={`${styles.assistantPromptHint} mb-10px text-left`}>
+                    {t('guid.promptExamplesHint', { defaultValue: 'Try these example prompts:' })}
+                  </div>
+                  <GuidPromptCarousel categories={selectedAssistantPromptCategories} onSelect={handleSelectPrompt} />
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
 
         {/*<QuickActionButtons*/}
