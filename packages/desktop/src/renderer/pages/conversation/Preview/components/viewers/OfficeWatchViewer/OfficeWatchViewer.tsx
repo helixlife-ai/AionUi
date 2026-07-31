@@ -20,17 +20,23 @@ import { resolveOfficePreviewFilePath } from '@/renderer/utils/hub/resolveOffice
 import { Button, Spin } from '@arco-design/web-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  OFFICE_PREVIEW_START_TIMEOUT_MS,
+  runExclusiveOfficeWatch,
+  startOfficeWatchRequest,
+  stopOfficeWatchRequest,
+  type OfficeDocType,
+} from './officeWatchSession';
 
-type DocType = 'ppt' | 'word' | 'excel';
+export { OFFICE_PREVIEW_START_TIMEOUT_MS } from './officeWatchSession';
+
+type DocType = OfficeDocType;
 type OfficeWatchErrorCode =
   | 'OFFICECLI_NOT_FOUND'
   | 'OFFICECLI_INSTALL_FAILED'
   | 'OFFICECLI_PORT_TIMEOUT'
   | 'OFFICECLI_START_FAILED'
   | 'PATH_OUTSIDE_SANDBOX';
-
-/** Bound hung `officecli watch` starts so the UI does not spin forever. */
-export const OFFICE_PREVIEW_START_TIMEOUT_MS = 45_000;
 
 const BRIDGE = {
   ppt: ipcBridge.pptPreview,
@@ -160,33 +166,15 @@ export function shouldShowOfficeInstallHint(code: OfficeWatchErrorCode | undefin
   return code === 'OFFICECLI_NOT_FOUND' || code === 'OFFICECLI_INSTALL_FAILED';
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, timeoutCode: OfficeWatchErrorCode): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(Object.assign(new Error(timeoutCode), { code: timeoutCode }));
-    }, ms);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      }
-    );
-  });
-}
-
 /**
  * Shared Office watch viewer.
  *
- * Launches an `officecli watch` child process via IPC, waits for the local
+ * Launches an `officecli watch` child process via HTTP, waits for the local
  * HTTP server to be ready, then renders it in a webview (Electron) or iframe
- * (web server mode). Cleans up the process on unmount.
+ * (web server mode). Cleans up the process on unmount / file switch.
  *
  * Used by PptViewer, OfficeDocViewer, and ExcelViewer — each passes its
- * docType to select the correct IPC bridge, proxy path, and i18n keys.
+ * docType to select the correct bridge, proxy path, and i18n keys.
  */
 const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_path, workspace }) => {
   const { t } = useTranslation();
@@ -207,8 +195,7 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
     const bridge = BRIDGE[docType];
     const translate = tRef.current;
 
-    // Drop the previous iframe immediately so officecli EventSource
-    // (`events` / `list` / …) cannot keep eating connection slots.
+    // Drop any previous iframe/webview immediately so proxy SSE/ping stop.
     setWatchUrl(null);
 
     if (!file_path) {
@@ -218,6 +205,7 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
     }
 
     let cancelled = false;
+    // Aborts the previous file's in-flight start without touching conversation HTTP.
     const generationSignal = adoptOfficePreviewRequestScope();
     const resolvedPath = resolveOfficePreviewFilePath(file_path, workspace);
     startedPathRef.current = resolvedPath;
@@ -233,44 +221,69 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
       setStatus('starting');
       setError(null);
       try {
-        const result = await withTimeout(
-          bridge.start.invoke({ file_path: resolvedPath, workspace }),
-          OFFICE_PREVIEW_START_TIMEOUT_MS,
-          'OFFICECLI_PORT_TIMEOUT'
-        );
-        if (cancelled || generationSignal.aborted) return;
-        const errorCode = normalizeOfficeWatchErrorCode(result.error);
-        if (errorCode) {
-          setError({
-            code: errorCode,
-            message: translate(OFFICE_ERROR_I18N_KEYS[errorCode]),
-          });
-          setLoading(false);
-          return;
-        }
+        await runExclusiveOfficeWatch(async () => {
+          if (cancelled || generationSignal.aborted) return;
 
-        const url = result.url;
-        if (!url) {
-          throw new Error(translate(keys.startFailed));
-        }
-        // Small delay to ensure the watch HTTP server is fully ready for the webview
-        await new Promise((r) => setTimeout(r, 300));
-        if (!cancelled && !generationSignal.aborted) {
-          const resolvedUrl = resolveOfficeWatchUrl(url, docType);
-          setWatchUrl(resolvedUrl);
+          const result = await startOfficeWatchRequest(
+            docType,
+            { file_path: resolvedPath, workspace },
+            { signal: generationSignal, timeoutMs: OFFICE_PREVIEW_START_TIMEOUT_MS }
+          );
+
+          // Start may have completed on the server after we switched files —
+          // tear it down before yielding the exclusive slot to the next start.
+          if (cancelled || generationSignal.aborted) {
+            await stopOfficeWatchRequest(docType, { file_path: resolvedPath });
+            return;
+          }
+
+          const errorCode = normalizeOfficeWatchErrorCode(result.error);
+          if (errorCode) {
+            if (!cancelled) {
+              setError({
+                code: errorCode,
+                message: translate(OFFICE_ERROR_I18N_KEYS[errorCode]),
+              });
+              setLoading(false);
+            }
+            return;
+          }
+
+          const url = result.url;
+          if (!url) {
+            throw new Error(translate(keys.startFailed));
+          }
+
+          // Small delay to ensure the watch HTTP server is fully ready for the webview
+          await new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, 300);
+            generationSignal.addEventListener(
+              'abort',
+              () => {
+                clearTimeout(timer);
+                resolve();
+              },
+              { once: true }
+            );
+          });
+
+          if (cancelled || generationSignal.aborted) {
+            await stopOfficeWatchRequest(docType, { file_path: resolvedPath });
+            return;
+          }
+
+          setWatchUrl(resolveOfficeWatchUrl(url, docType));
           setLoading(false);
-        }
+        });
       } catch (err) {
         if (cancelled || isHttpAbortError(err) || generationSignal.aborted) return;
         const timeoutCode =
           err && typeof err === 'object' && 'code' in err
             ? normalizeOfficeWatchErrorCode(String((err as { code?: unknown }).code))
             : undefined;
-        // Kill the hung start fetch so it does not keep a browser connection slot.
-        if (
-          timeoutCode === 'OFFICECLI_PORT_TIMEOUT' &&
-          getOfficePreviewRequestSignal() === generationSignal
-        ) {
+        // Timeout already aborted the fetch via startOfficeWatchRequest; also drop
+        // the office scope so a hung generation cannot linger.
+        if (timeoutCode === 'OFFICECLI_PORT_TIMEOUT' && getOfficePreviewRequestSignal() === generationSignal) {
           abortOfficePreviewRequestScope();
         }
         const backendCode = isBackendHttpError(err) ? normalizeOfficeWatchErrorCode(err.code) : undefined;
@@ -294,14 +307,14 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
     return () => {
       cancelled = true;
       unsubStatus();
-      // Abort only this generation — a newer effect will have already adopted.
+      // Abort only this generation — a newer effect already adopted a fresh scope.
       if (getOfficePreviewRequestSignal() === generationSignal) {
         abortOfficePreviewRequestScope();
       }
       const stopPath = startedPathRef.current || file_pathRef.current;
       if (stopPath) {
-        // stop must not use the office start signal (already aborted above).
-        bridge.stop.invoke({ file_path: stopPath }).catch(() => {});
+        // Queue stop on the exclusive chain so the next start waits for it.
+        void runExclusiveOfficeWatch(() => stopOfficeWatchRequest(docType, { file_path: stopPath }));
       }
     };
   }, [docType, file_path, keys.startFailed, retryKey, workspace]);

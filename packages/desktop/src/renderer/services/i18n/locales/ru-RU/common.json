@@ -136,12 +136,6 @@
       "diagnosticsHint": "Если это повторяется, вы можете отправить отчёт диагностики."
     }
   },
-  "backendWarming": {
-    "title": "Starting up",
-    "description": "The backend is warming up. This can take a few minutes on first launch.",
-    "hint": "Please keep this page open — it will continue automatically.",
-    "attempt": "Checking backend… ({{count}})"
-  },
   "fileAttach.addFiles": "Добавить файлы",
   "fileAttach.myDevice": "Моё устройство",
   "fileAttach.failed": "Ошибка загрузки",

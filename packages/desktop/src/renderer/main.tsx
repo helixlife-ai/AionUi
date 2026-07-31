@@ -97,7 +97,6 @@ import { bootstrapRendererConfig } from '@renderer/services/bootstrapRenderer';
 // Components and utilities
 import Layout from './components/layout/Layout';
 import AppBootstrapSkeleton from './components/layout/AppBootstrapSkeleton';
-import BackendWarmingScreen from './components/layout/boot/BackendWarmingScreen';
 import Router from './components/layout/Router';
 import Sider from './components/layout/Sider';
 import { useAuth } from './hooks/context/AuthContext';
@@ -284,7 +283,6 @@ const Main = () => {
   const { ready } = useAuth();
   const warmingEnabled = isAgentHubBackendWarmingScreenEnabled();
   const [backendReady, setBackendReady] = useState(!warmingEnabled);
-  const [warmingAttempt, setWarmingAttempt] = useState(0);
   const [configReady, setConfigReady] = useState(false);
 
   useEffect(() => {
@@ -292,7 +290,6 @@ const Main = () => {
     const controller = new AbortController();
     void waitForBackendReady({
       signal: controller.signal,
-      onAttempt: setWarmingAttempt,
     })
       .then((result) => {
         if (controller.signal.aborted) return;
@@ -322,10 +319,8 @@ const Main = () => {
     void repairAllCronJobTimeZonesOnce();
   }, [ready, backendReady]);
 
+  // Shared skeleton for auth / backend probe / config bootstrap — no modal overlay.
   if (!ready || !backendReady || !configReady) {
-    if (warmingEnabled && !backendReady) {
-      return <BackendWarmingScreen attempt={warmingAttempt} />;
-    }
     return <AppBootstrapSkeleton />;
   }
 

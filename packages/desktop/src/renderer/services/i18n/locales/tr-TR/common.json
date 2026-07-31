@@ -137,12 +137,6 @@
       "diagnosticsHint": "Bu durum tekrar ederse bir tanılama raporu gönderebilirsiniz."
     }
   },
-  "backendWarming": {
-    "title": "Starting up",
-    "description": "The backend is warming up. This can take a few minutes on first launch.",
-    "hint": "Please keep this page open — it will continue automatically.",
-    "attempt": "Checking backend… ({{count}})"
-  },
   "fileAttach.addFiles": "Dosya ekle",
   "fileAttach.myDevice": "Cihazım",
   "fileAttach.failed": "Yükleme başarısız",
