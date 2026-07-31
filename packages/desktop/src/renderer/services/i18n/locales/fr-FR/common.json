@@ -137,6 +137,12 @@
       "diagnosticsHint": "Si cela se reproduit, vous pouvez envoyer un rapport de diagnostic."
     }
   },
+  "backendWarming": {
+    "title": "Starting up",
+    "description": "The backend is warming up. This can take a few minutes on first launch.",
+    "hint": "Please keep this page open — it will continue automatically.",
+    "attempt": "Checking backend… ({{count}})"
+  },
   "fileAttach.addFiles": "Ajouter des fichiers",
   "fileAttach.myDevice": "Mon appareil",
   "fileAttach.failed": "Échec du téléversement",

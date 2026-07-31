@@ -136,6 +136,12 @@
       "diagnosticsHint": "Wenn dies wiederholt auftritt, können Sie einen Diagnosebericht senden."
     }
   },
+  "backendWarming": {
+    "title": "Starting up",
+    "description": "The backend is warming up. This can take a few minutes on first launch.",
+    "hint": "Please keep this page open — it will continue automatically.",
+    "attempt": "Checking backend… ({{count}})"
+  },
   "fileAttach.addFiles": "Dateien hinzufügen",
   "fileAttach.myDevice": "Mein Gerät",
   "fileAttach.failed": "Hochladen fehlgeschlagen",

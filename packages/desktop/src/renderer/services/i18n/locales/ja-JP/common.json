@@ -137,6 +137,12 @@
       "diagnosticsHint": "この現象が繰り返し発生する場合は、診断レポートを送信できます。"
     }
   },
+  "backendWarming": {
+    "title": "起動中",
+    "description": "バックエンドを準備しています。初回起動時は数分かかることがあります。",
+    "hint": "このページを開いたままお待ちください。準備が完了すると自動的に続行します。",
+    "attempt": "バックエンドを確認中… ({{count}})"
+  },
   "fileAttach.addFiles": "ファイルを追加",
   "fileAttach.myDevice": "マイデバイス",
   "fileAttach.failed": "アップロードに失敗しました",

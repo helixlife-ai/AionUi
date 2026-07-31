@@ -137,6 +137,12 @@
       "diagnosticsHint": "如果此問題反覆出現，您可以傳送診斷報告。"
     }
   },
+  "backendWarming": {
+    "title": "正在啟動",
+    "description": "後端正在預熱中。首次啟動在一體機上可能需要幾分鐘。",
+    "hint": "請保持頁面開啟，就緒後將自動進入。",
+    "attempt": "正在檢測後端…（{{count}}）"
+  },
   "fileAttach.addFiles": "新增檔案",
   "fileAttach.myDevice": "我的裝置",
   "fileAttach.failed": "上傳失敗",

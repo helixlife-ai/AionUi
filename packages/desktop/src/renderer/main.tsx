@@ -97,6 +97,7 @@ import { bootstrapRendererConfig } from '@renderer/services/bootstrapRenderer';
 // Components and utilities
 import Layout from './components/layout/Layout';
 import AppBootstrapSkeleton from './components/layout/AppBootstrapSkeleton';
+import BackendWarmingScreen from './components/layout/boot/BackendWarmingScreen';
 import Router from './components/layout/Router';
 import Sider from './components/layout/Sider';
 import { useAuth } from './hooks/context/AuthContext';
@@ -113,6 +114,8 @@ import {
   getRuntimeComponentInstallationDescription,
   showInstallationIntegrityModal,
 } from './components/layout/InstallationIntegrityDialog';
+import { isAgentHubBackendWarmingScreenEnabled } from './utils/hub/agentHubUiPolicy';
+import { waitForBackendReady } from './services/backendReadiness';
 
 // Patch Korean locale with missing properties from English locale
 const koKRComplete = {
@@ -279,19 +282,50 @@ const Config: React.FC<PropsWithChildren> = ({ children }) => {
 
 const Main = () => {
   const { ready } = useAuth();
+  const warmingEnabled = isAgentHubBackendWarmingScreenEnabled();
+  const [backendReady, setBackendReady] = useState(!warmingEnabled);
+  const [warmingAttempt, setWarmingAttempt] = useState(0);
   const [configReady, setConfigReady] = useState(false);
 
   useEffect(() => {
-    if (!ready) return;
-    void bootstrapRendererConfig().finally(() => setConfigReady(true));
-  }, [ready]);
+    if (!ready || !warmingEnabled) return;
+    const controller = new AbortController();
+    void waitForBackendReady({
+      signal: controller.signal,
+      onAttempt: setWarmingAttempt,
+    })
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        // Ready or max-wait timeout: always enter the shell. Timeout falls
+        // through to normal bootstrap (same as pre-D behavior) so a bad probe
+        // cannot permanently block the app.
+        if (result.timedOut) {
+          console.warn('[backendReadiness] probe timed out; continuing bootstrap anyway');
+        }
+        setBackendReady(true);
+      })
+      .catch(() => {
+        // Aborted on unmount — ignore.
+      });
+    return () => controller.abort();
+  }, [ready, warmingEnabled]);
 
   useEffect(() => {
-    if (!ready) return;
-    void repairAllCronJobTimeZonesOnce();
-  }, [ready]);
+    if (!ready || !backendReady) return;
+    // Early module-boot initialize may have timed out while warming; bootstrap
+    // retries cleanly because failed initPromise is cleared.
+    void bootstrapRendererConfig().finally(() => setConfigReady(true));
+  }, [ready, backendReady]);
 
-  if (!ready || !configReady) {
+  useEffect(() => {
+    if (!ready || !backendReady) return;
+    void repairAllCronJobTimeZonesOnce();
+  }, [ready, backendReady]);
+
+  if (!ready || !backendReady || !configReady) {
+    if (warmingEnabled && !backendReady) {
+      return <BackendWarmingScreen attempt={warmingAttempt} />;
+    }
     return <AppBootstrapSkeleton />;
   }
 

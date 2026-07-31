@@ -137,6 +137,12 @@
       "diagnosticsHint": "如果该问题反复出现，您可以发送诊断报告。"
     }
   },
+  "backendWarming": {
+    "title": "正在启动",
+    "description": "后端正在预热中。首次启动在一体机上可能需要几分钟。",
+    "hint": "请保持页面打开，就绪后将自动进入。",
+    "attempt": "正在检测后端…（{{count}}）"
+  },
   "fileAttach.addFiles": "添加文件",
   "fileAttach.myDevice": "从设备上传",
   "fileAttach.failed": "上传失败",
