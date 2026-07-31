@@ -128,6 +128,25 @@ describe('static-server', () => {
     expect(r.body.length).toBeLessThan(text.length);
   });
 
+  it('keeps Content-Type when gzipping index.html (avoids browser download)', async () => {
+    // Small fixture HTML is below STATIC_GZIP_MIN_BYTES — pad so gzip engages.
+    await fs.writeFile(
+      path.join(staticDir, 'index.html'),
+      `<!doctype html><title>root</title><!--${'x'.repeat(STATIC_GZIP_MIN_BYTES)}-->`
+    );
+    const backend = await startMockBackend((_req, res) => res.end('nope'));
+    stopBackend = backend.close;
+    handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+    const r = await rawGet(`${handle.localUrl}/`, { 'accept-encoding': 'gzip' });
+    expect(r.statusCode).toBe(200);
+    expect(r.headers['content-type']).toContain('text/html');
+    expect(r.headers['content-encoding']).toBe('gzip');
+    expect(r.headers['content-disposition']).toBeUndefined();
+    const html = gunzipSync(r.body).toString('utf8');
+    expect(html).toContain('<title>root</title>');
+  });
+
   it('does not gzip when client omits Accept-Encoding: gzip', async () => {
     const backend = await startMockBackend((_req, res) => res.end('nope'));
     stopBackend = backend.close;

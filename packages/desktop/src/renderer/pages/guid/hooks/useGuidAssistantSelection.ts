@@ -18,6 +18,8 @@ import {
 } from '@/renderer/utils/model/agentRuntimeCatalog';
 import type { SlashCommandItem } from '@/common/chat/slash/types';
 import { useManagedAgentRuntimeCatalog } from '@/renderer/hooks/agent/useManagedAgents';
+import { useConversationHistoryContext } from '@/renderer/hooks/context/ConversationHistoryContext';
+import { shouldLoadHeavyCatalogs } from '@/renderer/services/backendReadiness';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useCustomAgentsLoader } from './useCustomAgentsLoader';
 
@@ -127,8 +129,15 @@ export const useGuidAssistantSelection = ({
   const [selectedMode, _setSelectedMode] = useState<string>('default');
   const [selectedAcpModel, _setSelectedAcpModel] = useState<string | null>(null);
   const [selectedThoughtLevelValue, _setSelectedThoughtLevelValue] = useState<string>('');
-  const { assistants, isLoading: isAssistantsLoading } = useCustomAgentsLoader();
-  const managedAgentRuntimeCatalog = useManagedAgentRuntimeCatalog();
+  // Gradual cold-start load: conversation list first, then assistants, then management.
+  const { isListHydrated } = useConversationHistoryContext();
+  const heavyCatalogsEnabled = shouldLoadHeavyCatalogs(isListHydrated);
+  const { assistants, isLoading: isAssistantsLoading } = useCustomAgentsLoader({
+    enabled: heavyCatalogsEnabled,
+  });
+  const managedAgentRuntimeCatalog = useManagedAgentRuntimeCatalog({
+    enabled: heavyCatalogsEnabled && !isAssistantsLoading,
+  });
 
   const setSelectedMode = useCallback(
     (mode: React.SetStateAction<string>, _options?: { persistPreference?: boolean }) => {

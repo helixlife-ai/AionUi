@@ -32,9 +32,16 @@ vi.mock('@/common/config/configService', () => ({
   },
 }));
 
+vi.mock('@/renderer/hooks/context/ConversationHistoryContext', () => ({
+  useConversationHistoryContext: () => ({
+    isListHydrated: true,
+  }),
+}));
+
 vi.mock('@/renderer/pages/guid/hooks/useCustomAgentsLoader', () => ({
   useCustomAgentsLoader: () => ({
     assistants: mockAssistants,
+    isLoading: false,
   }),
 }));
 

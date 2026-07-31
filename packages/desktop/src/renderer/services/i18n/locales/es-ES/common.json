@@ -179,6 +179,12 @@
       "diagnosticsReportFailed": "No se pudo enviar el diagnóstico, inténtalo de nuevo"
     }
   },
+  "backendWarming": {
+    "title": "Starting up",
+    "description": "The backend is warming up. This can take a few minutes on first launch.",
+    "hint": "Please keep this page open — it will continue automatically.",
+    "attempt": "Checking backend… ({{count}})"
+  },
   "fileAttach.addFiles": "Agregar archivos",
   "fileAttach.myDevice": "Subir desde el dispositivo",
   "fileAttach.failed": "Error al subir",

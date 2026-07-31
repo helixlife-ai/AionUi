@@ -153,12 +153,14 @@ export function enableStaticGzip(req: IncomingMessage, res: ServerResponse): voi
 
     pendingHeaders.set('content-length', String(out.length));
 
-    const headersObject: Record<string, string | string[]> = {};
+    // Apply via setHeader + writeHead(status) rather than writeHead(status, headers).
+    // The bun-compiled aionui-web binary can drop the headers object on writeHead
+    // after monkey-patching, leaving gzip bodies without Content-Type /
+    // Content-Encoding — browsers then download index.html instead of rendering.
     for (const [key, value] of pendingHeaders) {
-      headersObject[key] = value;
+      rawSetHeader(key, value);
     }
-
-    rawWriteHead(statusCode, headersObject);
+    rawWriteHead(statusCode);
     return rawEnd(out, () => {
       if (typeof endCb === 'function') (endCb as () => void)();
     });
