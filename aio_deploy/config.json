@@ -6,7 +6,7 @@
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": "优化office预览性能",
+  "desc": "优化白屏问题，支持python3，pdftotext文本提取",
   "startup": true,
   "force_update": true,
   "device_limit": [
