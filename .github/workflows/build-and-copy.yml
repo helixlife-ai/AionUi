@@ -72,6 +72,32 @@ jobs:
           build-args: |
             GH_TOKEN=${{ secrets.GH_TOKEN }}
 
+      - name: Sync image to Tencent Registry via server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.COPY_SERVER_HOST }}
+          username: ${{ secrets.COPY_SERVER_USER }}
+          key: ${{ secrets.COPY_SERVER_SSH_KEY }}
+          command_timeout: 30m
+          script: |
+            set -e
+            AWS_IMAGE="${{ secrets.AWS_ECR_AIONUI_IMAGE_NAME }}:${{ steps.tag.outputs.version }}"
+            TCR_IMAGE="${{ secrets.TCR_REGISTRY }}/${{ secrets.TCR_NAMESPACE }}/${{ secrets.TCR_IMAGE_NAME }}:${{ steps.tag.outputs.version }}"
+
+            echo ">>> [1/3] Pull (arm64): ${AWS_IMAGE}"
+            docker pull --platform linux/arm64 "${AWS_IMAGE}"
+
+            echo ">>> [2/3] Retag: ${AWS_IMAGE} → ${TCR_IMAGE}"
+            docker tag "${AWS_IMAGE}" "${TCR_IMAGE}"
+
+            echo ">>> [3/3] Push: ${TCR_IMAGE}"
+            docker push "${TCR_IMAGE}"
+
+            echo ">>> Cleanup"
+            docker rmi "${AWS_IMAGE}" "${TCR_IMAGE}" || true
+
+            echo ">>> Done ✅"
+
       - name: Copy deploy files to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -92,7 +118,11 @@ jobs:
           echo "**Tag:** \`${{ steps.tag.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Full Image:**" >> $GITHUB_STEP_SUMMARY
+          echo "**AWS ECR Image:**" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "${{ secrets.AWS_ECR_AIONUI_IMAGE_NAME }}:${{ steps.tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "**Tencent Registry Image:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ secrets.TCR_REGISTRY }}/${{ secrets.TCR_NAMESPACE }}/${{ secrets.TCR_IMAGE_NAME }}:${{ steps.tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
