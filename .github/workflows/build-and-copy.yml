@@ -124,5 +124,5 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "**Tencent Registry Image:**" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ secrets.TCR_REGISTRY }}/${{ secrets.TCR_NAMESPACE }}/${{ secrets.TCR_IMAGE_NAME }}:${{ steps.tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "${{ secrets.AWS_ECR_AIONUI_IMAGE_NAME }}:${{ steps.tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
