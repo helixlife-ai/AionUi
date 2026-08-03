@@ -84,12 +84,18 @@ WORKDIR /app
 
 # libicu76: officecli (.NET) needs ICU for docx/xlsx/pptx preview (trixie ships libicu76).
 # ca-certificates: HTTPS calls to model providers / keybalance / officecli mirror.
+# python3/pip + poppler-utils (pdftotext): Agent Hub literature/PDF skills need
+# these at runtime; appliance apt/network is unreliable, so bake at image build.
 # Bake officecli at build time: Web/appliance preview launches `officecli watch`
 # on the server; runtime auto-install often fails on the 一体机 (linux/arm64 +
 # flaky GitHub/CDN). Place the binary in /usr/local/bin so aioncore PATH lookup
 # works without depending on ~/.local/bin.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libicu76 ca-certificates bubblewrap bash curl \
+      python3 python3-pip poppler-utils \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && python3 --version \
+    && command -v pdftotext \
     && curl -fsSL https://d.officecli.ai/install.sh -o /tmp/officecli-install.sh \
     && bash /tmp/officecli-install.sh \
     && install -m 755 /root/.local/bin/officecli /usr/local/bin/officecli \
