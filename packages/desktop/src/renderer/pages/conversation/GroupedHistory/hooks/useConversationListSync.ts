@@ -277,6 +277,8 @@ let conversation_idsState = new Set<string>();
 // backfilled); a missing key = not loaded yet (caller placeholders).
 let projectIdByIdState = new Map<string, string | null>();
 let activeConversationIdState: string | null = null;
+let emptyRefreshRetryTimer: number | null = null;
+let emptyRefreshRetryCount = 0;
 let snapshotState: ConversationListSyncSnapshot = {
   conversations: conversationsState,
   generatingConversationIds: generatingConversationIdsState,
@@ -340,12 +342,62 @@ export const getSnapshotConversationName = (conversation_id: string): string | u
   return name ? name : undefined;
 };
 
+export function shouldPreserveConversationListOnRefreshFailure(existingCount: number): boolean {
+  return existingCount > 0;
+}
+
+const EMPTY_REFRESH_RETRY_LIMIT = 3;
+
+export function shouldRetryEmptyConversationListOnColdDetailRoute({
+  itemCount,
+  isListHydrated,
+  activeConversationId,
+  retryCount,
+}: {
+  itemCount: number;
+  isListHydrated: boolean;
+  activeConversationId: string | null;
+  retryCount: number;
+}): boolean {
+  return itemCount === 0 && !isListHydrated && Boolean(activeConversationId) && retryCount < EMPTY_REFRESH_RETRY_LIMIT;
+}
+
+const getActiveConversationId = (): string | null => {
+  if (activeConversationIdState) return activeConversationIdState;
+  if (typeof window === 'undefined') return null;
+
+  const match = window.location.pathname.match(/^\/conversation\/([^/]+)/);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+};
+
+const scheduleEmptyRefreshRetry = () => {
+  if (emptyRefreshRetryTimer !== null) return;
+  emptyRefreshRetryCount += 1;
+  emptyRefreshRetryTimer = window.setTimeout(() => {
+    emptyRefreshRetryTimer = null;
+    refreshConversations();
+  }, 500);
+};
+
 const refreshConversations = () => {
   void ipcBridge.database.getUserConversations
     .invoke({ limit: 10000 })
     .then((result) => {
       const items = result?.items;
       if (items && Array.isArray(items)) {
+        if (
+          shouldRetryEmptyConversationListOnColdDetailRoute({
+            itemCount: items.length,
+            isListHydrated: isListHydratedState,
+            activeConversationId: getActiveConversationId(),
+            retryCount: emptyRefreshRetryCount,
+          })
+        ) {
+          scheduleEmptyRefreshRetry();
+          return;
+        }
+
+        emptyRefreshRetryCount = 0;
         const filteredData = items.filter((conv) => {
           // Legacy rows from the pre-provider-probe health check flow are hidden
           // from normal history. New health checks must not create conversations.
@@ -373,9 +425,11 @@ const refreshConversations = () => {
     })
     .catch((error) => {
       console.error('[WorkspaceGroupedHistory] Failed to load conversations:', error);
-      conversationsState = [];
-      conversation_idsState = new Set();
-      projectIdByIdState = new Map();
+      if (!shouldPreserveConversationListOnRefreshFailure(conversationsState.length)) {
+        conversationsState = [];
+        conversation_idsState = new Set();
+        projectIdByIdState = new Map();
+      }
       isListHydratedState = true;
       emitStoreChange();
     });

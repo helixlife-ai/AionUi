@@ -1,12 +1,12 @@
 {
-  "version": "v0.2.4",
+  "version": "v0.2.5",
   "name": "AgentHub",
   "display_name": "Studio",
   "prefix": "http://",
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": "优化白屏问题，支持python3，pdftotext文本提取",
+  "desc": "隐藏预览面板的打开系统默认应用按钮",
   "startup": true,
   "force_update": true,
   "device_limit": [

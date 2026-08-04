@@ -41,6 +41,9 @@
         --boot-block: #e5e6eb;
         --boot-border: #e5e6eb;
         box-sizing: border-box;
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
         display: flex;
         width: 100%;
         min-height: 100%;
@@ -147,9 +150,8 @@
         if (t) document.body.setAttribute('arco-theme', t);
       } catch (e) {}
     </script>
-    <div id="root">
-      <!-- Replaced by React createRoot.render once the bundle mounts. -->
-      <div class="html-boot-splash" data-testid="html-boot-splash" aria-busy="true" aria-live="polite">
+    <!-- Kept outside #root so React createRoot cannot clear it before the first render commits. -->
+    <div class="html-boot-splash" data-testid="html-boot-splash" aria-busy="true" aria-live="polite">
         <aside class="html-boot-splash__sider" aria-hidden="true">
           <div class="html-boot-splash__brand">
             <div class="html-boot-splash__block html-boot-splash__block--soft" style="width: 32px; height: 32px"></div>
@@ -206,9 +208,9 @@
             <div class="html-boot-splash__block html-boot-splash__block--pill" style="width: 92%; height: 12px"></div>
             <div class="html-boot-splash__block html-boot-splash__block--pill" style="width: 84%; height: 12px"></div>
           </div>
-        </main>
-      </div>
+      </main>
     </div>
+    <div id="root"></div>
     <script type="module" src="./main.tsx"></script>
   </body>
 </html>

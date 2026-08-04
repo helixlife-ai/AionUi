@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 import {
   getSidebarStreamGuardDecision,
   shouldReconcileMarkGenerating,
+  shouldPreserveConversationListOnRefreshFailure,
+  shouldRetryEmptyConversationListOnColdDetailRoute,
 } from '@/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync';
 
 describe('getSidebarStreamGuardDecision', () => {
@@ -104,5 +106,51 @@ describe('shouldReconcileMarkGenerating', () => {
     // background stream. Clearing stays exclusively with terminal frames /
     // turn.completed.
     expect(shouldReconcileMarkGenerating(false)).toBe(false);
+  });
+});
+
+describe('shouldPreserveConversationListOnRefreshFailure', () => {
+  it('preserves a hydrated list when a refresh fails transiently', () => {
+    expect(shouldPreserveConversationListOnRefreshFailure(1)).toBe(true);
+  });
+
+  it('does not preserve an empty initial list', () => {
+    expect(shouldPreserveConversationListOnRefreshFailure(0)).toBe(false);
+  });
+});
+
+
+describe('shouldRetryEmptyConversationListOnColdDetailRoute', () => {
+  it('retries an empty initial list while a detail route is active', () => {
+    expect(
+      shouldRetryEmptyConversationListOnColdDetailRoute({
+        itemCount: 0,
+        isListHydrated: false,
+        activeConversationId: 'conversation-id',
+        retryCount: 0,
+      })
+    ).toBe(true);
+  });
+
+  it('accepts empty lists after hydration', () => {
+    expect(
+      shouldRetryEmptyConversationListOnColdDetailRoute({
+        itemCount: 0,
+        isListHydrated: true,
+        activeConversationId: 'conversation-id',
+        retryCount: 0,
+      })
+    ).toBe(false);
+  });
+
+  it('accepts empty lists after retry limit', () => {
+    expect(
+      shouldRetryEmptyConversationListOnColdDetailRoute({
+        itemCount: 0,
+        isListHydrated: false,
+        activeConversationId: 'conversation-id',
+        retryCount: 3,
+      })
+    ).toBe(false);
   });
 });

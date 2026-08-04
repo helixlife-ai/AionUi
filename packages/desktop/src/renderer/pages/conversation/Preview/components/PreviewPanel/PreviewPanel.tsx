@@ -10,7 +10,6 @@ import { formatFileSize } from '@/renderer/services/FileService';
 import { CONTENT_FREE_TYPES, formatSizeAboveLimit } from '@/renderer/utils/file/previewPayload';
 import { classifyPreviewError, previewErrorToI18nKey } from '@/renderer/utils/previewError';
 import { copyText } from '@/renderer/utils/ui/clipboard';
-import { isElectronDesktop } from '@/renderer/utils/platform';
 import { canCopyAbsolutePath, canRevealInFolder, previewTabPaths } from './previewTabPaths';
 import { isRefreshActionable, refreshButtonState, refreshStateToken } from './refreshButtonState';
 import { reloadViaViewer } from '../../context/tabReloaderRegistry';
@@ -24,6 +23,7 @@ import {
 } from './previewToolbarUtils';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { toLocalFileHref } from '@/renderer/components/Markdown/markdownUtils';
+import { isElectronDesktop } from '@/renderer/utils/platform';
 import { PreviewToolbarExtrasProvider, type PreviewToolbarExtras } from '../../context/PreviewToolbarExtrasContext';
 import { usePreviewContext } from '../../context/PreviewContext';
 import { useResizableSplit } from '@/renderer/hooks/ui/useResizableSplit';
@@ -661,7 +661,7 @@ const PreviewPanel: React.FC = () => {
   );
 
   const showOpenInSystemButton =
-    canOpenInSystem(Boolean(metadata?.file_path), metadata?.fileRef) &&
+    isElectronDesktop() && canOpenInSystem(Boolean(metadata?.file_path), metadata?.fileRef) &&
     shouldOfferOpenInSystem(content_type, Boolean(metadata?.oversized), FILE_TYPES_WITH_BUILTIN_OPEN);
 
   // 下载文件到本地 / Download file to local system

@@ -529,6 +529,16 @@ const BackendStartupFailureDialog: React.FC<{ failure: BackendStartupFailureInfo
 void registerPwa();
 
 const root = createRoot(document.getElementById('root')!);
+const removeHtmlBootSplash = (): void => {
+  document.querySelector('[data-testid="html-boot-splash"]')?.remove();
+};
+const scheduleRemoveHtmlBootSplash = (): void => {
+  if (typeof window.queueMicrotask === 'function') {
+    window.queueMicrotask(removeHtmlBootSplash);
+    return;
+  }
+  window.setTimeout(removeHtmlBootSplash, 0);
+};
 root.render(
   <BackendStartupGate
     renderStarting={() => (
@@ -548,3 +558,5 @@ root.render(
     )}
   />
 );
+
+scheduleRemoveHtmlBootSplash();
