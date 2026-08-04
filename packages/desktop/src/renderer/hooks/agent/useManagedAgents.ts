@@ -67,9 +67,13 @@ export const useManagedAgents = (): UseManagedAgentsResult => {
  * Lightweight runtime catalog read model for assistant-bound agent rows.
  * Uses the same `/api/agents/management` payload because that endpoint is
  * backed by `agent_metadata`, where ACP catalog snapshots are persisted.
+ *
+ * Pass `enabled: false` to defer the management fetch (e.g. until conversation
+ * list + assistants have hydrated on appliance cold start).
  */
-export const useManagedAgentRuntimeCatalog = (): ManagedAgent[] => {
-  const { data } = useSWR<ManagedAgent[]>(MANAGED_AGENTS_SWR_KEY, fetchManagedAgents);
+export const useManagedAgentRuntimeCatalog = (options?: { enabled?: boolean }): ManagedAgent[] => {
+  const enabled = options?.enabled !== false;
+  const { data } = useSWR<ManagedAgent[]>(enabled ? MANAGED_AGENTS_SWR_KEY : null, fetchManagedAgents);
   return data ?? [];
 };
 

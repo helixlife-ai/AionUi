@@ -4,6 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+ * Agent Hub / appliance: poll aioncore readiness before mounting the main shell.
+ * Boot UI stays on the shared AppBootstrapSkeleton / HTML splash (no modal).
+ * Desktop upstream skips the wait when this is false.
+ */
+export function isAgentHubBackendWarmingScreenEnabled(): boolean {
+  return true;
+}
+
 /** Agent Hub: hide end-user model pickers on guid and conversation surfaces. 隐藏模型选择器 */
 export function isAgentHubModelSelectorHidden(): boolean {
   return true;

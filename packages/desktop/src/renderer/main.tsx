@@ -113,6 +113,8 @@ import {
   getRuntimeComponentInstallationDescription,
   showInstallationIntegrityModal,
 } from './components/layout/InstallationIntegrityDialog';
+import { isAgentHubBackendWarmingScreenEnabled } from './utils/hub/agentHubUiPolicy';
+import { waitForBackendReady } from './services/backendReadiness';
 
 // Patch Korean locale with missing properties from English locale
 const koKRComplete = {
@@ -279,19 +281,46 @@ const Config: React.FC<PropsWithChildren> = ({ children }) => {
 
 const Main = () => {
   const { ready } = useAuth();
+  const warmingEnabled = isAgentHubBackendWarmingScreenEnabled();
+  const [backendReady, setBackendReady] = useState(!warmingEnabled);
   const [configReady, setConfigReady] = useState(false);
 
   useEffect(() => {
-    if (!ready) return;
-    void bootstrapRendererConfig().finally(() => setConfigReady(true));
-  }, [ready]);
+    if (!ready || !warmingEnabled) return;
+    const controller = new AbortController();
+    void waitForBackendReady({
+      signal: controller.signal,
+    })
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        // Ready or max-wait timeout: always enter the shell. Timeout falls
+        // through to normal bootstrap (same as pre-D behavior) so a bad probe
+        // cannot permanently block the app.
+        if (result.timedOut) {
+          console.warn('[backendReadiness] probe timed out; continuing bootstrap anyway');
+        }
+        setBackendReady(true);
+      })
+      .catch(() => {
+        // Aborted on unmount — ignore.
+      });
+    return () => controller.abort();
+  }, [ready, warmingEnabled]);
 
   useEffect(() => {
-    if (!ready) return;
-    void repairAllCronJobTimeZonesOnce();
-  }, [ready]);
+    if (!ready || !backendReady) return;
+    // Early module-boot initialize may have timed out while warming; bootstrap
+    // retries cleanly because failed initPromise is cleared.
+    void bootstrapRendererConfig().finally(() => setConfigReady(true));
+  }, [ready, backendReady]);
 
-  if (!ready || !configReady) {
+  useEffect(() => {
+    if (!ready || !backendReady) return;
+    void repairAllCronJobTimeZonesOnce();
+  }, [ready, backendReady]);
+
+  // Shared skeleton for auth / backend probe / config bootstrap — no modal overlay.
+  if (!ready || !backendReady || !configReady) {
     return <AppBootstrapSkeleton />;
   }
 

@@ -7,6 +7,7 @@
 import {
   getAgentHubDefaultSettingsPath,
   isAgentHubAgentsSettingsHidden,
+  isAgentHubBackendWarmingScreenEnabled,
   isAgentHubChannelTypeHidden,
   isAgentHubKeepAwakeHidden,
   isAgentHubModelSelectorHidden,
@@ -20,6 +21,10 @@ import {
 import { describe, expect, it } from 'vitest';
 
 describe('agentHubUiPolicy', () => {
+  it('enables backend readiness gating for Agent Hub cold start', () => {
+    expect(isAgentHubBackendWarmingScreenEnabled()).toBe(true);
+  });
+
   it('hides model selectors in Agent Hub builds', () => {
     expect(isAgentHubModelSelectorHidden()).toBe(true);
   });

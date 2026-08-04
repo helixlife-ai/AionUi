@@ -4,14 +4,42 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import type { AddressInfo } from 'node:net';
+import { gunzipSync } from 'node:zlib';
 import { startStaticServer, type StaticServerHandle } from './static-server.js';
+import { STATIC_GZIP_MIN_BYTES } from './static-gzip.js';
 
 async function mkRendererFixture(): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-static-'));
   await fs.writeFile(path.join(dir, 'index.html'), '<!doctype html><title>root</title>');
   await fs.mkdir(path.join(dir, 'assets'));
   await fs.writeFile(path.join(dir, 'assets', 'main.js'), 'console.log("hi")');
+  // Large compressible asset — above STATIC_GZIP_MIN_BYTES so gzip engages.
+  await fs.writeFile(
+    path.join(dir, 'assets', 'big.js'),
+    `${'console.log("pad");\n'.repeat(Math.ceil(STATIC_GZIP_MIN_BYTES / 20))}console.log("payload-marker");\n`
+  );
   return dir;
+}
+
+function rawGet(
+  url: string,
+  headers: Record<string, string>
+): Promise<{ statusCode: number; headers: http.IncomingHttpHeaders; body: Buffer }> {
+  return new Promise((resolve, reject) => {
+    http
+      .get(url, { headers }, (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
+        res.on('end', () => {
+          resolve({
+            statusCode: res.statusCode ?? 0,
+            headers: res.headers,
+            body: Buffer.concat(chunks),
+          });
+        });
+      })
+      .on('error', reject);
+  });
 }
 
 async function startMockBackend(
@@ -83,6 +111,51 @@ describe('static-server', () => {
     const r = await fetch(`${handle.localUrl}/assets/main.js`);
     expect(r.status).toBe(200);
     expect(await r.text()).toContain('hi');
+  });
+
+  it('gzips large JS when Accept-Encoding includes gzip', async () => {
+    const backend = await startMockBackend((_req, res) => res.end('nope'));
+    stopBackend = backend.close;
+    handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+    const r = await rawGet(`${handle.localUrl}/assets/big.js`, { 'accept-encoding': 'gzip' });
+    expect(r.statusCode).toBe(200);
+    expect(r.headers['content-encoding']).toBe('gzip');
+    expect(r.headers.vary).toMatch(/Accept-Encoding/i);
+    expect(Number(r.headers['content-length'])).toBe(r.body.length);
+    const text = gunzipSync(r.body).toString('utf8');
+    expect(text).toContain('payload-marker');
+    expect(r.body.length).toBeLessThan(text.length);
+  });
+
+  it('keeps Content-Type when gzipping index.html (avoids browser download)', async () => {
+    // Small fixture HTML is below STATIC_GZIP_MIN_BYTES — pad so gzip engages.
+    await fs.writeFile(
+      path.join(staticDir, 'index.html'),
+      `<!doctype html><title>root</title><!--${'x'.repeat(STATIC_GZIP_MIN_BYTES)}-->`
+    );
+    const backend = await startMockBackend((_req, res) => res.end('nope'));
+    stopBackend = backend.close;
+    handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+    const r = await rawGet(`${handle.localUrl}/`, { 'accept-encoding': 'gzip' });
+    expect(r.statusCode).toBe(200);
+    expect(r.headers['content-type']).toContain('text/html');
+    expect(r.headers['content-encoding']).toBe('gzip');
+    expect(r.headers['content-disposition']).toBeUndefined();
+    const html = gunzipSync(r.body).toString('utf8');
+    expect(html).toContain('<title>root</title>');
+  });
+
+  it('does not gzip when client omits Accept-Encoding: gzip', async () => {
+    const backend = await startMockBackend((_req, res) => res.end('nope'));
+    stopBackend = backend.close;
+    handle = await startStaticServer({ staticDir, backendPort: backend.port, port: 0 });
+
+    const r = await rawGet(`${handle.localUrl}/assets/big.js`, { 'accept-encoding': 'identity' });
+    expect(r.statusCode).toBe(200);
+    expect(r.headers['content-encoding']).toBeUndefined();
+    expect(r.body.toString('utf8')).toContain('payload-marker');
   });
 
   it('/api/* reverse-proxies to backend', async () => {

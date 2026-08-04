@@ -14,6 +14,8 @@ import http, { type IncomingMessage, type Server, type ServerResponse } from 'no
 import { networkInterfaces } from 'node:os';
 import net, { type Socket } from 'node:net';
 import serveHandler from 'serve-handler';
+import { handlePdfToTextRequest, isPdfToTextRoute } from './hub/pdfToText.js';
+import { enableStaticGzip } from './static-gzip.js';
 
 export type StaticServerOptions = {
   staticDir: string;
@@ -184,6 +186,13 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         return;
       }
 
+      // /api/hub/pdf-to-text — Agent Hub: pdftotext before Claude Code send
+      // (avoids ~6MB LLM gateway body limits on raw PDF attachments).
+      if (isPdfToTextRoute(req.method, req.url)) {
+        await handlePdfToTextRequest(req, res);
+        return;
+      }
+
       // /api/* — reverse proxy to backend (includes /api/auth/*).
       // /login and /logout are aionui-auth's top-level auth endpoints: proxy them too
       // so WebUI browser clients reach the backend without a path-rewrite.
@@ -202,6 +211,9 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
       // header via res.writeHead(status, headers) as well as res.setHeader, so
       // both paths must be intercepted.
       stripContentDisposition(res);
+      // Gzip JS/CSS/HTML when the client supports it — appliance cold start
+      // otherwise ships ~9MB uncompressed (DevTools Size === Transferred).
+      enableStaticGzip(req, res);
       // static files + SPA fallback
       await serveHandler(req, res, {
         public: opts.staticDir,
