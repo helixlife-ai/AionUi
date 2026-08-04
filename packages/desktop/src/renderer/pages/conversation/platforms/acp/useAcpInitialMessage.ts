@@ -10,6 +10,7 @@ import type { TConversationRuntimeSummary } from '@/common/config/storage';
 import { parseError, uuid } from '@/common/utils';
 import { emitter } from '@/renderer/utils/emitter';
 import { type ChatFileRef, isChatFileRef, uploadFileRef } from '@/common/types/chatFile';
+import { preparePdfAttachmentsForSend } from '@/renderer/utils/hub/pdfAttachments/preparePdfAttachmentsForSend';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getConversationRuntimeWorkspaceErrorMessage } from '../../utils/conversationCreateError';
@@ -69,6 +70,7 @@ export const useAcpInitialMessage = ({
               .map((f: unknown) => (typeof f === 'string' ? uploadFileRef(f) : f))
               .filter(isChatFileRef)
           : [];
+        const sendFiles = await preparePdfAttachmentsForSend(files, { backend });
 
         markSendStarted?.();
         setAiProcessing(true);
@@ -77,7 +79,7 @@ export const useAcpInitialMessage = ({
         const result = await ipcBridge.acpConversation.sendMessage.invoke({
           input,
           conversation_id: conversation_id,
-          files,
+          files: sendFiles,
         });
         markSendAccepted?.(result.turn_id, result.runtime, result.msg_id);
 

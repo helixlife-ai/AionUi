@@ -39,6 +39,7 @@ import {
   isAgentHubModelSelectorHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { normalizeCodexSessionMode } from '@/renderer/utils/hub/normalizeCodexSessionMode';
+import { preparePdfAttachmentsForSend } from '@/renderer/utils/hub/pdfAttachments/preparePdfAttachmentsForSend';
 import { getChatSurfaceWidthClass } from '@/renderer/pages/conversation/utils/chatSurfaceWidth';
 import { useTeamPermission } from '@/renderer/pages/team/hooks/TeamPermissionContext';
 import type { TeamSendBoxRuntime } from '@/renderer/pages/team/components/teamSendRuntime';
@@ -290,13 +291,14 @@ const AcpSendBox: React.FC<{
     async ({ input, files, sessions }: Pick<ConversationCommandQueueItem, 'input' | 'files' | 'sessions'>) => {
       // Plain user text; the backend resolves each ChatFileRef and injects the
       // [[AION_FILES]] marker at the send edge (no front-end path/marker building).
+      const sendFiles = await preparePdfAttachmentsForSend(files, { backend });
       try {
         if (teamPermission) await teamPermission.warmupSession();
         void checkAndUpdateTitle(conversation_id, input);
         if (teamSendMessage) {
-          await teamSendMessage({ input, files });
+          await teamSendMessage({ input, files: sendFiles });
           emitter.emit('chat.history.refresh');
-          if (files.length > 0) {
+          if (sendFiles.length > 0) {
             emitter.emit('acp.workspace.refresh');
           }
           return;
@@ -307,7 +309,7 @@ const AcpSendBox: React.FC<{
         const result = await ipcBridge.acpConversation.sendMessage.invoke({
           input,
           conversation_id,
-          files,
+          files: sendFiles,
           // `@@` references. Dropping this here is a silent failure: the agent
           // simply never receives the session block.
           sessions,
@@ -390,7 +392,7 @@ Please check your local CLI tool authentication status`,
         throw error;
       }
 
-      if (files.length > 0) {
+      if (sendFiles.length > 0) {
         emitter.emit('acp.workspace.refresh');
       }
     },
