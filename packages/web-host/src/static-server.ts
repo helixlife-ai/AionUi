@@ -14,6 +14,7 @@ import http, { type IncomingMessage, type Server, type ServerResponse } from 'no
 import { networkInterfaces } from 'node:os';
 import net, { type Socket } from 'node:net';
 import serveHandler from 'serve-handler';
+import { handlePdfToTextRequest, isPdfToTextRoute } from './hub/pdfToText.js';
 import { enableStaticGzip } from './static-gzip.js';
 
 export type StaticServerOptions = {
@@ -182,6 +183,13 @@ export async function startStaticServer(opts: StaticServerOptions): Promise<Stat
         const fsRoot = process.env.AIONUI_FS_ROOT ?? null;
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ success: true, sn, fsRoot }));
+        return;
+      }
+
+      // /api/hub/pdf-to-text — Agent Hub: pdftotext before Claude Code send
+      // (avoids ~6MB LLM gateway body limits on raw PDF attachments).
+      if (isPdfToTextRoute(req.method, req.url)) {
+        await handlePdfToTextRequest(req, res);
         return;
       }
 

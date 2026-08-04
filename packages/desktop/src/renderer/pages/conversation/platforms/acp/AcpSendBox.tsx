@@ -38,6 +38,7 @@ import {
   isAgentHubModelSelectorHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { normalizeCodexSessionMode } from '@/renderer/utils/hub/normalizeCodexSessionMode';
+import { preparePdfAttachmentsForSend } from '@/renderer/utils/hub/pdfAttachments/preparePdfAttachmentsForSend';
 import { getChatSurfaceWidthClass } from '@/renderer/pages/conversation/utils/chatSurfaceWidth';
 import { useTeamPermission } from '@/renderer/pages/team/hooks/TeamPermissionContext';
 import type { TeamSendBoxRuntime } from '@/renderer/pages/team/components/teamSendRuntime';
@@ -267,15 +268,16 @@ const AcpSendBox: React.FC<{
 
   const executeCommand = useCallback(
     async ({ input, files }: Pick<ConversationCommandQueueItem, 'input' | 'files'>) => {
-      const displayMessage = buildDisplayMessage(input, files, workspacePath || '');
+      const sendFiles = await preparePdfAttachmentsForSend(files, { backend });
+      const displayMessage = buildDisplayMessage(input, sendFiles, workspacePath || '');
 
       try {
         if (teamPermission) await teamPermission.warmupSession();
         void checkAndUpdateTitle(conversation_id, input);
         if (teamSendMessage) {
-          await teamSendMessage({ input: displayMessage, files });
+          await teamSendMessage({ input: displayMessage, files: sendFiles });
           emitter.emit('chat.history.refresh');
-          if (files.length > 0) {
+          if (sendFiles.length > 0) {
             emitter.emit('acp.workspace.refresh');
           }
           return;
@@ -286,7 +288,7 @@ const AcpSendBox: React.FC<{
         const result = await ipcBridge.acpConversation.sendMessage.invoke({
           input: displayMessage,
           conversation_id,
-          files,
+          files: sendFiles,
         });
         markSendAccepted(result.turn_id, result.runtime, result.msg_id);
         emitter.emit('chat.history.refresh');
@@ -366,7 +368,7 @@ Please check your local CLI tool authentication status`,
         throw error;
       }
 
-      if (files.length > 0) {
+      if (sendFiles.length > 0) {
         emitter.emit('acp.workspace.refresh');
       }
     },
