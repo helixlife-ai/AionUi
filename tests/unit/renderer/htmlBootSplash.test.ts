@@ -13,9 +13,9 @@ const INDEX_HTML = resolve(process.cwd(), 'packages/desktop/src/renderer/index.h
 describe('html boot splash (pre-JS first paint)', () => {
   const html = readFileSync(INDEX_HTML, 'utf8');
 
-  it('embeds a boot splash inside #root so cold start is not a blank page', () => {
+  it('embeds a boot splash outside #root so React cannot clear it before first render', () => {
     expect(html).toContain('data-testid="html-boot-splash"');
-    expect(html).toMatch(/id="root"[\s\S]*data-testid="html-boot-splash"/);
+    expect(html).toMatch(/data-testid="html-boot-splash"[\s\S]*id="root"/);
   });
 
   it('uses skeleton-only splash without a starting modal overlay', () => {
