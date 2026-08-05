@@ -16,7 +16,6 @@ export const GUID_DEFAULT_PROMPT_CATEGORY_DEFS = [
       'guid.defaultPromptCategories.literature.items.prompt1',
       'guid.defaultPromptCategories.literature.items.prompt2',
       'guid.defaultPromptCategories.literature.items.prompt3',
-      'guid.defaultPromptCategories.literature.items.prompt4',
     ],
   },
   {

@@ -8,6 +8,7 @@ import { ipcBridge } from '@/common';
 import { downloadFileFromPath, downloadTextContent } from '@/renderer/utils/file/download';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { toLocalFileHref } from '@/renderer/components/Markdown/markdownUtils';
+import { isElectronDesktop } from '@/renderer/utils/platform';
 import { PreviewToolbarExtrasProvider, type PreviewToolbarExtras } from '../../context/PreviewToolbarExtrasContext';
 import { usePreviewContext } from '../../context/PreviewContext';
 import { useResizableSplit } from '@/renderer/hooks/ui/useResizableSplit';
@@ -281,9 +282,9 @@ const PreviewPanel: React.FC = () => {
   // (Word, PPT, PDF, Excel components provide their own)
   const hasBuiltInOpenButton = (FILE_TYPES_WITH_BUILTIN_OPEN as readonly string[]).includes(content_type);
 
-  // 对所有有 file_path 的文件显示"在系统中打开"按钮（统一在工具栏显示）
-  // Show "Open in System" button for all files with file_path (unified in toolbar)
-  const showOpenInSystemButton = Boolean(metadata?.file_path);
+  // WebUI runs on a remote appliance/container, so this action would open on
+  // the server instead of the user's machine. Keep system-open desktop-only.
+  const showOpenInSystemButton = isElectronDesktop() && Boolean(metadata?.file_path);
 
   // 下载文件到本地 / Download file to local system
   const handleDownload = useCallback(async () => {
