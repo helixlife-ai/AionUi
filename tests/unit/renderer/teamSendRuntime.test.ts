@@ -5,7 +5,9 @@ import {
   buildTeamSendRuntime,
   buildTeamStopHandler,
   buildTeamWorkStatusText,
+  isStaleTeamRunPauseError,
 } from '@/renderer/pages/team/components/teamSendRuntime';
+import { BackendHttpError } from '@/common/adapter/httpBridge';
 import type { TeamRunViewState } from '@/renderer/pages/team/hooks/useTeamRunView';
 import { ipcBridge } from '@/common';
 
@@ -227,5 +229,29 @@ describe('buildTeamRetryStartHandler', () => {
     invoke.mockClear();
     await buildTeamRetryStartHandler({ team_id: 't1', slot_id: 's2' })();
     expect(invoke).toHaveBeenCalledWith({ team_id: 't1', slot_id: 's2' });
+  });
+});
+
+describe('isStaleTeamRunPauseError', () => {
+  it('matches stale pause messages', () => {
+    const err = new BackendHttpError({
+      method: 'POST',
+      path: '/api/team/pause',
+      status: 400,
+      body: { code: 'BAD_REQUEST', error: 'no active team run to pause' },
+    });
+    expect(isStaleTeamRunPauseError(err)).toBe(true);
+  });
+
+  it('does not throw when backendMessage is missing', () => {
+    const err = new BackendHttpError({
+      method: 'POST',
+      path: '/api/team/pause',
+      status: 400,
+      body: { code: 'BAD_REQUEST', error: 'is not active' },
+    });
+    (err as { backendMessage: unknown }).backendMessage = undefined;
+    expect(() => isStaleTeamRunPauseError(err)).not.toThrow();
+    expect(isStaleTeamRunPauseError(err)).toBe(false);
   });
 });

@@ -129,11 +129,20 @@ export function isBackendHttpError(error: unknown): error is BackendHttpError {
     'status' in error &&
     typeof (error as { status: unknown }).status === 'number' &&
     'code' in error &&
-    typeof (error as { code: unknown }).code === 'string'
+    typeof (error as { code: unknown }).code === 'string' &&
+    // HMR duck-types without backendMessage previously crashed callers on
+    // `.includes` / `.toLowerCase` (WebKit: "undefined is not an object").
+    'backendMessage' in error &&
+    typeof (error as { backendMessage: unknown }).backendMessage === 'string'
   ) {
     return true;
   }
   return false;
+}
+
+/** Safe string for substring matching on BackendHttpError.backendMessage. */
+export function getBackendHttpErrorMessage(error: BackendHttpError): string {
+  return typeof error.backendMessage === 'string' ? error.backendMessage : '';
 }
 
 // ---------------------------------------------------------------------------

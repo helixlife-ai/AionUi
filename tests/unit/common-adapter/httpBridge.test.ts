@@ -21,6 +21,7 @@ import {
   withResponseMap,
   BackendHttpError,
   isBackendHttpError,
+  getBackendHttpErrorMessage,
   wsEmitter,
   wsMappedEmitter,
   stubEmitter,
@@ -359,10 +360,20 @@ describe('httpBridge', () => {
       expect(isBackendHttpError(obj)).toBe(true);
     });
 
+    it('duck-typing returns false when backendMessage is missing', () => {
+      const obj = {
+        name: 'BackendHttpError',
+        status: 500,
+        code: 'X',
+      };
+      expect(isBackendHttpError(obj)).toBe(false);
+    });
+
     it('duck-typing returns false when status is missing', () => {
       const obj = {
         name: 'BackendHttpError',
         code: 'X',
+        backendMessage: 'msg',
       };
       expect(isBackendHttpError(obj)).toBe(false);
     });
@@ -371,6 +382,14 @@ describe('httpBridge', () => {
       expect(isBackendHttpError(new Error('other'))).toBe(false);
       expect(isBackendHttpError(null)).toBe(false);
       expect(isBackendHttpError('string')).toBe(false);
+    });
+
+    it('getBackendHttpErrorMessage returns empty string for non-string duck fields', () => {
+      const err = new BackendHttpError({ method: 'GET', path: '/api/x', status: 500, body: { error: 'ok' } });
+      expect(getBackendHttpErrorMessage(err)).toBe('ok');
+      // Simulate a corrupted instance (should not throw for callers).
+      (err as { backendMessage: unknown }).backendMessage = undefined;
+      expect(getBackendHttpErrorMessage(err)).toBe('');
     });
   });
 

@@ -295,11 +295,12 @@ const AcpSendBox: React.FC<{
       } catch (error: unknown) {
         const errorMsg =
           getConversationRuntimeWorkspaceErrorMessage(error, t) || parseError(error) || t('common.unknownError');
+        const safeErrorMsg = typeof errorMsg === 'string' ? errorMsg : String(errorMsg ?? '');
         const busyError = classifyConversationBusyError(error);
         if (busyError) {
           markSendFailed({
             kind: 'busy_conflict',
-            reason: errorMsg,
+            reason: safeErrorMsg,
             busyKind: busyError.kind,
             status: busyError.status,
             code: busyError.code,
@@ -307,14 +308,14 @@ const AcpSendBox: React.FC<{
           throw error;
         }
 
-        markSendFailed({ kind: 'ordinary', reason: errorMsg });
+        markSendFailed({ kind: 'ordinary', reason: safeErrorMsg });
 
         // Archived conversation (e.g. legacy Gemini). Backend signals this
         // via HTTP 410 + code='CONVERSATION_ARCHIVED' — identified by code,
         // not by substring matching.
         if (isBackendHttpError(error) && error.code === 'CONVERSATION_ARCHIVED') {
           Message.error({
-            content: error.backendMessage || errorMsg,
+            content: error.backendMessage || safeErrorMsg,
             duration: 6000,
           });
           setAiProcessing(false);
@@ -322,9 +323,9 @@ const AcpSendBox: React.FC<{
         }
 
         const isAuthError =
-          errorMsg.includes('[ACP-AUTH-') ||
-          errorMsg.includes('authentication failed') ||
-          errorMsg.includes('认证失败');
+          safeErrorMsg.includes('[ACP-AUTH-') ||
+          safeErrorMsg.includes('authentication failed') ||
+          safeErrorMsg.includes('认证失败');
         if (isAuthError) {
           const errorMessage = {
             id: uuid(),
@@ -334,7 +335,7 @@ const AcpSendBox: React.FC<{
             type: 'error',
             data: t('acp.auth.failed', {
               backend,
-              error: errorMsg,
+              error: safeErrorMsg,
               defaultValue: `${backend} authentication failed:
 
 {{error}}
@@ -354,9 +355,9 @@ Please check your local CLI tool authentication status`,
               conversation_id,
               created_at: Date.now(),
               content: {
-                content: errorMsg,
+                content: safeErrorMsg,
                 type: 'error',
-                error: buildSendFailureError(error, errorMsg),
+                error: buildSendFailureError(error, safeErrorMsg),
               },
             },
             true
