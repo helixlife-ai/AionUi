@@ -9,6 +9,7 @@ import {
   getSidebarStreamGuardDecision,
   shouldReconcileMarkGenerating,
   shouldPreserveConversationListOnRefreshFailure,
+  shouldRetryConversationListRefreshFailure,
   shouldRetryEmptyConversationListOnColdDetailRoute,
 } from '@/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync';
 
@@ -119,6 +120,16 @@ describe('shouldPreserveConversationListOnRefreshFailure', () => {
   });
 });
 
+
+describe('shouldRetryConversationListRefreshFailure', () => {
+  it('retries aborted list refreshes', () => {
+    expect(shouldRetryConversationListRefreshFailure({ error: { name: 'AbortError' }, retryCount: 0 })).toBe(true);
+  });
+
+  it('does not retry non-abort failures', () => {
+    expect(shouldRetryConversationListRefreshFailure({ error: new Error('failed'), retryCount: 0 })).toBe(false);
+  });
+});
 
 describe('shouldRetryEmptyConversationListOnColdDetailRoute', () => {
   it('retries an empty initial list while a detail route is active', () => {
