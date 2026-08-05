@@ -156,7 +156,7 @@ export const shell = {
 // ---------------------------------------------------------------------------
 
 export const assistants = {
-  list: httpGet<Assistant[], void>('/api/assistants'),
+  list: httpGet<Assistant[], void>('/api/assistants', { useDefaultSignal: false }),
   get: httpGet<AssistantDetail, { id: string; locale?: string }>(
     ({ id, locale }) =>
       `/api/assistants/${encodeURIComponent(id)}${locale ? `?locale=${encodeURIComponent(locale)}` : ''}`
@@ -1093,7 +1093,8 @@ export const database = {
         if (p.limit) params.set('limit', String(p.limit));
         const qs = params.toString();
         return `/api/conversations${qs ? `?${qs}` : ''}`;
-      }
+      },
+      { useDefaultSignal: false }
     ),
     fromApiPaginatedConversations
   ),
