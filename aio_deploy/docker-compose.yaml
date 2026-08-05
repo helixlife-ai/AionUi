@@ -1,7 +1,7 @@
 name: agent-hub
 services:
   agent-hub:
-    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.7
+    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.9
     container_name: agent-hub
     user: '0'
     # 资源倾斜：在启动阶段给予默认应用大部分资源
@@ -13,6 +13,10 @@ services:
       - ${APP_STORAGE_DIR:-/var/helix/app_storage}/AgentHub:/data
       - ${APP_STORAGE_DIR:-/var/helix/app_storage}/AgentHub/tmp-aionui:/tmp/aionui
       - ${APP_STORAGE_DIR:-/var/helix/app_storage}/documents/data/agent_hub:/agent_hub
+      # OpenClaw 应用的工作区（只读复用其父目录而非 helixlife-skills 本身：
+      # openclaw 更新技能包时会 rmtree 重建该子目录，直接挂子目录会失效）。
+      # entrypoint 的 sync-helixlife-skills.js 把其中的技能 symlink 到 /data/skills。
+      - ${APP_STORAGE_DIR:-/var/helix/app_storage}/documents/data/openclaw:/opt/openclaw-ws:ro
     working_dir: /agent_hub
     environment:
       - AIONUI_PORT=25808
@@ -38,6 +42,13 @@ services:
       - CODEX_BASE_URL=${CODEX_BASE_URL:-https://paas-model.jova.bio/api/v1/helix/v1}
       - CODEX_MODEL=${CODEX_MODEL:-agenthub-codex}
       - HAPPY_SERVER_URL=${HAPPY_SERVER_URL:-https://studio-server.jova.bio}
+      # 内置技能语料重定向：aioncore 跳过官方语料物化，以此组合目录为 builtin
+      # 唯一来源（build-builtin-skills-hub.js 于启动前组装：auto-inject 系统
+      # 技能 + openclaw 技能包的 symlink）。
+      - AIONUI_BUILTIN_SKILLS_PATH=/data/builtin-skills-hub
+      # 技能脚本的 Python 依赖落到数据卷（ensure-skill-py-deps.sh 后台安装），
+      # 容器重建不丢；空目录时无副作用。
+      - PYTHONPATH=/data/python-deps
     entrypoint: ['/bin/sh', '-c']
     command:
       - |
@@ -117,9 +128,20 @@ services:
                 node /etc/agent-hub/js/trust-codex-projects.js /root/.codex/config.toml \
                   || echo "[agent-hub] warn: periodic trust projects failed"
               fi
+              if [ -f /etc/agent-hub/js/build-builtin-skills-hub.js ]; then
+                node /etc/agent-hub/js/build-builtin-skills-hub.js \
+                  || echo "[agent-hub] warn: periodic hub rebuild failed"
+              fi
             done
           ) &
           echo "[agent-hub] started idle ACP clearer + periodic Codex trust (every $${ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC:-60}s)"
+        fi
+        # 组装内置技能组合目录(auto-inject 系统技能 + openclaw 技能包的 symlink),
+        # 须在 aionui-web 启动前完成,使启动时的技能目录同步能看到;毫秒级,幂等。
+        # OpenClaw 未安装时组合目录只剩 auto-inject。
+        if [ -f /etc/agent-hub/js/build-builtin-skills-hub.js ]; then
+          node /etc/agent-hub/js/build-builtin-skills-hub.js \
+            || echo "[agent-hub] warn: failed to build builtin-skills hub"
         fi
         # bubblewrap 必须在镜像里装,不要在这里 apt-get(设备网络差会导致启动卡死)。
         # 后台启动 aionui-web,等 DB 迁移完成后导入 Studio 历史;wait 保持容器生命周期并转发信号。
@@ -130,6 +152,16 @@ services:
           if [ -f /data/aionui-backend.db ] && node --experimental-sqlite -e "const {DatabaseSync}=require('node:sqlite');const db=new DatabaseSync('/data/aionui-backend.db');db.prepare('SELECT 1 FROM users LIMIT 1').get();db.close()" 2>/dev/null; then break; fi
           sleep 1
         done
+        # 清理 builtin 残留:旧官方物化树 + skills 表中已不在组合目录里的行
+        # (被替换的官方 21 个、openclaw 包移除的技能);幂等,未设重定向时空操作。
+        if [ -f /etc/agent-hub/js/clean-stale-builtin-skills.js ]; then
+          node --experimental-sqlite /etc/agent-hub/js/clean-stale-builtin-skills.js \
+            || echo "[agent-hub] warn: failed to clean stale builtin skills"
+        fi
+        # 后台一次性安装技能脚本的 Python 依赖到数据卷(PYTHONPATH);不阻塞启动。
+        if [ -f /etc/agent-hub/js/ensure-skill-py-deps.sh ]; then
+          sh /etc/agent-hub/js/ensure-skill-py-deps.sh &
+        fi
         # 导入 Studio 历史(按 SN 拉取、解密、写入 aionui-backend.db);增量幂等,失败不阻塞启动。
         mkdir -p '/agent_hub/studio 原版'
         node --experimental-sqlite /opt/studio-import/import.mjs >>/data/logs/studio-import.log 2>&1 || true

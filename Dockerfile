@@ -83,6 +83,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
+# 允许 root 运行时 pip install（trixie 启用 PEP 668，否则拒绝系统级安装）。
+# 清华源：一体机通常无法访问 pypi.org；技能脚本首用时会补装依赖。
+RUN mkdir -p /root/.config/pip \
+    && printf '[global]\nbreak-system-packages = true\nindex-url = https://pypi.tuna.tsinghua.edu.cn/simple\n' \
+      > /root/.config/pip/pip.conf
+
 # 全局安装 Claude Code + Codex，使 aioncore 启动时能在 PATH 上自动探测到
 # 若不锁版本，每次重建都会使该层失效，即任何应用更新都会强迫用户重拉 600MB。
 # 升级 CLI 时显式修改这些 ARG。
@@ -106,6 +112,12 @@ RUN cd /opt/studio-import && npm install --omit=dev tweetnacl && npm cache clean
 # 把 Codex catalog + entrypoint 助手打进镜像，compose 即可直接调用
 COPY docker/agent-hub/codex-model-catalog.json /etc/agent-hub/codex-model-catalog.json
 COPY docker/agent-hub/js/ /etc/agent-hub/js/
+
+# auto-inject 系统技能（cron/officecli/skill-creator/aionui-config，vendor 自
+# aioncore v0.1.53）。容器启动时 build-builtin-skills-hub.js 把它链入组合目录
+# /data/builtin-skills-hub，配合 compose 的 AIONUI_BUILTIN_SKILLS_PATH 生效。
+# 升级 aioncore 时同步刷新（见 docs/agent-hub-builtin-skills-replacement.md）。
+COPY docker/agent-hub/auto-inject/ /etc/agent-hub/auto-inject/
 
 COPY --from=builder /out/aionui-web/bundled-aioncore /app/aionui-web/bundled-aioncore
 COPY --chmod=755 --from=builder /out/aionui-web/aionui-web /app/aionui-web/aionui-web
