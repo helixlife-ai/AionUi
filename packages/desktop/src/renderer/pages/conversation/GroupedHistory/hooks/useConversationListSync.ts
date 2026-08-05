@@ -5,6 +5,7 @@
  */
 
 import { ipcBridge } from '@/common';
+import { isHttpAbortError } from '@/common/adapter/httpBridge';
 import type { TChatConversation } from '@/common/config/storage';
 import { addEventListener } from '@/renderer/utils/emitter';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
@@ -164,6 +165,16 @@ export function shouldRetryEmptyConversationListOnColdDetailRoute({
   return itemCount === 0 && !isListHydrated && Boolean(activeConversationId) && retryCount < EMPTY_REFRESH_RETRY_LIMIT;
 }
 
+export function shouldRetryConversationListRefreshFailure({
+  error,
+  retryCount,
+}: {
+  error: unknown;
+  retryCount: number;
+}): boolean {
+  return isHttpAbortError(error) && retryCount < EMPTY_REFRESH_RETRY_LIMIT;
+}
+
 const getActiveConversationId = (): string | null => {
   if (activeConversationIdState) return activeConversationIdState;
   if (typeof window === 'undefined') return null;
@@ -172,7 +183,7 @@ const getActiveConversationId = (): string | null => {
   return match?.[1] ? decodeURIComponent(match[1]) : null;
 };
 
-const scheduleEmptyRefreshRetry = () => {
+const scheduleConversationListRefreshRetry = () => {
   if (emptyRefreshRetryTimer !== null) return;
   emptyRefreshRetryCount += 1;
   emptyRefreshRetryTimer = window.setTimeout(() => {
@@ -195,7 +206,7 @@ const refreshConversations = () => {
             retryCount: emptyRefreshRetryCount,
           })
         ) {
-          scheduleEmptyRefreshRetry();
+          scheduleConversationListRefreshRetry();
           return;
         }
 
@@ -222,6 +233,12 @@ const refreshConversations = () => {
       emitStoreChange();
     })
     .catch((error) => {
+      if (shouldRetryConversationListRefreshFailure({ error, retryCount: emptyRefreshRetryCount })) {
+        console.debug('[WorkspaceGroupedHistory] Conversation list refresh aborted, retrying:', error);
+        scheduleConversationListRefreshRetry();
+        return;
+      }
+
       console.error('[WorkspaceGroupedHistory] Failed to load conversations:', error);
       if (!shouldPreserveConversationListOnRefreshFailure(conversationsState.length)) {
         conversationsState = [];

@@ -1,12 +1,12 @@
 {
-  "version": "v0.2.5",
+  "version": "v0.2.6",
   "name": "AgentHub",
   "display_name": "Studio",
   "prefix": "http://",
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": "隐藏预览面板的打开系统默认应用按钮",
+  "desc": "修复刷新页面后，对话列表请求错误问题",
   "startup": true,
   "force_update": true,
   "device_limit": [
