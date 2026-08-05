@@ -1,12 +1,13 @@
 {
-  "version": "v0.2.7",
+  "version": "v0.2.9",
   "name": "AgentHub",
   "display_name": "Studio",
+  "icon_url": "https://aio-resources.newidea.pro/data/AgentHub/icon.svg",
   "prefix": "http://",
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": "加固 ACP 错误处理\n增强更新性能和启动性能",
+  "desc": " 官方精选 skills",
   "startup": true,
   "force_update": true,
   "device_limit": [
