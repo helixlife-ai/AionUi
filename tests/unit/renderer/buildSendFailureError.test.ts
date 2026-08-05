@@ -163,6 +163,28 @@ describe('buildSendFailureError', () => {
     });
   });
 
+  it('classifies 502 BAD_GATEWAY with upstream TypeError detail as UNKNOWN_UPSTREAM_ERROR', () => {
+    const detail = "undefined is not an object (evaluating 'e.includes')";
+    const err = httpError(502, 'BAD_GATEWAY', detail);
+
+    const result = buildSendFailureError(err, detail);
+
+    expect(result.code).toBe('UNKNOWN_UPSTREAM_ERROR');
+    expect(result.ownership).toBe('unknown_upstream');
+    expect(result.detail).toBe(detail);
+    expect(result.retryable).toBe(true);
+  });
+
+  it('does not throw when classifying ACP disconnect with empty backendMessage', () => {
+    const err = httpError(502, 'BAD_GATEWAY', '');
+    (err as { backendMessage: unknown }).backendMessage = undefined;
+
+    expect(() => buildSendFailureError(err, 'failed')).not.toThrow();
+    const result = buildSendFailureError(err, 'failed');
+    // Missing message cannot match disconnect patterns → generic BAD_GATEWAY mapping.
+    expect(result.code).toBe('UNKNOWN_UPSTREAM_ERROR');
+  });
+
   it('redacts secrets from the fallback rawError summary', () => {
     const original = new Error('auth failed for key sk-ant-api03-shouldNotLeak123456');
 
