@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { isBackendHttpError } from '@/common/adapter/httpBridge';
+import { getBackendHttpErrorMessage, isBackendHttpError } from '@/common/adapter/httpBridge';
 
 export type ConversationBusyKind = 'active_turn' | 'runtime_unavailable';
 
@@ -25,7 +25,7 @@ export const classifyConversationBusyError = (error: unknown): ConversationBusyE
   if (!isBackendHttpError(error)) return null;
   if (error.status !== 409 || error.code !== 'CONFLICT') return null;
 
-  const backendMessage = error.backendMessage;
+  const backendMessage = getBackendHttpErrorMessage(error);
   const normalizedMessage = backendMessage.toLowerCase();
   if (includesAny(normalizedMessage, ACTIVE_TURN_BUSY_PATTERNS)) {
     return { kind: 'active_turn', status: error.status, code: error.code, backendMessage };

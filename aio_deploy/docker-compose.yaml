@@ -1,9 +1,12 @@
 name: agent-hub
 services:
   agent-hub:
-    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.6
+    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.7
     container_name: agent-hub
     user: '0'
+    # 资源倾斜：在启动阶段给予默认应用大部分资源
+    cpu_shares: 4096
+    mem_reservation: 1g
     ports:
       - '25808:25808'
     volumes:

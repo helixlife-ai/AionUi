@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { isBackendHttpError } from '@/common/adapter/httpBridge';
+import { getBackendHttpErrorMessage, isBackendHttpError } from '@/common/adapter/httpBridge';
 import { getWorkspacePathFromErrorDetails, normalizeWorkspacePathErrorCode } from '../../utils/conversationCreateError';
 import { classifyConversationBusyError } from '../conversationBusyError';
 import { buildRawErrorSummary } from './errorDiagnostics';
@@ -26,7 +26,7 @@ const TEAM_ASSISTANT_ERROR_CODES = new Set([
 
 const isAgentDisconnectedError = (error: unknown): boolean => {
   if (!isBackendHttpError(error)) return false;
-  const backendMessage = error.backendMessage.toLowerCase();
+  const backendMessage = getBackendHttpErrorMessage(error).toLowerCase();
   return (
     backendMessage.includes('acp protocol is not connected') || backendMessage.includes('acp protocol not connected')
   );

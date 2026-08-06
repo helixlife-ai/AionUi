@@ -1,5 +1,5 @@
 import { ipcBridge } from '@/common';
-import { isBackendHttpError } from '@/common/adapter/httpBridge';
+import { getBackendHttpErrorMessage, isBackendHttpError } from '@/common/adapter/httpBridge';
 import type { ConversationCommandQueueRuntimeGate } from '@/renderer/pages/conversation/platforms/useConversationCommandQueue';
 import type { ITeamSlotWork, TeamSlotBlockedReason } from '@/common/types/team/teamTypes';
 import type { TeamRunViewState } from '../hooks/useTeamRunView';
@@ -109,12 +109,9 @@ export const buildTeamWorkStatusText = (
 };
 
 export const isStaleTeamRunPauseError = (error: unknown): boolean => {
-  return (
-    isBackendHttpError(error) &&
-    error.status === 400 &&
-    error.code === 'BAD_REQUEST' &&
-    (error.backendMessage.includes('no active team run to pause') || error.backendMessage.includes('is not active'))
-  );
+  if (!isBackendHttpError(error) || error.status !== 400 || error.code !== 'BAD_REQUEST') return false;
+  const backendMessage = getBackendHttpErrorMessage(error);
+  return backendMessage.includes('no active team run to pause') || backendMessage.includes('is not active');
 };
 
 export const buildTeamStopHandler = ({
