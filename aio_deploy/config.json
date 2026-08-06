@@ -1,12 +1,12 @@
 {
-  "version": "v0.2.6",
+  "version": "v0.2.7",
   "name": "AgentHub",
   "display_name": "Studio",
   "prefix": "http://",
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": "修复刷新页面后，对话列表请求错误问题",
+  "desc": "加固 ACP 错误处理\n增强更新性能和启动性能",
   "startup": true,
   "force_update": true,
   "device_limit": [
