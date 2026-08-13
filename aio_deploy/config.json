@@ -7,7 +7,7 @@
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": " 官方精选 skills",
+  "desc": "内置 133 个官方精选科研技能",
   "startup": true,
   "force_update": true,
   "device_limit": [
