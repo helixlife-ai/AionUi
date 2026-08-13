@@ -380,7 +380,7 @@ const FileChangeList: React.FC<FileChangeListProps> = ({
       <div className='flex-1 size-full flex items-center justify-center px-12px'>
         <Empty
           description={
-            <div>
+            <div className='pl-20px pr-25px'>
               <span className='text-t-secondary font-bold text-14px'>{t('conversation.workspace.changes.empty')}</span>
               <div className='text-t-secondary'>{t('conversation.workspace.changes.emptyDescription')}</div>
             </div>
