@@ -20,7 +20,10 @@ echo "[agent-hub] installing skill Python deps into $TARGET (one-time)..." >>"$L
 # Package list mirrors the static import analysis of the skill scripts
 # (docs/agent-hub-builtin-skills-replacement.md §4.3). tooluniverse excluded:
 # its dep `traits` has no cp313/aarch64 wheel.
-if pip3 install --target "$TARGET" --quiet \
+# `nice -n 19` keeps this background install from competing with aioncore's
+# cold-start CPU (db migration + agent probing). Same container, so cpu_shares
+# doesn't help here — process niceness is the right lever.
+if nice -n 19 pip3 install --target "$TARGET" --quiet \
     requests==2.34.2 numpy==2.4.6 scipy==1.17.1 pandas==2.3.3 \
     matplotlib==3.11.0 seaborn==0.13.2 python-pptx==1.0.2 python-docx==1.2.0 \
     openpyxl==3.1.5 PyPDF2 lxml==6.1.1 Pillow==12.2.0 defusedxml validators \
