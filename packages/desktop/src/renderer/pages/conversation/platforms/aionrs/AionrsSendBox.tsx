@@ -330,10 +330,11 @@ const AionrsSendBox: React.FC<{
     items: queuedCommands,
     mode: queueMode,
     isInteractionLocked: isQueueInteractionLocked,
+    executingCommandId,
+    hasPendingCommands,
     enqueue,
     remove,
     prioritize,
-    sendNow,
     clear,
     reorder,
     toggleMode,
@@ -740,6 +741,7 @@ const AionrsSendBox: React.FC<{
         mode={queueMode}
         isMobile={isMobile}
         interactionLocked={isQueueInteractionLocked}
+        executingCommandId={executingCommandId}
         onInteractionLock={lockInteraction}
         onInteractionUnlock={unlockInteraction}
         onEdit={handleEditQueuedCommand}

@@ -65,6 +65,7 @@ type CommandQueuePanelProps = {
   items: ConversationCommandQueueItem[];
   mode: ConversationCommandQueueMode;
   interactionLocked: boolean;
+  executingCommandId?: string | null;
   isMobile?: boolean;
   onInteractionLock: () => void;
   onInteractionUnlock: () => void;
@@ -88,6 +89,8 @@ type RenderActionIconButtonArgs = {
 
 type SortableQueueItemProps = {
   item: ConversationCommandQueueItem;
+  isExecuting: boolean;
+  sendDisabled: boolean;
   dragDisabled: boolean;
   dragViaCard: boolean;
   dragHandleLabel: string;
@@ -102,6 +105,8 @@ type SortableQueueItemProps = {
 
 type QueueItemCardProps = {
   item: ConversationCommandQueueItem;
+  isExecuting: boolean;
+  sendDisabled: boolean;
   isDragging: boolean;
   dragDisabled: boolean;
   dragViaCard: boolean;
@@ -161,6 +166,8 @@ const renderQueueActionIconButton = ({
 
 const QueueItemCard: React.FC<QueueItemCardProps> = ({
   item,
+  isExecuting,
+  sendDisabled,
   isDragging,
   dragDisabled,
   dragViaCard,
@@ -256,17 +263,20 @@ const QueueItemCard: React.FC<QueueItemCardProps> = ({
       <div className='flex items-center gap-0.5 shrink-0 h-24px overflow-hidden'>
         {renderQueueActionIconButton({
           ariaLabel: t('conversation.commandQueue.sendNow', { defaultValue: 'Send now' }),
+          disabled: sendDisabled,
           onClick: () => onSendNow(item),
           icon: <SendOne theme='outline' size='14' strokeWidth={2.5} />,
           accent: true,
         })}
         {renderQueueActionIconButton({
           ariaLabel: t('conversation.commandQueue.edit', { defaultValue: 'Edit' }),
+          disabled: isExecuting,
           onClick: () => onEdit?.(item),
           icon: <Edit theme='outline' size='14' strokeWidth={2.5} />,
         })}
         {renderQueueActionIconButton({
           ariaLabel: t('conversation.commandQueue.remove', { defaultValue: 'Remove' }),
+          disabled: isExecuting,
           onClick: () => onRemove(item.id),
           icon: <Delete theme='outline' size='14' strokeWidth={2.5} />,
           danger: true,
@@ -278,6 +288,8 @@ const QueueItemCard: React.FC<QueueItemCardProps> = ({
 
 const SortableQueueItem: React.FC<SortableQueueItemProps> = ({
   item,
+  isExecuting,
+  sendDisabled,
   dragDisabled,
   dragViaCard,
   dragHandleLabel,
@@ -306,6 +318,8 @@ const SortableQueueItem: React.FC<SortableQueueItemProps> = ({
     <div ref={setNodeRef} style={style}>
       <QueueItemCard
         item={item}
+        isExecuting={isExecuting}
+        sendDisabled={sendDisabled}
         isDragging={isDragging}
         dragDisabled={dragDisabled}
         dragViaCard={dragViaCard}
@@ -344,6 +358,7 @@ const CommandQueuePanel: React.FC<CommandQueuePanelProps> = ({
   items,
   mode,
   interactionLocked,
+  executingCommandId = null,
   isMobile = false,
   onInteractionLock,
   onInteractionUnlock,
@@ -464,7 +479,12 @@ const CommandQueuePanel: React.FC<CommandQueuePanelProps> = ({
           {helpContent}
         </Menu.Item>
       ) : null}
-      <Menu.Item key='clear' onClick={handleClear} style={{ color: 'rgb(var(--danger-6))' }}>
+      <Menu.Item
+        key='clear'
+        disabled={executingCommandId !== null}
+        onClick={handleClear}
+        style={{ color: 'rgb(var(--danger-6))' }}
+      >
         {t('conversation.commandQueue.clear', { defaultValue: 'Clear draft box' })}
       </Menu.Item>
     </Menu>
@@ -575,7 +595,9 @@ const CommandQueuePanel: React.FC<CommandQueuePanelProps> = ({
                   <SortableQueueItem
                     key={item.id}
                     item={item}
-                    dragDisabled={false}
+                    isExecuting={item.id === executingCommandId}
+                    sendDisabled={executingCommandId !== null}
+                    dragDisabled={item.id === executingCommandId}
                     dragViaCard={isMobile}
                     dragHandleLabel={dragHandleLabel}
                     preview={preview}

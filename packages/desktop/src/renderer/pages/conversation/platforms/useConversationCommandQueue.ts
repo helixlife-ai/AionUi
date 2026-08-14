@@ -508,7 +508,7 @@ const drainBackgroundCommandQueue = async (runner: BackgroundCommandQueueRunner)
   }
 
   const currentState = readPersistedQueueState(runner.conversation_id);
-  const [nextCommand, ...remainingCommands] = currentState.items;
+  const [nextCommand] = currentState.items;
   if (!nextCommand) {
     backgroundRunners.delete(runner.conversation_id);
     releaseBackgroundTurnCompletedListener();
@@ -517,21 +517,25 @@ const drainBackgroundCommandQueue = async (runner: BackgroundCommandQueueRunner)
 
   runner.executing = true;
   let shouldContinueDrain = true;
-  logCommandQueue(runner.conversation_id, 'background-dequeued', {
+  logCommandQueue(runner.conversation_id, 'background-executing', {
     item: summarizeQueuedCommand(nextCommand),
-    remainingItemCount: remainingCommands.length,
+    remainingItemCount: currentState.items.length - 1,
   });
   persistQueueState(runner.conversation_id, {
     ...currentState,
-    items: remainingCommands,
-    isPaused: false,
+    isPaused: true,
   });
 
   try {
     await runner.onExecute(nextCommand);
+    const acceptedState = readPersistedQueueState(runner.conversation_id);
+    persistQueueState(runner.conversation_id, {
+      ...acceptedState,
+      items: removeQueuedCommand(acceptedState.items, nextCommand.id),
+      isPaused: false,
+    });
   } catch (error) {
     const failedState = readPersistedQueueState(runner.conversation_id);
-    const restoredItems = restoreQueuedCommand(failedState.items, nextCommand);
     const busyError = classifyConversationBusyError(error);
     if (busyError) {
       logCommandQueue(runner.conversation_id, 'background-busy-wait', {
@@ -539,9 +543,9 @@ const drainBackgroundCommandQueue = async (runner: BackgroundCommandQueueRunner)
         busyKind: busyError.kind,
         status: busyError.status,
         code: busyError.code,
-        remainingItemCount: restoredItems.length,
+        remainingItemCount: failedState.items.length,
       });
-      persistQueueState(runner.conversation_id, { ...failedState, items: restoredItems, isPaused: false });
+      persistQueueState(runner.conversation_id, { ...failedState, isPaused: false });
       shouldContinueDrain = false;
       return;
     }
@@ -550,7 +554,7 @@ const drainBackgroundCommandQueue = async (runner: BackgroundCommandQueueRunner)
       item: summarizeQueuedCommand(nextCommand),
       error: error instanceof Error ? error.message : String(error),
     });
-    persistQueueState(runner.conversation_id, { ...failedState, items: restoredItems, isPaused: true });
+    persistQueueState(runner.conversation_id, { ...failedState, isPaused: true });
     Message.warning('The next queued command could not start. Edit, reorder, or remove it to continue.');
   } finally {
     runner.executing = false;
@@ -614,9 +618,28 @@ export const useConversationCommandQueue = ({
   const waitingForBusyReleaseRef = useRef(false);
   const observedBusyBlockedGateRef = useRef(false);
   const interactionLockedRef = useRef(false);
+  const executingCommandIdRef = useRef<string | null>(null);
   const onExecuteRef = useRef(onExecute);
   const [isInteractionLocked, setIsInteractionLocked] = useState(false);
+  const [executingCommandId, setExecutingCommandId] = useState<string | null>(null);
   const [executionGateVersion, setExecutionGateVersion] = useState(0);
+
+  const markCommandExecuting = useCallback((commandId: string): boolean => {
+    if (executingCommandIdRef.current) {
+      return false;
+    }
+    executingCommandIdRef.current = commandId;
+    setExecutingCommandId(commandId);
+    return true;
+  }, []);
+
+  const clearCommandExecuting = useCallback((commandId: string): void => {
+    if (executingCommandIdRef.current !== commandId) {
+      return;
+    }
+    executingCommandIdRef.current = null;
+    setExecutingCommandId(null);
+  }, []);
 
   useEffect(() => {
     stateRef.current = data;
@@ -713,8 +736,10 @@ export const useConversationCommandQueue = ({
     observedBusyBlockedGateRef.current = false;
     pausedRef.current = false;
     interactionLockedRef.current = false;
+    executingCommandIdRef.current = null;
     stateRef.current = createDefaultQueueState();
     setIsInteractionLocked(false);
+    setExecutingCommandId(null);
     removePersistedQueueState(conversation_id);
     void mutate(createDefaultQueueState(), { revalidate: false });
   }, [conversation_id, enabled, mutate]);
@@ -805,7 +830,7 @@ export const useConversationCommandQueue = ({
 
   const update = useCallback(
     (commandId: string, { input }: UpdateCommandInput) => {
-      if (!enabled) {
+      if (!enabled || executingCommandIdRef.current === commandId) {
         return false;
       }
 
@@ -818,7 +843,7 @@ export const useConversationCommandQueue = ({
       const nextItems = updateQueuedCommand(currentState.items, commandId, { input });
       const nextState: ConversationCommandQueueState = {
         ...currentState,
-        isPaused: false,
+        isPaused: executingCommandIdRef.current !== null,
         items: nextItems,
       };
       const failureReason = getQueueValidationFailureReason(nextState);
@@ -846,7 +871,7 @@ export const useConversationCommandQueue = ({
 
   const remove = useCallback(
     (commandId: string) => {
-      if (!enabled) {
+      if (!enabled || executingCommandIdRef.current === commandId) {
         return;
       }
 
@@ -858,7 +883,7 @@ export const useConversationCommandQueue = ({
         return {
           ...state,
           items: nextItems,
-          isPaused: false,
+          isPaused: executingCommandIdRef.current !== null,
         };
       });
     },
@@ -867,7 +892,7 @@ export const useConversationCommandQueue = ({
 
   const prioritize = useCallback(
     (commandId: string) => {
-      if (!enabled) {
+      if (!enabled || executingCommandIdRef.current === commandId) {
         return;
       }
       logCommandQueue(conversation_id, 'prioritized', { commandId });
@@ -877,7 +902,7 @@ export const useConversationCommandQueue = ({
         return {
           ...state,
           items: [target, ...removeQueuedCommand(state.items, commandId)],
-          isPaused: false,
+          isPaused: executingCommandIdRef.current !== null,
           mode: 'auto',
         };
       });
@@ -887,7 +912,7 @@ export const useConversationCommandQueue = ({
 
   const sendNow = useCallback(
     (commandId: string) => {
-      if (!enabled) {
+      if (!enabled || executingCommandIdRef.current) {
         return;
       }
 
@@ -897,64 +922,65 @@ export const useConversationCommandQueue = ({
         return;
       }
 
-      // Remove only the targeted command; the rest keep their mode, order and paused flag.
-      const nextItems = removeQueuedCommand(currentState.items, commandId);
+      if (!markCommandExecuting(commandId)) {
+        return;
+      }
+
       waitingForTurnStartRef.current = true;
       waitingForTurnCompletionRef.current = false;
       observedBusyBlockedGateRef.current = false;
       pausedRef.current = false;
       logCommandQueue(conversation_id, 'send-now', {
         item: summarizeQueuedCommand(target),
-        remainingItemCount: nextItems.length,
+        remainingItemCount: currentState.items.length - 1,
       });
-      void updateState((state) => ({
-        ...state,
-        items: removeQueuedCommand(state.items, commandId),
-        isPaused: false,
-      }));
 
-      void onExecuteRef.current(target).catch((error) => {
-        const busyError = classifyConversationBusyError(error);
-        if (busyError) {
-          waitingForBusyReleaseRef.current = true;
-          waitingForTurnStartRef.current = false;
-          waitingForTurnCompletionRef.current = true;
-          pausedRef.current = false;
-          logCommandQueue(conversation_id, 'send-now-busy-wait', {
-            item: summarizeQueuedCommand(target),
-            busyKind: busyError.kind,
-            status: busyError.status,
-            code: busyError.code,
-            remainingItemCount: nextItems.length + 1,
-          });
-          void updateState((state) => ({
+      void updateState((state) => ({ ...state, isPaused: true }))
+        .then(() => onExecuteRef.current(target))
+        .then(() =>
+          updateState((state) => ({
             ...state,
-            items: restoreQueuedCommand(state.items, target),
+            items: removeQueuedCommand(state.items, commandId),
             isPaused: false,
-          }));
-          return;
-        }
-        console.error('[conversation-command-queue] Failed to send queued command now:', error);
-        logCommandQueue(conversation_id, 'send-now-failed', {
-          item: summarizeQueuedCommand(target),
-          error: error instanceof Error ? error.message : String(error),
+          }))
+        )
+        .catch((error) => {
+          const busyError = classifyConversationBusyError(error);
+          if (busyError) {
+            waitingForBusyReleaseRef.current = true;
+            waitingForTurnStartRef.current = false;
+            waitingForTurnCompletionRef.current = true;
+            pausedRef.current = false;
+            logCommandQueue(conversation_id, 'send-now-busy-wait', {
+              item: summarizeQueuedCommand(target),
+              busyKind: busyError.kind,
+              status: busyError.status,
+              code: busyError.code,
+              remainingItemCount: currentState.items.length,
+            });
+            void updateState((state) => ({ ...state, isPaused: false }));
+            return;
+          }
+          console.error('[conversation-command-queue] Failed to send queued command now:', error);
+          logCommandQueue(conversation_id, 'send-now-failed', {
+            item: summarizeQueuedCommand(target),
+            error: error instanceof Error ? error.message : String(error),
+          });
+          waitingForTurnStartRef.current = false;
+          waitingForTurnCompletionRef.current = false;
+          pausedRef.current = true;
+          void updateState((state) => ({ ...state, isPaused: true }));
+          Message.warning(
+            t('conversation.commandQueue.pausedAfterFailure', {
+              defaultValue: 'The next queued command could not start. Edit, reorder, or remove it to continue.',
+            })
+          );
+        })
+        .finally(() => {
+          clearCommandExecuting(commandId);
         });
-        waitingForTurnStartRef.current = false;
-        waitingForTurnCompletionRef.current = false;
-        pausedRef.current = true;
-        void updateState((state) => ({
-          ...state,
-          items: restoreQueuedCommand(state.items, target),
-          isPaused: true,
-        }));
-        Message.warning(
-          t('conversation.commandQueue.pausedAfterFailure', {
-            defaultValue: 'The next queued command could not start. Edit, reorder, or remove it to continue.',
-          })
-        );
-      });
     },
-    [conversation_id, enabled, t, updateState]
+    [clearCommandExecuting, conversation_id, enabled, markCommandExecuting, t, updateState]
   );
 
   const reorder = useCallback(
@@ -969,7 +995,7 @@ export const useConversationCommandQueue = ({
       });
       void updateState((state) => ({
         ...state,
-        isPaused: false,
+        isPaused: executingCommandIdRef.current !== null,
         items: reorderQueuedCommand(state.items, activeCommandId, overCommandId),
       }));
     },
@@ -1087,28 +1113,36 @@ export const useConversationCommandQueue = ({
       waitingForTurnStartRef.current ||
       waitingForTurnCompletionRef.current ||
       waitingForBusyReleaseRef.current ||
+      executingCommandIdRef.current !== null ||
       interactionLockedRef.current ||
       data.items.length === 0
     ) {
       return;
     }
 
-    const [nextCommand, ...remainingCommands] = data.items;
+    const [nextCommand] = data.items;
+    if (!markCommandExecuting(nextCommand.id)) {
+      return;
+    }
     waitingForTurnStartRef.current = true;
     observedBusyBlockedGateRef.current = false;
-    logCommandQueue(conversation_id, 'dequeued', {
+    logCommandQueue(conversation_id, 'executing', {
       item: summarizeQueuedCommand(nextCommand),
-      remainingItemCount: remainingCommands.length,
+      remainingItemCount: data.items.length - 1,
     });
 
-    // Await the state update so the item leaves the UI only once the send is
-    // confirmed, preventing it from disappearing before the backend accepts it.
-    void updateState((state) => ({
-      ...state,
-      items: remainingCommands,
-      isPaused: false,
-    })).then(() =>
-      onExecuteRef.current(nextCommand).catch((error) => {
+    // Persist a paused copy before sending so refresh cannot retry an
+    // ambiguously acknowledged request without explicit user action.
+    void updateState((state) => ({ ...state, isPaused: true }))
+      .then(() => onExecuteRef.current(nextCommand))
+      .then(() =>
+        updateState((state) => ({
+          ...state,
+          items: removeQueuedCommand(state.items, nextCommand.id),
+          isPaused: false,
+        }))
+      )
+      .catch((error) => {
         const busyError = classifyConversationBusyError(error);
         if (busyError) {
           waitingForBusyReleaseRef.current = true;
@@ -1120,13 +1154,9 @@ export const useConversationCommandQueue = ({
             busyKind: busyError.kind,
             status: busyError.status,
             code: busyError.code,
-            remainingItemCount: remainingCommands.length + 1,
+            remainingItemCount: data.items.length,
           });
-          void updateState((state) => ({
-            ...state,
-            items: restoreQueuedCommand(state.items, nextCommand),
-            isPaused: false,
-          }));
+          void updateState((state) => ({ ...state, isPaused: false }));
           return;
         }
         console.error('[conversation-command-queue] Failed to execute queued command:', error);
@@ -1137,19 +1167,18 @@ export const useConversationCommandQueue = ({
         waitingForTurnStartRef.current = false;
         waitingForTurnCompletionRef.current = false;
         pausedRef.current = true;
-        void updateState((state) => ({
-          ...state,
-          items: restoreQueuedCommand(state.items, nextCommand),
-          isPaused: true,
-        }));
+        void updateState((state) => ({ ...state, isPaused: true }));
         Message.warning(
           t('conversation.commandQueue.pausedAfterFailure', {
             defaultValue: 'The next queued command could not start. Edit, reorder, or remove it to continue.',
           })
         );
       })
-    );
+      .finally(() => {
+        clearCommandExecuting(nextCommand.id);
+      });
   }, [
+    clearCommandExecuting,
     conversation_id,
     data.items,
     data.mode,
@@ -1159,6 +1188,7 @@ export const useConversationCommandQueue = ({
     executionGate.hydrated,
     executionGate.isProcessing,
     isInteractionLocked,
+    markCommandExecuting,
     t,
     updateState,
   ]);
@@ -1168,6 +1198,7 @@ export const useConversationCommandQueue = ({
     isPaused: enabled ? data.isPaused : false,
     mode: enabled ? data.mode : 'manual',
     isInteractionLocked,
+    executingCommandId: enabled ? executingCommandId : null,
     hasPendingCommands: enabled ? data.items.length > 0 : false,
     enqueue,
     update,
