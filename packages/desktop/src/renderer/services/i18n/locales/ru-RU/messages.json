@@ -52,6 +52,8 @@
   "option": "Опция",
   "noOptionsAvailable": "Нет доступных опций",
   "processing": "Обработка...",
+  "confirmingSendStatus": "Проверка статуса отправки...",
+  "sendFailed": "Не удалось отправить",
   "responseSentSuccessfully": "Ответ успешно отправлен",
   "permissionResponseFailed": "Не удалось отправить ответ. Повторите попытку.",
   "confirmation": {

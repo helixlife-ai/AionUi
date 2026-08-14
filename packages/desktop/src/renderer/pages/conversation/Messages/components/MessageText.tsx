@@ -10,8 +10,9 @@ import { useConversationContextSafe } from '@/renderer/hooks/context/Conversatio
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { useLocalFilePreview } from '@/renderer/pages/conversation/Preview/hooks/useLocalFilePreview';
 import { iconColors } from '@/renderer/styles/colors';
-import { Alert, Message, Tooltip } from '@arco-design/web-react';
-import { Copy } from '@icon-park/react';
+import { emitter } from '@/renderer/utils/emitter';
+import { Alert, Button, Message, Tooltip } from '@arco-design/web-react';
+import { Copy, Loading, Refresh } from '@icon-park/react';
 import classNames from 'classnames';
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -166,6 +167,9 @@ const MessageText: React.FC<{ message: IMessageText; showCopyRow?: boolean }> = 
   const { t } = useTranslation();
   const [showCopyAlert, setShowCopyAlert] = useState(false);
   const isUserMessage = message.position === 'right';
+  const isPendingUserMessage = isUserMessage && message.status === 'pending';
+  const isConfirmingUserMessage = isUserMessage && message.status === 'work';
+  const isFailedUserMessage = isUserMessage && message.status === 'error';
   const isTeammateMessage = message.position === 'left' && message.content.teammateMessage === true;
   const { text, files } = useMemo(
     () => parseFileMarker(contentToRender, isUserMessage),
@@ -294,6 +298,33 @@ const MessageText: React.FC<{ message: IMessageText; showCopyRow?: boolean }> = 
             </div>
           )}
         </div>
+        {(isPendingUserMessage || isConfirmingUserMessage || isFailedUserMessage) && (
+          <div className='min-h-24px flex items-center gap-6px mt-4px text-12px text-t-secondary'>
+            {isPendingUserMessage || isConfirmingUserMessage ? (
+              <>
+                <Loading theme='outline' size='13' className='animate-spin' />
+                <span>{t(isConfirmingUserMessage ? 'messages.confirmingSendStatus' : 'messages.processing')}</span>
+              </>
+            ) : (
+              <>
+                <span className='text-danger'>{t('messages.sendFailed')}</span>
+                <Button
+                  type='text'
+                  size='mini'
+                  icon={<Refresh theme='outline' size='13' />}
+                  onClick={() =>
+                    emitter.emit('conversation.message.retry', {
+                      conversation_id: message.conversation_id,
+                      message_id: message.msg_id || message.id,
+                    })
+                  }
+                >
+                  {t('common.retry')}
+                </Button>
+              </>
+            )}
+          </div>
+        )}
         {/* Hover-revealed copy + timestamp row. Mobile has no hover affordance,
             so we drop the row entirely — system-level long-press still copies.
             For AI replies split across several text messages, only the last text

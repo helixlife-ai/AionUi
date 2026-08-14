@@ -195,6 +195,77 @@ describe('useConversationCommandQueue drain', () => {
     expect(onExecute).toHaveBeenCalledWith(expect.objectContaining({ input: 'queued follow-up' }));
   });
 
+  it('keeps a command visible and persisted until the backend accepts it', async () => {
+    let acceptSend: (() => void) | undefined;
+    const onExecute = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          acceptSend = resolve;
+        })
+    );
+    const { result } = renderQueue({
+      conversation_id: 'conv-pending-send',
+      runtimeGate: idleGate,
+      onExecute,
+    });
+
+    act(() => {
+      result.current.enqueue({ input: 'do not lose me', files: [] });
+    });
+
+    await waitFor(() => expect(onExecute).toHaveBeenCalledTimes(1));
+    expect(result.current.executingCommandId).toBe(result.current.items[0].id);
+    expect(result.current.items).toEqual([expect.objectContaining({ input: 'do not lose me' })]);
+    expect(JSON.parse(sessionStorage.getItem(storageKey('conv-pending-send')) ?? '{}')).toMatchObject({
+      items: [expect.objectContaining({ input: 'do not lose me' })],
+      isPaused: true,
+    });
+
+    act(() => {
+      acceptSend?.();
+    });
+
+    await waitFor(() => expect(result.current.items).toHaveLength(0));
+    expect(result.current.executingCommandId).toBeNull();
+    expect(sessionStorage.getItem(storageKey('conv-pending-send'))).toBeNull();
+  });
+
+  it('keeps the persisted queue paused when another item changes during acknowledgement', async () => {
+    let acceptSend: (() => void) | undefined;
+    const onExecute = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          acceptSend = resolve;
+        })
+    );
+    const { result } = renderQueue({
+      conversation_id: 'conv-edit-during-send',
+      runtimeGate: idleGate,
+      onExecute,
+    });
+
+    act(() => {
+      result.current.enqueue({ input: 'in flight', files: [] });
+      result.current.enqueue({ input: 'edit me', files: [] });
+    });
+
+    await waitFor(() => expect(onExecute).toHaveBeenCalledTimes(1));
+    const secondCommand = result.current.items[1];
+    act(() => {
+      result.current.update(secondCommand.id, { input: 'edited while waiting' });
+    });
+
+    await waitFor(() => expect(result.current.items[1].input).toBe('edited while waiting'));
+    expect(JSON.parse(sessionStorage.getItem(storageKey('conv-edit-during-send')) ?? '{}')).toMatchObject({
+      isPaused: true,
+    });
+
+    act(() => {
+      acceptSend?.();
+    });
+    await waitFor(() => expect(result.current.items).toHaveLength(1));
+  });
+
   it('ignores legacy persisted team-upgrade handoff state and drains normally', async () => {
     const onExecute = vi.fn().mockResolvedValue(undefined);
     const legacyHandoffKey = ['deferred', 'AfterTeamUpgrade'].join('');
@@ -375,7 +446,7 @@ describe('useConversationCommandQueue drain', () => {
   });
 
   it('retries after release when the blocked gate was observed before the busy catch', async () => {
-    let rerenderQueue: ReturnType<typeof renderQueue>['rerender'] = () => undefined;
+    let rerenderQueue: ReturnType<typeof renderQueue>['rerender'];
     let attempts = 0;
     const onExecute = vi.fn(async () => {
       attempts += 1;

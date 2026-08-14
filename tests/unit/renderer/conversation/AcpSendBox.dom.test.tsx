@@ -8,7 +8,9 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { BackendHttpError } from '@/common/adapter/httpBridge';
+import type { TMessage } from '@/common/chat/chatLib';
 import AcpSendBox from '@/renderer/pages/conversation/platforms/acp/AcpSendBox';
+import { getPendingAcpSendStorageKey } from '@/renderer/pages/conversation/platforms/acp/pendingAcpSend';
 import type { UseAcpMessageReturn } from '@/renderer/pages/conversation/platforms/acp/useAcpMessage';
 
 const {
@@ -19,6 +21,11 @@ const {
   setSendBoxHandlerMock,
   useAcpConfigOptionsMock,
   useTeamPermissionMock,
+  enqueueMock,
+  markSendFailedMock,
+  messageListState,
+  retryListener,
+  runtimeState,
   isMobileMock,
   mobileActionSheetEntries,
 } = vi.hoisted(() => ({
@@ -29,6 +36,13 @@ const {
   setSendBoxHandlerMock: vi.fn(),
   useAcpConfigOptionsMock: vi.fn(),
   useTeamPermissionMock: vi.fn(),
+  enqueueMock: vi.fn(),
+  markSendFailedMock: vi.fn(),
+  messageListState: { current: [] as TMessage[] },
+  retryListener: {
+    current: undefined as ((payload: { conversation_id: string; message_id: string }) => void) | undefined,
+  },
+  runtimeState: { isProcessing: false, canSendMessage: true },
   isMobileMock: { current: false },
   mobileActionSheetEntries: {
     current: [] as Array<{
@@ -156,23 +170,48 @@ vi.mock('@/renderer/hooks/ui/useLatestRef', () => ({
 }));
 vi.mock('@/renderer/pages/conversation/Messages/hooks', () => ({
   useAddOrUpdateMessage: () => addOrUpdateMessageMock,
+  useMessageList: () => messageListState.current,
+  useUpdateMessageList: () => (updater: (messages: TMessage[]) => TMessage[]) => {
+    messageListState.current = updater(messageListState.current);
+  },
 }));
 vi.mock('@/renderer/pages/conversation/platforms/useConversationCommandQueue', () => ({
-  shouldEnqueueConversationCommand: () => false,
+  shouldEnqueueConversationCommand: ({
+    enabled,
+    isBusy,
+    hasPendingCommands,
+  }: {
+    enabled: boolean;
+    isBusy: boolean;
+    hasPendingCommands: boolean;
+  }) => enabled && (isBusy || hasPendingCommands),
   useConversationCommandQueue: () => ({
     items: [],
+    mode: 'auto',
     isPaused: false,
     isInteractionLocked: false,
+    executingCommandId: null,
     hasPendingCommands: false,
-    enqueue: vi.fn(),
+    enqueue: enqueueMock,
     remove: vi.fn(),
+    prioritize: vi.fn(),
     clear: vi.fn(),
     reorder: vi.fn(),
-    pause: vi.fn(),
-    resume: vi.fn(),
+    toggleMode: vi.fn(),
     lockInteraction: vi.fn(),
     unlockInteraction: vi.fn(),
     resetActiveExecution: vi.fn(),
+  }),
+}));
+vi.mock('@/renderer/pages/conversation/runtime/useConversationRuntimeView', () => ({
+  useConversationRuntimeView: () => ({
+    hydrated: true,
+    canSendMessage: runtimeState.canSendMessage,
+    isProcessing: runtimeState.isProcessing,
+    state: runtimeState.isProcessing ? 'running' : 'idle',
+    markSendStarted: vi.fn(),
+    markSendAccepted: vi.fn(),
+    markSendFailed: markSendFailedMock,
   }),
 }));
 vi.mock('@/renderer/pages/conversation/Preview', () => ({
@@ -190,7 +229,9 @@ vi.mock('@/renderer/utils/emitter', () => ({
   emitter: {
     emit: emitterEmitMock,
   },
-  useAddEventListener: vi.fn(),
+  useAddEventListener: (event: string, listener: typeof retryListener.current) => {
+    if (event === 'conversation.message.retry') retryListener.current = listener;
+  },
 }));
 vi.mock('@/renderer/utils/file/fileSelection', () => ({
   mergeFileSelectionItems: vi.fn(),
@@ -228,6 +269,11 @@ const makeMessageState = (): UseAcpMessageReturn => ({
 describe('AcpSendBox', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
+    messageListState.current = [];
+    retryListener.current = undefined;
+    runtimeState.isProcessing = false;
+    runtimeState.canSendMessage = true;
     isMobileMock.current = false;
     mobileActionSheetEntries.current = [];
     useTeamPermissionMock.mockReturnValue(null);
@@ -272,6 +318,302 @@ describe('AcpSendBox', () => {
     await waitFor(() => {
       expect(resetStateMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('shows an idle send immediately in the conversation without queueing it', async () => {
+    let acceptSend: ((value: { turn_id: string; runtime: null; msg_id: string }) => void) | undefined;
+    sendMessageInvokeMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          acceptSend = resolve;
+        })
+    );
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'send' }).click();
+    });
+
+    expect(enqueueMock).not.toHaveBeenCalled();
+    expect(messageListState.current).toEqual([
+      expect.objectContaining({ position: 'right', status: 'pending', content: { content: 'Hello' } }),
+    ]);
+
+    await act(async () => {
+      acceptSend?.({ turn_id: 'turn-1', runtime: null, msg_id: 'msg-1' });
+    });
+  });
+
+  it('reconciles an accepted send and clears its recovery record', async () => {
+    sendMessageInvokeMock.mockResolvedValue({ turn_id: 'turn-1', runtime: null, msg_id: 'msg-1' });
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'send' }).click();
+    });
+
+    await waitFor(() => expect(messageListState.current[0]).toMatchObject({ msg_id: 'msg-1', status: 'finish' }));
+    expect(sessionStorage.getItem(getPendingAcpSendStorageKey('conv-1'))).toBeNull();
+  });
+
+  it('keeps a rejected send as retryable without adding a duplicate error card', async () => {
+    sendMessageInvokeMock.mockRejectedValue(new Error('network unavailable'));
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'send' }).click();
+    });
+
+    await waitFor(() => expect(messageListState.current[0]?.status).toBe('error'));
+    expect(addOrUpdateMessageMock).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(getPendingAcpSendStorageKey('conv-1'))).toContain('"status":"error"');
+  });
+
+  it('retries a failed send once while repeated retry clicks are in flight', async () => {
+    let acceptRetry: ((value: { turn_id: string; runtime: null; msg_id: string }) => void) | undefined;
+    sendMessageInvokeMock.mockRejectedValueOnce(new Error('network unavailable')).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          acceptRetry = resolve;
+        })
+    );
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+    await act(async () => {
+      screen.getByRole('button', { name: 'send' }).click();
+    });
+    await waitFor(() => expect(messageListState.current[0]?.status).toBe('error'));
+
+    const messageId = messageListState.current[0].msg_id as string;
+    act(() => {
+      retryListener.current?.({ conversation_id: 'conv-1', message_id: messageId });
+      retryListener.current?.({ conversation_id: 'conv-1', message_id: messageId });
+    });
+
+    await waitFor(() => expect(sendMessageInvokeMock).toHaveBeenCalledTimes(2));
+    expect(messageListState.current[0]?.status).toBe('pending');
+    await act(async () => {
+      acceptRetry?.({ turn_id: 'turn-2', runtime: null, msg_id: 'msg-2' });
+    });
+  });
+
+  it('queues sends made while the conversation is busy', async () => {
+    runtimeState.isProcessing = true;
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+    await act(async () => {
+      screen.getByRole('button', { name: 'send' }).click();
+    });
+
+    expect(enqueueMock).toHaveBeenCalledWith({ input: 'Hello', files: [] });
+    expect(sendMessageInvokeMock).not.toHaveBeenCalled();
+    expect(messageListState.current).toHaveLength(0);
+  });
+
+  it('restores an unresolved send after refresh as confirming without resending it', () => {
+    sessionStorage.setItem(
+      getPendingAcpSendStorageKey('conv-1'),
+      JSON.stringify([
+        {
+          id: 'local-1',
+          conversation_id: 'conv-1',
+          input: 'Hello',
+          files: [],
+          displayMessage: 'Hello',
+          createdAt: 100,
+          status: 'pending',
+        },
+      ])
+    );
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+
+    expect(messageListState.current).toEqual([expect.objectContaining({ msg_id: 'local-1', status: 'work' })]);
+    expect(sendMessageInvokeMock).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(getPendingAcpSendStorageKey('conv-1'))).toContain('"status":"work"');
+
+    act(() => {
+      retryListener.current?.({ conversation_id: 'conv-1', message_id: 'local-1' });
+    });
+    expect(sendMessageInvokeMock).not.toHaveBeenCalled();
+  });
+
+  it('does not reconcile a new send with an earlier identical message', async () => {
+    const createdAt = Date.now();
+    messageListState.current = [
+      {
+        id: 'accepted-1',
+        msg_id: 'accepted-1',
+        conversation_id: 'conv-1',
+        type: 'text',
+        position: 'right',
+        status: 'finish',
+        created_at: createdAt - 1,
+        content: { content: 'Hello' },
+      },
+    ];
+    sendMessageInvokeMock.mockImplementation(() => new Promise(() => undefined));
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+    await act(async () => {
+      screen.getByRole('button', { name: 'send' }).click();
+    });
+
+    expect(messageListState.current).toHaveLength(2);
+    expect(messageListState.current[1]).toMatchObject({ status: 'pending', content: { content: 'Hello' } });
+    expect(sessionStorage.getItem(getPendingAcpSendStorageKey('conv-1'))).not.toBeNull();
+  });
+
+  it('marks an unacknowledged send as confirming after the delay without allowing another attempt', async () => {
+    vi.useFakeTimers();
+    sendMessageInvokeMock.mockImplementation(() => new Promise(() => undefined));
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+    await act(async () => {
+      screen.getByRole('button', { name: 'send' }).click();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+    });
+
+    expect(messageListState.current[0]?.status).toBe('work');
+    expect(sendMessageInvokeMock).toHaveBeenCalledTimes(1);
+    expect(markSendFailedMock).not.toHaveBeenCalled();
+    const messageId = messageListState.current[0].msg_id as string;
+    act(() => {
+      retryListener.current?.({ conversation_id: 'conv-1', message_id: messageId });
+    });
+    expect(sendMessageInvokeMock).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('reconciles a timed-out message when the original acknowledgement arrives late', async () => {
+    vi.useFakeTimers();
+    let acceptSend: ((value: { turn_id: string; runtime: null; msg_id: string }) => void) | undefined;
+    sendMessageInvokeMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          acceptSend = resolve;
+        })
+    );
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+    await act(async () => {
+      screen.getByRole('button', { name: 'send' }).click();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(messageListState.current[0]?.status).toBe('work');
+
+    await act(async () => {
+      acceptSend?.({ turn_id: 'turn-1', runtime: null, msg_id: 'msg-late' });
+    });
+
+    expect(messageListState.current[0]).toMatchObject({ msg_id: 'msg-late', status: 'finish' });
+    expect(sessionStorage.getItem(getPendingAcpSendStorageKey('conv-1'))).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('makes a confirming message retryable only after the original request rejects', async () => {
+    vi.useFakeTimers();
+    let rejectSend: ((reason: Error) => void) | undefined;
+    sendMessageInvokeMock.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectSend = reject;
+        })
+    );
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+    await act(async () => {
+      screen.getByRole('button', { name: 'send' }).click();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(messageListState.current[0]?.status).toBe('work');
+
+    await act(async () => {
+      rejectSend?.(new Error('request rejected'));
+    });
+
+    expect(messageListState.current[0]?.status).toBe('error');
+    expect(sessionStorage.getItem(getPendingAcpSendStorageKey('conv-1'))).toContain('"status":"error"');
+    vi.useRealTimers();
   });
 
   it('suppresses internal error cards and loading reset for active-turn busy conflicts', async () => {

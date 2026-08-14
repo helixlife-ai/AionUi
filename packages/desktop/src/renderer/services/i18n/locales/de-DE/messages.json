@@ -55,6 +55,8 @@
   "option": "Option",
   "noOptionsAvailable": "Keine Optionen verfügbar",
   "processing": "Wird verarbeitet...",
+  "confirmingSendStatus": "Sendestatus wird bestätigt...",
+  "sendFailed": "Senden fehlgeschlagen",
   "responseSentSuccessfully": "Antwort erfolgreich gesendet",
   "permissionResponseFailed": "Antwort konnte nicht gesendet werden. Bitte erneut versuchen.",
   "confirmation": {
