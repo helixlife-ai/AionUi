@@ -37,10 +37,12 @@ vi.mock('@arco-design/web-react', () => {
   Menu.Item = ({
     children,
     onClick,
+    disabled,
   }: React.PropsWithChildren<{
     onClick?: () => void;
+    disabled?: boolean;
   }>) => (
-    <button type='button' onClick={onClick}>
+    <button type='button' onClick={onClick} disabled={disabled}>
       {children}
     </button>
   );
@@ -70,6 +72,13 @@ const item: ConversationCommandQueueItem = {
   input: 'queued follow-up',
   files: [],
   created_at: 1,
+};
+
+const secondItem: ConversationCommandQueueItem = {
+  id: 'queued-2',
+  input: 'another follow-up',
+  files: [],
+  created_at: 2,
 };
 
 const renderPanel = (overrides: Partial<React.ComponentProps<typeof CommandQueuePanel>> = {}) => {
@@ -114,6 +123,21 @@ describe('CommandQueuePanel', () => {
     expect(onSendNow).toHaveBeenCalledExactlyOnceWith(item);
     expect(onEdit).toHaveBeenCalledExactlyOnceWith(item);
     expect(onRemove).toHaveBeenCalledExactlyOnceWith('queued-1');
+  });
+
+  it('disables actions that could alter a command awaiting acknowledgement', () => {
+    renderPanel({ items: [item, secondItem], executingCommandId: item.id });
+
+    expect(
+      screen.getAllByRole('button', { name: 'Send now' }).map((button) => button.hasAttribute('disabled'))
+    ).toEqual([true, true]);
+    expect(screen.getAllByRole('button', { name: 'Edit' })[0]).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'Edit' })[1]).toBeEnabled();
+    expect(screen.getAllByRole('button', { name: 'Remove' })[0]).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'Remove' })[1]).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Clear draft box' })).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'Drag to reorder queued command' })[0]).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'Drag to reorder queued command' })[1]).toBeEnabled();
   });
 
   it('shows the current mode and toggles it', () => {

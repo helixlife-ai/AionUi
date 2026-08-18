@@ -202,6 +202,45 @@ describe('useConversationCommandQueue mode & send-now', () => {
     expect(result.current.mode).toBe('manual');
   });
 
+  it('does not execute another sendNow while a command awaits acknowledgement', async () => {
+    let acceptSend: (() => void) | undefined;
+    const onExecute = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          acceptSend = resolve;
+        })
+    );
+    const { result } = renderQueue({
+      conversation_id: 'conv-sendnow-pending',
+      runtimeGate: processingGate,
+      onExecute,
+    });
+
+    act(() => {
+      result.current.toggleMode();
+    });
+    await waitFor(() => expect(result.current.mode).toBe('manual'));
+
+    act(() => {
+      result.current.enqueue({ input: 'only once', files: [] });
+    });
+    await waitFor(() => expect(result.current.items).toHaveLength(1));
+
+    const commandId = result.current.items[0].id;
+    act(() => {
+      result.current.sendNow(commandId);
+      result.current.sendNow(commandId);
+    });
+
+    await waitFor(() => expect(onExecute).toHaveBeenCalledTimes(1));
+    expect(result.current.executingCommandId).toBe(commandId);
+
+    act(() => {
+      acceptSend?.();
+    });
+    await waitFor(() => expect(result.current.executingCommandId).toBeNull());
+  });
+
   it('restores manual mode from persisted storage', async () => {
     sessionStorage.setItem(
       storageKey('conv-persist'),

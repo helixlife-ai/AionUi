@@ -20,6 +20,7 @@ import {
 const previewMocks = vi.hoisted(() => ({
   openPreview: vi.fn(),
 }));
+const emitterMocks = vi.hoisted(() => ({ emit: vi.fn() }));
 const localFileLinkMocks = vi.hoisted(() => ({
   payload: {
     path: '/missing/report.xlsx',
@@ -123,8 +124,18 @@ vi.mock('@/renderer/utils/ui/clipboard', () => ({
   copyText: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/renderer/utils/emitter', () => ({
+  emitter: emitterMocks,
+}));
+
 vi.mock('@arco-design/web-react', () => ({
   Alert: () => null,
+  Button: ({ children, icon, onClick }: React.PropsWithChildren<{ icon?: React.ReactNode; onClick?: () => void }>) => (
+    <button type='button' onClick={onClick}>
+      {icon}
+      {children}
+    </button>
+  ),
   Message: {
     error: vi.fn(),
   },
@@ -133,6 +144,8 @@ vi.mock('@arco-design/web-react', () => ({
 
 vi.mock('@icon-park/react', () => ({
   Copy: () => <span data-testid='copy-icon' />,
+  Loading: () => <span data-testid='loading-icon' />,
+  Refresh: () => <span data-testid='refresh-icon' />,
 }));
 
 vi.mock('react-i18next', () => ({
@@ -152,6 +165,7 @@ const fileMetadata = (path: string) => ({
 describe('MessageText attachment paths', () => {
   beforeEach(() => {
     mockFilePreview.mockClear();
+    emitterMocks.emit.mockClear();
     vi.mocked(copyText).mockClear();
     previewMocks.openPreview.mockClear();
     localFileLinkMocks.payload = {
@@ -266,6 +280,46 @@ describe('MessageText attachment paths', () => {
     expect(content.className).toContain('[overflow-wrap:anywhere]');
     expect(content.className).not.toContain('break-words');
     expect(content).toHaveTextContent(longPath);
+  });
+
+  it('shows progress for a pending user message', () => {
+    renderMessageText('Hello', { position: 'right', status: 'pending' });
+
+    expect(screen.getByTestId('loading-icon')).toBeInTheDocument();
+    expect(screen.getByText('messages.processing')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'common.retry' })).not.toBeInTheDocument();
+  });
+
+  it('shows confirmation progress without retry for an unacknowledged user message', () => {
+    renderMessageText('Hello', { position: 'right', status: 'work' });
+
+    expect(screen.getByTestId('loading-icon')).toBeInTheDocument();
+    expect(screen.getByText('messages.confirmingSendStatus')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'common.retry' })).not.toBeInTheDocument();
+  });
+
+  it('offers retry for a failed user message', () => {
+    renderMessageText('Hello', {
+      id: 'local-1',
+      msg_id: 'local-1',
+      conversation_id: 'conv-1',
+      position: 'right',
+      status: 'error',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }));
+
+    expect(screen.getByText('messages.sendFailed')).toBeInTheDocument();
+    expect(emitterMocks.emit).toHaveBeenCalledWith('conversation.message.retry', {
+      conversation_id: 'conv-1',
+      message_id: 'local-1',
+    });
+  });
+
+  it('does not offer retry for an assistant error message', () => {
+    renderMessageText('Failed response', { position: 'left', status: 'error' });
+
+    expect(screen.queryByRole('button', { name: 'common.retry' })).not.toBeInTheDocument();
   });
 
   it('keeps absolute attachment paths unchanged before previewing', () => {

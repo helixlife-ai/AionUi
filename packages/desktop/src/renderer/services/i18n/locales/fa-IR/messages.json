@@ -55,6 +55,8 @@
   "option": "گزینه",
   "noOptionsAvailable": "گزینه‌ای در دسترس نیست",
   "processing": "در حال پردازش...",
+  "confirmingSendStatus": "در حال تأیید وضعیت ارسال...",
+  "sendFailed": "ارسال ناموفق بود",
   "responseSentSuccessfully": "پاسخ با موفقیت ارسال شد",
   "permissionResponseFailed": "ارسال پاسخ ممکن نشد. دوباره تلاش کنید.",
   "confirmation": {
