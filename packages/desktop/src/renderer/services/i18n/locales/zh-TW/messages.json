@@ -55,6 +55,8 @@
   "option": "選項",
   "noOptionsAvailable": "沒有可用選項",
   "processing": "處理中...",
+  "confirmingSendStatus": "正在確認傳送狀態...",
+  "sendFailed": "傳送失敗",
   "responseSentSuccessfully": "回覆已成功送出",
   "permissionResponseFailed": "無法傳送回應，請再試一次。",
   "confirmation": {

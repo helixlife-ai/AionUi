@@ -118,7 +118,27 @@ describe('SkillDetailPage', () => {
     ]);
     mocks.assistantsList.mockResolvedValue([
       makeAssistant({ id: 'a1', name: 'Writer', enabled_skills: ['demo-skill'] }),
-      makeAssistant({ id: 'a2', name: 'Coder', enabled_skills: [] }),
+      makeAssistant({
+        id: 'a2',
+        name: 'Codex CLI',
+        source: 'generated',
+        agent: { type: 'acp', source: 'builtin', acp_backend: 'codex' },
+        enabled_skills: [],
+      }),
+      makeAssistant({
+        id: 'claude-code',
+        name: 'Claude Code',
+        source: 'generated',
+        agent: { type: 'acp', source: 'builtin', acp_backend: 'claude' },
+        enabled_skills: [],
+      }),
+      makeAssistant({
+        id: 'aion-cli',
+        name: 'Aion CLI',
+        source: 'generated',
+        agent: { type: 'aionrs', source: 'internal' },
+        enabled_skills: ['demo-skill'],
+      }),
       makeAssistant({ id: 'b1', name: 'Butler', source: 'builtin', enabled_skills: ['demo-skill'] }),
     ]);
     mocks.assistantsUpdate.mockResolvedValue({});
@@ -150,11 +170,24 @@ describe('SkillDetailPage', () => {
     await waitFor(() => expect(screen.getByTestId('btn-add-assistant')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('btn-add-assistant'));
 
-    // Coder (user, not using) is addable; Writer already uses the skill and
+    // Codex CLI (generated, not using) is addable; Writer already uses the skill and
     // builtin Butler is never editable, so neither shows in the menu.
     await waitFor(() => expect(screen.getByTestId('menu-add-assistant-a2')).toBeInTheDocument());
     expect(screen.queryByTestId('menu-add-assistant-a1')).not.toBeInTheDocument();
     expect(screen.queryByTestId('menu-add-assistant-b1')).not.toBeInTheDocument();
+  });
+
+  it('hides Aion CLI while keeping supported CLI assistants attachable', async () => {
+    render(<SkillDetailPage />);
+
+    await waitFor(() => expect(screen.getByTestId('btn-add-assistant')).toBeInTheDocument());
+    expect(screen.queryByTestId('skill-used-by-row-aion-cli')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('btn-add-assistant'));
+
+    await waitFor(() => expect(screen.getByTestId('menu-add-assistant-claude-code')).toBeInTheDocument());
+    expect(screen.getByTestId('menu-add-assistant-a2')).toBeInTheDocument();
+    expect(screen.queryByTestId('menu-add-assistant-aion-cli')).not.toBeInTheDocument();
+    expect(screen.queryByText('Aion CLI')).not.toBeInTheDocument();
   });
 
   it('attaches the skill when an assistant is picked from the add menu', async () => {

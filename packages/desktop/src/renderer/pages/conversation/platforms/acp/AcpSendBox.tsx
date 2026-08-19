@@ -1,6 +1,7 @@
 import { ipcBridge } from '@/common';
 import type { IConversationMcpStatus } from '@/common/config/storage';
 import { isBackendHttpError } from '@/common/adapter/httpBridge';
+import type { IMessageText } from '@/common/chat/chatLib';
 import { isSideQuestionSupported } from '@/common/chat/sideQuestion';
 import { parseError, uuid } from '@/common/utils';
 import AgentModeSelector from '@/renderer/components/agent/AgentModeSelector';
@@ -24,7 +25,11 @@ import { useConversationContextSafe } from '@/renderer/hooks/context/Conversatio
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { useOpenFileSelector } from '@/renderer/hooks/file/useOpenFileSelector';
 import { useLatestRef } from '@/renderer/hooks/ui/useLatestRef';
-import { useAddOrUpdateMessage } from '@/renderer/pages/conversation/Messages/hooks';
+import {
+  useAddOrUpdateMessage,
+  useMessageList,
+  useUpdateMessageList,
+} from '@/renderer/pages/conversation/Messages/hooks';
 import {
   shouldEnqueueConversationCommand,
   useConversationCommandQueue,
@@ -55,6 +60,16 @@ import { classifyConversationBusyError } from '../conversationBusyError';
 import { buildSendFailureError } from './buildSendFailureError';
 import { useAcpInitialMessage } from './useAcpInitialMessage';
 import type { UseAcpMessageReturn } from './useAcpMessage';
+import {
+  findPendingAcpSend,
+  readPendingAcpSends,
+  removePendingAcpSend,
+  upsertPendingAcpSend,
+  type PendingAcpSend,
+} from './pendingAcpSend';
+
+const SEND_ACK_CONFIRMING_DELAY_MS = 30_000;
+const RECOVERED_SEND_MATCH_WINDOW_MS = 5 * 60_000;
 
 const configErrorMessageKey = (error: unknown) => {
   const errorKind = classifyConfigSetError(error);
@@ -213,7 +228,12 @@ const AcpSendBox: React.FC<{
   const atPathRef = useLatestRef(atPath);
 
   const addOrUpdateMessage = useAddOrUpdateMessage(); // Move this here so it's available in useEffect
+  const messageList = useMessageList();
+  const updateMessageList = useUpdateMessageList();
   const addOrUpdateMessageRef = useLatestRef(addOrUpdateMessage);
+  const updateMessageListRef = useLatestRef(updateMessageList);
+  const optimisticAttemptRef = React.useRef(new Map<string, string>());
+  const activeOptimisticSendIdsRef = React.useRef(new Set<string>());
   const runtimeView = useConversationRuntimeView(conversation_id);
   const { markSendStarted, markSendAccepted, markSendFailed } = runtimeView;
 
@@ -266,8 +286,101 @@ const AcpSendBox: React.FC<{
     addOrUpdateMessage: addOrUpdateMessageRef.current,
   });
 
+  const setOptimisticMessageStatus = useCallback(
+    (messageId: string, status: 'pending' | 'work' | 'error') => {
+      updateMessageListRef.current((list) =>
+        list.map((message) =>
+          message.msg_id === messageId || message.id === messageId ? { ...message, status } : message
+        )
+      );
+      const pending = findPendingAcpSend(conversation_id, messageId);
+      if (pending) upsertPendingAcpSend({ ...pending, status });
+    },
+    [conversation_id]
+  );
+
+  const acknowledgeOptimisticMessage = useCallback(
+    (messageId: string, backendMessageId: string) => {
+      updateMessageListRef.current((list) => {
+        const next = list.filter(
+          (message) => message.msg_id !== backendMessageId || message.msg_id === messageId || message.id === messageId
+        );
+        const optimisticIndex = next.findIndex((message) => message.msg_id === messageId || message.id === messageId);
+        if (optimisticIndex === -1) return list;
+        next[optimisticIndex] = {
+          ...next[optimisticIndex],
+          id: backendMessageId,
+          msg_id: backendMessageId,
+          status: 'finish',
+        };
+        return next;
+      });
+      removePendingAcpSend(conversation_id, messageId);
+    },
+    [conversation_id]
+  );
+
+  useEffect(() => {
+    const pendingSends = readPendingAcpSends(conversation_id);
+    if (pendingSends.length === 0) return;
+    const recoveredSends = pendingSends.map((item) => ({
+      ...item,
+      status: item.status === 'error' ? ('error' as const) : ('work' as const),
+    }));
+    recoveredSends.forEach(upsertPendingAcpSend);
+    updateMessageListRef.current((list) => {
+      const next = list.slice();
+      recoveredSends.forEach((item) => {
+        const existingIndex = next.findIndex((message) => (message.msg_id || message.id) === item.id);
+        if (existingIndex >= 0) {
+          next[existingIndex] = { ...next[existingIndex], status: item.status };
+          return;
+        }
+        next.push({
+          id: item.id,
+          msg_id: item.id,
+          conversation_id,
+          type: 'text',
+          position: 'right',
+          status: item.status,
+          created_at: item.createdAt,
+          content: { content: item.displayMessage },
+        } satisfies IMessageText);
+      });
+      return next;
+    });
+  }, [conversation_id]);
+
+  useEffect(() => {
+    const pendingSends = readPendingAcpSends(conversation_id);
+    if (pendingSends.length === 0) return;
+    const acknowledgedLocalIds = pendingSends
+      .filter((pending) => pending.status !== 'error')
+      .filter((pending) =>
+        messageList.some(
+          (message) =>
+            message.type === 'text' &&
+            message.position === 'right' &&
+            message.msg_id !== pending.id &&
+            message.content.content === pending.displayMessage &&
+            (message.created_at ?? 0) >= pending.createdAt &&
+            (message.created_at ?? 0) <= pending.createdAt + RECOVERED_SEND_MATCH_WINDOW_MS
+        )
+      )
+      .map((pending) => pending.id);
+    if (acknowledgedLocalIds.length === 0) return;
+    const acknowledgedSet = new Set(acknowledgedLocalIds);
+    acknowledgedLocalIds.forEach((id) => removePendingAcpSend(conversation_id, id));
+    updateMessageListRef.current((list) =>
+      list.filter((message) => !acknowledgedSet.has(message.msg_id || message.id))
+    );
+  }, [conversation_id, messageList]);
+
   const executeCommand = useCallback(
-    async ({ input, files }: Pick<ConversationCommandQueueItem, 'input' | 'files'>) => {
+    async (
+      { input, files }: Pick<ConversationCommandQueueItem, 'input' | 'files'>,
+      options?: { optimisticMessageId?: string; isCurrentAttempt?: () => boolean }
+    ) => {
       const sendFiles = await preparePdfAttachmentsForSend(files, { backend });
       const displayMessage = buildDisplayMessage(input, sendFiles, workspacePath || '');
 
@@ -291,8 +404,14 @@ const AcpSendBox: React.FC<{
           files: sendFiles,
         });
         markSendAccepted(result.turn_id, result.runtime, result.msg_id);
+        if (options?.optimisticMessageId) {
+          acknowledgeOptimisticMessage(options.optimisticMessageId, result.msg_id);
+        }
         emitter.emit('chat.history.refresh');
       } catch (error: unknown) {
+        if (options?.isCurrentAttempt && !options.isCurrentAttempt()) {
+          throw error;
+        }
         const errorMsg =
           getConversationRuntimeWorkspaceErrorMessage(error, t) || parseError(error) || t('common.unknownError');
         const safeErrorMsg = typeof errorMsg === 'string' ? errorMsg : String(errorMsg ?? '');
@@ -326,42 +445,44 @@ const AcpSendBox: React.FC<{
           safeErrorMsg.includes('[ACP-AUTH-') ||
           safeErrorMsg.includes('authentication failed') ||
           safeErrorMsg.includes('认证失败');
-        if (isAuthError) {
-          const errorMessage = {
-            id: uuid(),
-            msg_id: uuid(),
-            turn_id: '',
-            conversation_id,
-            type: 'error',
-            data: t('acp.auth.failed', {
-              backend,
-              error: safeErrorMsg,
-              defaultValue: `${backend} authentication failed:
+        if (!options?.optimisticMessageId) {
+          if (isAuthError) {
+            const errorMessage = {
+              id: uuid(),
+              msg_id: uuid(),
+              turn_id: '',
+              conversation_id,
+              type: 'error',
+              data: t('acp.auth.failed', {
+                backend,
+                error: safeErrorMsg,
+                defaultValue: `${backend} authentication failed:
 
 {{error}}
 
 Please check your local CLI tool authentication status`,
-            }),
-          };
+              }),
+            };
 
-          ipcBridge.acpConversation.responseStream.emit(errorMessage);
-        } else {
-          addOrUpdateMessageRef.current(
-            {
-              id: uuid(),
-              msg_id: uuid(),
-              type: 'tips',
-              position: 'center',
-              conversation_id,
-              created_at: Date.now(),
-              content: {
-                content: safeErrorMsg,
-                type: 'error',
-                error: buildSendFailureError(error, safeErrorMsg),
+            ipcBridge.acpConversation.responseStream.emit(errorMessage);
+          } else {
+            addOrUpdateMessageRef.current(
+              {
+                id: uuid(),
+                msg_id: uuid(),
+                type: 'tips',
+                position: 'center',
+                conversation_id,
+                created_at: Date.now(),
+                content: {
+                  content: safeErrorMsg,
+                  type: 'error',
+                  error: buildSendFailureError(error, safeErrorMsg),
+                },
               },
-            },
-            true
-          );
+              true
+            );
+          }
         }
 
         resetState();
@@ -375,6 +496,7 @@ Please check your local CLI tool authentication status`,
     },
     [
       backend,
+      acknowledgeOptimisticMessage,
       checkAndUpdateTitle,
       conversation_id,
       markSendAccepted,
@@ -389,15 +511,59 @@ Please check your local CLI tool authentication status`,
     ]
   );
 
+  const sendOptimisticMessage = useCallback(
+    async (item: PendingAcpSend) => {
+      const attemptId = uuid();
+      optimisticAttemptRef.current.set(item.id, attemptId);
+      activeOptimisticSendIdsRef.current.add(item.id);
+      upsertPendingAcpSend({ ...item, status: 'pending' });
+      setOptimisticMessageStatus(item.id, 'pending');
+
+      const timeout = window.setTimeout(() => {
+        if (optimisticAttemptRef.current.get(item.id) !== attemptId) return;
+        setOptimisticMessageStatus(item.id, 'work');
+      }, SEND_ACK_CONFIRMING_DELAY_MS);
+
+      try {
+        await executeCommand(item, {
+          optimisticMessageId: item.id,
+          isCurrentAttempt: () => optimisticAttemptRef.current.get(item.id) === attemptId,
+        });
+      } catch {
+        if (optimisticAttemptRef.current.get(item.id) === attemptId) {
+          setOptimisticMessageStatus(item.id, 'error');
+        }
+      } finally {
+        window.clearTimeout(timeout);
+        if (optimisticAttemptRef.current.get(item.id) === attemptId) {
+          activeOptimisticSendIdsRef.current.delete(item.id);
+          optimisticAttemptRef.current.delete(item.id);
+        }
+      }
+    },
+    [executeCommand, setOptimisticMessageStatus]
+  );
+
+  useAddEventListener(
+    'conversation.message.retry',
+    ({ conversation_id: retryConversationId, message_id }) => {
+      if (retryConversationId !== conversation_id || activeOptimisticSendIdsRef.current.has(message_id)) return;
+      const pending = findPendingAcpSend(conversation_id, message_id);
+      if (pending?.status !== 'error') return;
+      void sendOptimisticMessage({ ...pending, status: 'pending' });
+    },
+    [conversation_id, sendOptimisticMessage]
+  );
+
   const {
     items: queuedCommands,
     mode: queueMode,
     isInteractionLocked: isQueueInteractionLocked,
+    executingCommandId,
     hasPendingCommands,
     enqueue,
     remove,
     prioritize,
-    sendNow,
     clear,
     reorder,
     toggleMode,
@@ -422,11 +588,40 @@ Please check your local CLI tool authentication status`,
     if (
       shouldEnqueueConversationCommand({
         enabled: true,
-        isBusy,
+        isBusy: isBusy || activeOptimisticSendIdsRef.current.size > 0,
         hasPendingCommands,
       })
     ) {
       enqueue({ input: message, files: allFiles });
+      return;
+    }
+
+    if (!teamSendMessage) {
+      const id = uuid();
+      const optimisticSend: PendingAcpSend = {
+        id,
+        conversation_id,
+        input: message,
+        files: allFiles,
+        displayMessage: buildDisplayMessage(message, allFiles, workspacePath || ''),
+        createdAt: Date.now(),
+        status: 'pending',
+      };
+      upsertPendingAcpSend(optimisticSend);
+      updateMessageListRef.current((list) => [
+        ...list,
+        {
+          id,
+          msg_id: id,
+          conversation_id,
+          type: 'text',
+          position: 'right',
+          status: 'pending',
+          created_at: optimisticSend.createdAt,
+          content: { content: optimisticSend.displayMessage },
+        },
+      ]);
+      await sendOptimisticMessage(optimisticSend);
       return;
     }
 
@@ -671,6 +866,7 @@ Please check your local CLI tool authentication status`,
         mode={queueMode}
         isMobile={isMobile}
         interactionLocked={isQueueInteractionLocked}
+        executingCommandId={executingCommandId}
         onInteractionLock={lockInteraction}
         onInteractionUnlock={unlockInteraction}
         onEdit={handleEditQueuedCommand}

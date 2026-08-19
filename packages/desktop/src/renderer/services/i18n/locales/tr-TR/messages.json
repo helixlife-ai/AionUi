@@ -55,6 +55,8 @@
   "option": "Seçenek",
   "noOptionsAvailable": "Seçenek yok",
   "processing": "İşleniyor...",
+  "confirmingSendStatus": "Gönderim durumu doğrulanıyor...",
+  "sendFailed": "Gönderme başarısız",
   "responseSentSuccessfully": "Yanıt başarıyla gönderildi",
   "permissionResponseFailed": "Yanıt gönderilemedi. Lütfen tekrar deneyin.",
   "confirmation": {

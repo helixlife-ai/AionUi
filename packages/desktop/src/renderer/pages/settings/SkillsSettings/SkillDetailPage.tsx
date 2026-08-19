@@ -16,9 +16,10 @@
  */
 
 import { ipcBridge } from '@/common';
-import type { Assistant, UpdateAssistantRequest } from '@/common/types/agent/assistantTypes';
+import { assistantRuntimeKey, type Assistant, type UpdateAssistantRequest } from '@/common/types/agent/assistantTypes';
 import { resolveLocaleKey } from '@/common/utils';
 import AssistantAvatar from '@/renderer/pages/settings/AssistantSettings/AssistantAvatar';
+import { isAgentHubRuntimeHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { Button, Dropdown, Menu, Message, Spin, Typography } from '@arco-design/web-react';
 import { ArrowLeft, Close, Plus, Right } from '@icon-park/react';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -87,13 +88,20 @@ const SkillDetailPage: React.FC = () => {
   } = useSWR<Assistant[]>('assistants.list', () => ipcBridge.assistants.list.invoke());
 
   const skill = useMemo(() => (skills ?? []).find((s) => s.name === decodedName), [skills, decodedName]);
+  const visibleAssistants = useMemo(
+    () => (assistants ?? []).filter((assistant) => !isAgentHubRuntimeHidden(assistantRuntimeKey(assistant))),
+    [assistants]
+  );
   const usingAssistants = useMemo(
-    () => getAssistantsUsingSkill(decodedName, assistants ?? []),
-    [assistants, decodedName]
+    () => getAssistantsUsingSkill(decodedName, visibleAssistants),
+    [decodedName, visibleAssistants]
   );
   // Attachment editing covers user + generated assistants; builtin assistants'
   // update endpoint only accepts agent_id/defaults (see useAssistantEditor).
-  const editableAssistants = useMemo(() => (assistants ?? []).filter((a) => a.source !== 'builtin'), [assistants]);
+  const editableAssistants = useMemo(
+    () => visibleAssistants.filter((assistant) => assistant.source !== 'builtin'),
+    [visibleAssistants]
+  );
   const readonlyUsers = useMemo(() => usingAssistants.filter((a) => a.source === 'builtin'), [usingAssistants]);
 
   const assistantLabel = useCallback(

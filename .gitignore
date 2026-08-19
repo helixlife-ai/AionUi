@@ -225,3 +225,8 @@ graphify-out/
 
 # Local scratch/analysis (wireframes, candidate mockups)
 .analysis/
+
+# Raw skill package drops from the business side (reference only; Agent Hub
+# reuses the OpenClaw app's on-device skill bundle at runtime — no skills are
+# baked into the repo or image).
+docker/agent-hub/openclaw skills/

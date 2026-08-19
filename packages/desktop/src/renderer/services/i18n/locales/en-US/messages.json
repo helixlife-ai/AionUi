@@ -55,6 +55,8 @@
   "option": "Option",
   "noOptionsAvailable": "No options available",
   "processing": "Processing...",
+  "confirmingSendStatus": "Confirming send status...",
+  "sendFailed": "Send failed",
   "responseSentSuccessfully": "Response sent successfully",
   "permissionResponseFailed": "Could not send the response. Please try again.",
   "confirmation": {
