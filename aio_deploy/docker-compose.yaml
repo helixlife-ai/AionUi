@@ -29,7 +29,7 @@ services:
       - ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC=${ACP_IDLE_ANCHOR_CLEAR_INTERVAL_SEC:-60}
       - AIONUI_FS_ROOT=/agent_hub
       - AIONUI_SERIAL_NUMBER=${SERIAL_NUMBER}
-      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://paas-model.jova.bio/api/v1/helix}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://aio-model.newidea.pro/api/v1/helix}
       - ANTHROPIC_AUTH_TOKEN=${SERIAL_NUMBER}
       - ANTHROPIC_API_KEY=${SERIAL_NUMBER}
       - ANTHROPIC_DEFAULT_OPUS_MODEL=agenthub-claude
@@ -37,9 +37,9 @@ services:
       - ANTHROPIC_DEFAULT_HAIKU_MODEL=agenthub-claude
       - CLAUDE_CODE_MAX_OUTPUT_TOKENS=16000
       - OPENAI_API_KEY=${SERIAL_NUMBER}
-      - CODEX_BASE_URL=${CODEX_BASE_URL:-https://paas-model.jova.bio/api/v1/helix/v1}
+      - CODEX_BASE_URL=${CODEX_BASE_URL:-https://aio-model.newidea.pro/api/v1/helix/v1}
       - CODEX_MODEL=${CODEX_MODEL:-agenthub-codex}
-      - HAPPY_SERVER_URL=${HAPPY_SERVER_URL:-https://studio-server.jova.bio}
+      - HAPPY_SERVER_URL=${HAPPY_SERVER_URL:-https://studio-server.newidea.pro}
       - AIONUI_BUILTIN_SKILLS_PATH=/data/builtin-skills-hub
       # skill 依赖落到数据卷，容器更新重建不丢，空目录时无副作用。
       - PYTHONPATH=/data/python-deps
