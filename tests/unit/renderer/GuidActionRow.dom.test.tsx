@@ -234,4 +234,47 @@ describe('GuidActionRow skill/MCP submenu search', () => {
 
     expect(onToggleSkill).toHaveBeenCalledWith('skill-3', false);
   });
+
+  it('accepts digits in the skill search and does not bubble those keystrokes', () => {
+    const onParentKeyDown = vi.fn();
+    render(
+      <div onKeyDown={onParentKeyDown}>
+        <GuidActionRow
+          files={[]}
+          onFilesUploaded={vi.fn()}
+          modelSelectorNode={null}
+          isGeminiMode={false}
+          modelList={[]}
+          current_model={undefined}
+          setCurrentModel={vi.fn()}
+          currentAcpCachedModelInfo={null}
+          selectedAcpModel={null}
+          setSelectedAcpModel={vi.fn()}
+          selectedMode=''
+          onModeSelect={vi.fn()}
+          allSkills={makeSkills(8)}
+          disabledBuiltinSkills={[]}
+          enabledSkills={[]}
+          onToggleSkill={vi.fn()}
+          mcpServers={makeMcpServers(8)}
+          selectedMcpServerIds={[]}
+          onToggleMcpServer={vi.fn()}
+          loading={false}
+          isButtonDisabled={false}
+          onSend={vi.fn()}
+        />
+      </div>
+    );
+
+    const search = screen.getByTestId('guid-skill-search');
+    fireEvent.focus(search);
+    fireEvent.keyDown(search, { key: '3' });
+    fireEvent.keyDown(search, { key: 'a' });
+    fireEvent.change(search, { target: { value: '3' } });
+
+    expect(onParentKeyDown).not.toHaveBeenCalled();
+    expect(search).toHaveValue('3');
+    expect(screen.getByText('skill-3')).toBeInTheDocument();
+    expect(screen.queryByText('skill-4')).not.toBeInTheDocument();
+  });
 });

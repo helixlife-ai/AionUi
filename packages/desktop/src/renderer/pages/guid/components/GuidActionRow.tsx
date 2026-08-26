@@ -31,7 +31,7 @@ import type { AcpModelInfo } from '../types';
 import { getAvailableModels } from '../utils/modelUtils';
 import { Button, Checkbox, Dropdown, Menu, Tooltip } from '@arco-design/web-react';
 import { ArrowUp, Brain, FolderUpload, Lightning, Plus, Shield, UploadOne } from '@icon-park/react';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isAgentHubPermissionSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import styles from '../index.module.css';
@@ -41,6 +41,12 @@ import styles from '../index.module.css';
  * box on top and a single scroll container below (`.dropdown-search-scroll`,
  * see arco-override.css), mirroring RuntimeSelectorModelList's layout so the
  * search box never scrolls away with the list.
+ *
+ * Keyboard/mouse events are isolated on the search box so Arco's hover Menu
+ * cannot treat the second letter or a digit as a menu hotkey (which closes the
+ * flyout). While the user is interacting with search we also force the SubMenu
+ * popup to stay open, because filtering shrinks the list and Arco would
+ * otherwise fire mouseLeave.
  */
 const SubmenuSearchList: React.FC<{
   showSearch: boolean;
@@ -50,16 +56,39 @@ const SubmenuSearchList: React.FC<{
   searchTestId: string;
   emptyText: string;
   isEmpty: boolean;
+  onSearchFocus?: () => void;
+  onSearchBlur?: () => void;
   children: React.ReactNode;
-}> = ({ showSearch, query, onQueryChange, placeholder, searchTestId, emptyText, isEmpty, children }) => (
+}> = ({
+  showSearch,
+  query,
+  onQueryChange,
+  placeholder,
+  searchTestId,
+  emptyText,
+  isEmpty,
+  onSearchFocus,
+  onSearchBlur,
+  children,
+}) => (
   <>
     {showSearch ? (
-      <div className='px-6px pt-4px pb-6px' style={{ background: 'var(--color-bg-popup)' }}>
+      <div
+        className='px-6px pt-4px pb-6px'
+        style={{ background: 'var(--color-bg-popup)' }}
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
+      >
         <AionInlineSearchInput
           value={query}
           onChange={onQueryChange}
           placeholder={placeholder}
           data-testid={searchTestId}
+          inputProps={{
+            onFocus: onSearchFocus,
+            onBlur: onSearchBlur,
+          }}
         />
       </div>
     ) : null}
@@ -68,6 +97,12 @@ const SubmenuSearchList: React.FC<{
     </div>
   </>
 );
+
+const submenuSearchTriggerProps = (keepOpen: boolean) => ({
+  popupStyle: { overflowX: 'hidden' as const },
+  mouseLeaveDelay: 300,
+  ...(keepOpen ? { popupVisible: true } : {}),
+});
 
 type GuidActionRowProps = {
   // File handling
@@ -148,13 +183,40 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [skillQuery, setSkillQuery] = useState('');
   const [mcpQuery, setMcpQuery] = useState('');
+  const [skillSearchFocused, setSkillSearchFocused] = useState(false);
+  const [mcpSearchFocused, setMcpSearchFocused] = useState(false);
+  const skillSearchActive = skillSearchFocused || skillQuery.length > 0;
+  const mcpSearchActive = mcpSearchFocused || mcpQuery.length > 0;
+  // Skills/MCP submenus render in a nested Arco portal. Clicks there look like
+  // "outside" to the parent click-dropdown; remember them so we don't dismiss.
+  const pointerInsidePlusMenuRef = useRef(false);
+
+  useEffect(() => {
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        pointerInsidePlusMenuRef.current = false;
+        return;
+      }
+      const insidePopup = !!target.closest('.arco-dropdown, .arco-dropdown-menu, .arco-trigger, .arco-menu');
+      const onPlusButton = !!target.closest('[data-testid="file-upload-btn"]');
+      pointerInsidePlusMenuRef.current = insidePopup && !onPlusButton;
+    };
+    document.addEventListener('mousedown', onMouseDown, true);
+    return () => document.removeEventListener('mousedown', onMouseDown, true);
+  }, []);
 
   const handlePlusDropdownVisibleChange = useCallback((visible: boolean) => {
+    if (!visible && pointerInsidePlusMenuRef.current) {
+      return;
+    }
     setIsPlusDropdownOpen(visible);
     // Reopening the "+" menu should always show the full lists again.
     if (!visible) {
       setSkillQuery('');
       setMcpQuery('');
+      setSkillSearchFocused(false);
+      setMcpSearchFocused(false);
     }
   }, []);
   const showModeSwitch = !isAgentHubPermissionSelectorHidden() && dynamicModes.length > 0;
@@ -408,6 +470,10 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
     <Menu
       className='min-w-200px'
       onClickMenuItem={(key) => {
+        // Keep the "+" menu open while toggling skills / MCP (multi-select).
+        if (key.startsWith('skill-') || key.startsWith('mcp-')) {
+          return false;
+        }
         if (key === 'file') {
           ipcBridge.dialog.showOpen
             .invoke({ properties: ['openFile', 'multiSelections'] })
@@ -467,7 +533,7 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
               </span>
             </div>
           }
-          triggerProps={{ popupStyle: { overflowX: 'hidden' } }}
+          triggerProps={submenuSearchTriggerProps(skillSearchActive)}
         >
           <SubmenuSearchList
             showSearch={showSkillSearch}
@@ -477,6 +543,8 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
             searchTestId='guid-skill-search'
             emptyText={t('settings.skillsHub.noSearchResults', { defaultValue: 'No matching skills.' })}
             isEmpty={filteredSkills.length === 0}
+            onSearchFocus={() => setSkillSearchFocused(true)}
+            onSearchBlur={() => setSkillSearchFocused(false)}
           >
             {filteredSkills.map((skill) => (
               <Menu.Item
@@ -509,7 +577,7 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
               </span>
             </div>
           }
-          triggerProps={{ popupStyle: { overflowX: 'hidden' } }}
+          triggerProps={submenuSearchTriggerProps(mcpSearchActive)}
         >
           <SubmenuSearchList
             showSearch={showMcpSearch}
@@ -519,6 +587,8 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
             searchTestId='guid-mcp-search'
             emptyText={t('mcp.noServersFound', { defaultValue: 'No servers found matching your criteria' })}
             isEmpty={filteredMcpServers.length === 0}
+            onSearchFocus={() => setMcpSearchFocused(true)}
+            onSearchBlur={() => setMcpSearchFocused(false)}
           >
             {filteredMcpServers.map((server) => (
               <Menu.Item
@@ -572,7 +642,12 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
               )}
             </span>
           ) : (
-            <Dropdown trigger='hover' onVisibleChange={handlePlusDropdownVisibleChange} droplist={menuContent}>
+            <Dropdown
+              trigger='click'
+              popupVisible={isPlusDropdownOpen}
+              onVisibleChange={handlePlusDropdownVisibleChange}
+              droplist={menuContent}
+            >
               <span className='flex items-center gap-4px cursor-pointer lh-[1]'>
                 <Button
                   type='secondary'
