@@ -10,6 +10,7 @@ import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import { useCompositionInput } from '@/renderer/hooks/chat/useCompositionInput';
 import { Input } from '@arco-design/web-react';
 import type { RefTextAreaType } from '@arco-design/web-react/es/Input';
+import type { ChatFileRef } from '@/common/types/chatFile';
 import React, { useEffect, useRef } from 'react';
 import styles from '../index.module.css';
 import GuidWorkspaceFootnote from './GuidWorkspaceFootnote';
@@ -34,7 +35,7 @@ type GuidInputCardProps = {
   dragHandlers: React.HTMLAttributes<HTMLDivElement>;
 
   // Files
-  files: string[];
+  files: ChatFileRef[];
   onRemoveFile: (path: string) => void;
 
   // Action row
@@ -143,9 +144,10 @@ const GuidInputCard: React.FC<GuidInputCardProps> = ({
         <div style={{ height: 12, flexShrink: 0 }} aria-hidden='true' />
         {files.length > 0 && (
           <div className='flex flex-wrap items-center gap-8px mt-12px mb-12px'>
-            {files.map((path) => (
-              <FilePreview key={path} path={path} onRemove={() => onRemoveFile(path)} />
-            ))}
+            {files.map((file) => {
+              const path = file.kind === 'project' ? file.relative_path : file.path;
+              return <FilePreview key={`${file.kind}:${path}`} path={path} onRemove={() => onRemoveFile(path)} />;
+            })}
           </div>
         )}
         <UploadProgressBar source='sendbox' />

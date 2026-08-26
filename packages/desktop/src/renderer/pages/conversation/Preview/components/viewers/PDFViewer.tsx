@@ -5,6 +5,7 @@
  */
 
 import { ipcBridge } from '@/common';
+import type { ChatFileRef } from '@/common/types/chatFile';
 import { isElectronDesktop } from '@/renderer/utils/platform';
 import { buildPdfSrc } from '../../previewUrls';
 import { registerTabReloader } from '../../context/tabReloaderRegistry';

@@ -168,6 +168,8 @@ export type HttpRequestOptions = {
   signal?: AbortSignal;
   /** When false, skip the conversation-scoped default signal. Default true. */
   useDefaultSignal?: boolean;
+  /** Extra request headers merged on top of the default Content-Type. */
+  headers?: Record<string, string>;
 };
 
 export type HttpRequestSignalProvider = () => AbortSignal | undefined;
@@ -309,13 +311,15 @@ function sendHttpRequest(
   method: string,
   path: string,
   headers: Record<string, string>,
-  body?: unknown
+  body?: unknown,
+  signal?: AbortSignal
 ): Promise<Response> {
   const url = `${getBaseUrl()}${path}`;
   return fetch(url, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal,
   });
 }
 
@@ -343,12 +347,7 @@ export async function httpRequest<T>(
   const signal = resolveRequestSignal(path, options);
   let response: Response;
   try {
-    response = await fetch(url, {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal,
-    });
+    response = await sendHttpRequest(method, path, headers, body, signal);
   } catch (error) {
     if (isHttpAbortError(error)) {
       console.debug(`[httpBridge] ${method} ${path} aborted`);

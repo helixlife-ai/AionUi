@@ -5,6 +5,7 @@
  */
 
 import { ipcBridge } from '@/common';
+import type { ChatFileRef } from '@/common/types/chatFile';
 import {
   abortOfficePreviewRequestScope,
   adoptOfficePreviewRequestScope,
@@ -193,6 +194,7 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, fileRef,
   // Mirror both identities for the unmount cleanup; stop prefers the ref.
   const file_pathRef = useRef(file_path);
   const startedPathRef = useRef<string | null>(null);
+  const fileRefRef = useRef<ChatFileRef | undefined>(fileRef);
 
   useEffect(() => {
     file_pathRef.current = file_path;

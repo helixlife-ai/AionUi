@@ -129,8 +129,35 @@ type ConversationListSyncSnapshot = {
   conversations: TChatConversation[];
   generatingConversationIds: Set<string>;
   completionUnreadConversationIds: Set<string>;
+  manualUnreadConversationIds: Set<string>;
   isListHydrated: boolean;
   isHistoryViewMounted: boolean;
+};
+
+/**
+ * Renderer-local, persisted manual "mark as unread" set. Unlike the transient
+ * completion-unread set, this survives app restarts so users can deliberately
+ * flag a conversation to return to later.
+ */
+const MANUAL_UNREAD_STORAGE_KEY = 'conversation-manual-unread-ids';
+
+const readStoredManualUnread = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(MANUAL_UNREAD_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    return new Set(Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const persistManualUnread = () => {
+  try {
+    localStorage.setItem(MANUAL_UNREAD_STORAGE_KEY, JSON.stringify([...manualUnreadConversationIdsState]));
+  } catch {
+    // Ignore storage failures; manual unread state remains available in memory.
+  }
 };
 
 const listeners = new Set<() => void>();
@@ -159,6 +186,7 @@ let snapshotState: ConversationListSyncSnapshot = {
   conversations: conversationsState,
   generatingConversationIds: generatingConversationIdsState,
   completionUnreadConversationIds: completionUnreadConversationIdsState,
+  manualUnreadConversationIds: manualUnreadConversationIdsState,
   isListHydrated: isListHydratedState,
   isHistoryViewMounted: isHistoryViewMountedState,
 };
@@ -168,6 +196,7 @@ const emitStoreChange = () => {
     conversations: conversationsState,
     generatingConversationIds: generatingConversationIdsState,
     completionUnreadConversationIds: completionUnreadConversationIdsState,
+    manualUnreadConversationIds: manualUnreadConversationIdsState,
     isListHydrated: isListHydratedState,
     isHistoryViewMounted: isHistoryViewMountedState,
   };
@@ -182,6 +211,15 @@ const subscribeConversationListSync = (listener: () => void) => {
 };
 
 const getConversationListSyncSnapshot = (): ConversationListSyncSnapshot => snapshotState;
+
+/**
+ * Looks up a conversation's project from the latest list snapshot without
+ * waiting for the per-conversation request to finish.
+ */
+export const getSnapshotConversationProjectId = (conversation_id: string): string | null | undefined => {
+  if (!projectIdByIdState.has(conversation_id)) return undefined;
+  return projectIdByIdState.get(conversation_id) ?? null;
+};
 
 export function shouldPreserveConversationListOnRefreshFailure(existingCount: number): boolean {
   return existingCount > 0;
@@ -260,6 +298,7 @@ const refreshConversations = () => {
         // responseStream listener recognises them as known and doesn't
         // trigger an infinite refreshConversations loop.
         conversation_idsState = new Set(items.map((conversation) => conversation.id));
+        projectIdByIdState = new Map(items.map((conversation) => [conversation.id, conversation.project_id ?? null]));
         isListHydratedState = true;
         emitStoreChange();
         return;
@@ -267,6 +306,7 @@ const refreshConversations = () => {
 
       conversationsState = [];
       conversation_idsState = new Set();
+      projectIdByIdState = new Map();
       isListHydratedState = true;
       emitStoreChange();
     })
@@ -512,6 +552,7 @@ export const useConversationListSync = () => {
     conversations,
     generatingConversationIds,
     completionUnreadConversationIds,
+    manualUnreadConversationIds,
     isListHydrated,
     isHistoryViewMounted,
   } = useSyncExternalStore(

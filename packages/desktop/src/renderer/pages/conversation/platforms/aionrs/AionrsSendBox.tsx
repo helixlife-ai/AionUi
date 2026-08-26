@@ -52,8 +52,8 @@ import {
   isAgentHubPermissionSelectorHidden,
   isAgentHubModelSelectorHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
-import { Message, Tag } from '@arco-design/web-react';
-import { Brain, MagicHat, Shield } from '@icon-park/react';
+import { Button, Message, Tag } from '@arco-design/web-react';
+import { Brain, Lightning, MagicHat, Shield } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { classifyConversationBusyError } from '../conversationBusyError';
@@ -829,7 +829,7 @@ const AionrsSendBox: React.FC<{
                 onModeChanged={propagateMode}
                 beforeRuntimeSync={prepareRuntimeConfig}
                 beforeRuntimeSet={teamPermission?.warmupSession}
-                loadConfigOptions={teamPermission?.loadConfigOptions}
+                configOptionsPort={teamPermission?.configOptionsPort}
               />
             )}
           </div>

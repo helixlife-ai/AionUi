@@ -5,3 +5,4 @@
  */
 
 export const ADAPTER_BRIDGE_EVENT_KEY = 'office-ai-bridge-adapter';
+export const SHOW_OPEN_REQUEST_EVENT = 'show-open-request';

@@ -126,8 +126,8 @@ const ChatTitleEditor: React.FC<ChatTitleEditorProps> = ({
           >
             {displayTitle}
           </span>
-        )}
-      </div>
+        </div>
+      )}
       {!editingTitle && showMinimap && (
         <div className='w-0 flex items-center overflow-hidden opacity-0 transition-all duration-180 group-hover:w-40px group-hover:opacity-100 group-focus-within:w-40px group-focus-within:opacity-100'>
           <span className='h-16px w-1px shrink-0 rounded-full bg-[color:color-mix(in_srgb,var(--color-text-4)_44%,transparent)]' />

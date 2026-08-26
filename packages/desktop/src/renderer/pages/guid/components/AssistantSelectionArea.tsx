@@ -17,6 +17,7 @@ import { resolveAssistantAvatar } from '@/renderer/utils/model/assistantAvatar';
 import { resolveAssistantName } from '@/renderer/utils/model/assistantDisplay';
 import { selectableAssistants } from '@/renderer/utils/model/assistantSelection';
 import { useTranslation } from 'react-i18next';
+import ThemedLogo from '@/renderer/components/agent/ThemedLogo';
 
 /**
  * Mirrors the Agent settings search: matches the assistant's own name and

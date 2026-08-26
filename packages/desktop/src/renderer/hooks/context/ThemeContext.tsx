@@ -49,6 +49,8 @@ export const ThemeProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const [activeTheme, selectTheme, activeId] = useTheme();
   const [fontScale, setFontScale] = useFontScale();
   const { fontSizes, setFontSize } = useFontSizes();
+  const { fontFamilies, setFontFamily } = useFontFamilies();
+  const { fontWeights, setFontWeight } = useFontWeights();
   const theme: ThemeAppearance = activeTheme?.appearance ?? getDocumentThemeAppearance();
   const setTheme = useCallback(
     (appearance: ThemeAppearance) => selectTheme(appearance === 'dark' ? DARK_THEME_ID : LIGHT_THEME_ID),

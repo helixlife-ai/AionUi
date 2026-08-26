@@ -9,6 +9,10 @@ import { usePreviewContext } from '@/renderer/pages/conversation/Preview/context
 import { useAutoTitle } from '@/renderer/hooks/chat/useAutoTitle';
 import { getConversationOrNull } from '@/renderer/pages/conversation/utils/conversationCache';
 import { adoptConversationRequestScope } from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
+import { previewScopeKey } from '@/renderer/pages/conversation/Preview/context/previewScope';
+import { setCurrentProject } from '@/renderer/pages/conversation/explorer/currentProjectStore';
+import { setCurrentConversation } from '@/renderer/pages/conversation/explorer/currentConversationStore';
+import { getSnapshotConversationProjectId } from '@/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync';
 
 const ChatConversationIndex: React.FC = () => {
   const { id } = useParams();

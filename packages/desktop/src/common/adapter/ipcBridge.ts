@@ -825,28 +825,6 @@ const nativeReadSkillFile = bridge.buildProvider<string, { skill_location: strin
   'skills.files.read'
 );
 
-/** Raw metadata as the backend serializes it (snake_case). */
-type RawFileMetadata = {
-  name: string;
-  path: string;
-  size: number;
-  type: string;
-  last_modified: number;
-  is_directory?: boolean;
-};
-
-/** Map backend snake_case metadata to the camelCase {@link IFileMetadata}. */
-function fromBackendFileMetadata(raw: RawFileMetadata): IFileMetadata {
-  return {
-    name: raw.name,
-    path: raw.path,
-    size: raw.size,
-    type: raw.type,
-    lastModified: raw.last_modified,
-    isDirectory: raw.is_directory,
-  };
-}
-
 export const fs = {
   getFilesByDir: httpPost<Array<IDirOrFile>, { dir: string; root: string }>('/api/fs/dir'),
   // Reveal a project-scoped entry in the OS file manager (Finder/Explorer).
@@ -895,6 +873,20 @@ export const fs = {
     httpPost<RawFileMetadata | null, { path: string; workspace?: string }>('/api/fs/metadata'),
     fromBackendFileMetadata
   ),
+  readContent: httpPost<string, { file: ChatFileRef; encoding: ContentEncoding }>('/api/fs/content'),
+  writeContent: httpPut<boolean, { file: ChatFileRef; data: string; ifMatch?: number }>(
+    '/api/fs/content',
+    ({ file, data }) => ({ file, data }),
+    ({ ifMatch }) => (ifMatch != null ? { 'If-Match': String(ifMatch) } : undefined)
+  ),
+  getContentMetadata: withResponseMap(
+    httpPost<RawFileMetadata | null, { file: ChatFileRef }>('/api/fs/content/metadata'),
+    fromBackendFileMetadata
+  ),
+  copyFilesToProject: httpPost<
+    { copied_files: string[]; failed_files: Array<{ path: string; reason: string }> },
+    { file_paths: string[]; target: { pe_id: string; relative_path: string }; source_root?: string }
+  >('/api/fs/copy'),
   copyFilesToWorkspace: httpPost<
     { copied_files: string[]; failed_files?: Array<{ path: string; error: string }> },
     { file_paths: string[]; workspace: string; source_root?: string }
@@ -1021,6 +1013,50 @@ export const fs = {
       return content;
     },
   },
+};
+
+// Workspace Office file watch
+export const workspaceOfficeWatch = {
+  start: httpPost<void, { workspace: string }>('/api/fs/office-watch/start'),
+  stop: httpPost<void, { workspace: string }>('/api/fs/office-watch/stop'),
+  fileAdded: wsEmitter<{ file_path: string; workspace: string }>('workspaceOfficeWatch.fileAdded'),
+};
+
+// File snapshot providers
+export const fileSnapshot = {
+  init: httpPost<import('@/common/types/platform/fileSnapshot').SnapshotInfo, { workspace: string }>(
+    '/api/fs/snapshot/init'
+  ),
+  compare: withResponseMap(
+    httpPost<RawCompareResult, { workspace: string }>('/api/fs/snapshot/compare'),
+    fromBackendCompareResult
+  ),
+  getBaselineContent: httpPost<string | null, { workspace: string; file_path: string }>('/api/fs/snapshot/baseline'),
+  getInfo: httpPost<import('@/common/types/platform/fileSnapshot').SnapshotInfo, { workspace: string }>(
+    '/api/fs/snapshot/info'
+  ),
+  dispose: httpPost<void, { workspace: string }>('/api/fs/snapshot/dispose'),
+  stageFile: httpPost<void, { workspace: string; file_path: string }>('/api/fs/snapshot/stage'),
+  stageAll: httpPost<void, { workspace: string }>('/api/fs/snapshot/stage-all'),
+  unstageFile: httpPost<void, { workspace: string; file_path: string }>('/api/fs/snapshot/unstage'),
+  unstageAll: httpPost<void, { workspace: string }>('/api/fs/snapshot/unstage-all'),
+  discardFile: httpPost<
+    void,
+    {
+      workspace: string;
+      file_path: string;
+      operation: import('@/common/types/platform/fileSnapshot').FileChangeOperation;
+    }
+  >('/api/fs/snapshot/discard'),
+  resetFile: httpPost<
+    void,
+    {
+      workspace: string;
+      file_path: string;
+      operation: import('@/common/types/platform/fileSnapshot').FileChangeOperation;
+    }
+  >('/api/fs/snapshot/reset'),
+  getBranches: httpPost<string[], { workspace: string }>('/api/fs/snapshot/branches'),
 };
 
 // ---------------------------------------------------------------------------

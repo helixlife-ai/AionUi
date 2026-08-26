@@ -33,6 +33,7 @@ import {
   useUpdateMessageList,
 } from '@/renderer/pages/conversation/Messages/hooks';
 import {
+  shouldEnqueueConversationCommand,
   useConversationCommandQueue,
   type ConversationCommandQueueItem,
 } from '@/renderer/pages/conversation/platforms/useConversationCommandQueue';
@@ -56,6 +57,7 @@ import { useCrossSessionMessageEnabled } from '@/renderer/hooks/chat/useCrossSes
 import { emitter, useAddEventListener } from '@/renderer/utils/emitter';
 import { localSelectionItems, mergeFileSelectionItems } from '@/renderer/utils/file/fileSelection';
 import { collectChatFileRefs, splitChatFileRefs } from '@/renderer/utils/file/messageFiles';
+import { buildDisplayMessage } from '@/renderer/utils/file/messageFiles';
 import type { ChatFileRef } from '@/common/types/chatFile';
 import { Button, Message, Tag } from '@arco-design/web-react';
 import { Brain, Lightning, MagicHat, Shield } from '@icon-park/react';
@@ -256,6 +258,7 @@ const AcpSendBox: React.FC<{
   const updateMessageListRef = useLatestRef(updateMessageList);
   const optimisticAttemptRef = React.useRef(new Map<string, string>());
   const activeOptimisticSendIdsRef = React.useRef(new Set<string>());
+  const [selectedSessions, setSelectedSessions] = useState<SessionRef[]>([]);
   const runtimeView = useConversationRuntimeView(conversation_id);
   const { markSendStarted, markSendAccepted, markSendFailed, supportsMidturnDelivery } = runtimeView;
 
@@ -399,19 +402,16 @@ const AcpSendBox: React.FC<{
 
   const executeCommand = useCallback(
     async (
-      { input, files }: Pick<ConversationCommandQueueItem, 'input' | 'files'>,
+      { input, files, sessions }: Pick<ConversationCommandQueueItem, 'input' | 'files' | 'sessions'>,
       options?: { optimisticMessageId?: string; isCurrentAttempt?: () => boolean }
     ) => {
-      const sendFiles = await preparePdfAttachmentsForSend(files, { backend });
-      const displayMessage = buildDisplayMessage(input, sendFiles, workspacePath || '');
-
       try {
         if (teamPermission) await teamPermission.warmupSession();
         void checkAndUpdateTitle(conversation_id, input);
         if (teamSendMessage) {
-          await teamSendMessage({ input: displayMessage, files: sendFiles });
+          await teamSendMessage({ input, files });
           emitter.emit('chat.history.refresh');
-          if (sendFiles.length > 0) {
+          if (files.length > 0) {
             emitter.emit('acp.workspace.refresh');
           }
           return;
@@ -422,7 +422,8 @@ const AcpSendBox: React.FC<{
         const result = await ipcBridge.acpConversation.sendMessage.invoke({
           input,
           conversation_id,
-          files: sendFiles,
+          files,
+          sessions,
         });
         markSendAccepted(result.turn_id, result.runtime, result.msg_id);
         if (options?.optimisticMessageId) {
@@ -511,7 +512,7 @@ Please check your local CLI tool authentication status`,
         throw error;
       }
 
-      if (sendFiles.length > 0) {
+      if (files.length > 0) {
         emitter.emit('acp.workspace.refresh');
       }
     },
@@ -604,33 +605,48 @@ Please check your local CLI tool authentication status`,
     onExecute: executeCommand,
   });
 
-  // `@@` session references the user picked. Declared before the handlers that
-  // read it — every send path has to both forward and release it.
-  const [selectedSessions, setSelectedSessions] = useState<SessionRef[]>([]);
-  const { enabled: crossSessionEnabled } = useCrossSessionMessageEnabled();
+  const handleSend = useCallback(
+    async (message: string): Promise<void | false> => {
+      if (!supportsMidturnDelivery && isBusy) {
+        Message.warning(
+          t('conversation.commandQueue.midturnBlocked', {
+            defaultValue:
+              'This agent is still working, so the message cannot be sent directly. Save it to Draft box and send it later.',
+          })
+        );
+        return false;
+      }
 
-    clearFiles();
-    emitter.emit('acp.selected.file.clear');
+      const files = collectChatFileRefs(uploadFile, atPath);
+      const sessions = selectedSessions.length > 0 ? selectedSessions : undefined;
+      clearFiles();
+      setSelectedSessions([]);
+      emitter.emit('acp.selected.file.clear');
 
-    if (
-      shouldEnqueueConversationCommand({
-        enabled: true,
-        isBusy: isBusy || activeOptimisticSendIdsRef.current.size > 0,
-        hasPendingCommands,
-      })
-    ) {
-      enqueue({ input: message, files: allFiles });
-      return;
-    }
+      if (
+        shouldEnqueueConversationCommand({
+          enabled: true,
+          isBusy: isBusy || activeOptimisticSendIdsRef.current.size > 0,
+          hasPendingCommands,
+        })
+      ) {
+        enqueue({ input: message, files, sessions });
+        return;
+      }
 
-    if (!teamSendMessage) {
+      if (teamSendMessage) {
+        await executeCommand({ input: message, files, sessions });
+        return;
+      }
+
       const id = uuid();
       const optimisticSend: PendingAcpSend = {
         id,
         conversation_id,
         input: message,
-        files: allFiles,
-        displayMessage: buildDisplayMessage(message, allFiles, workspacePath || ''),
+        files,
+        sessions,
+        displayMessage: buildDisplayMessage(message, files, conversationContext?.workspace ?? ''),
         createdAt: Date.now(),
         status: 'pending',
       };
@@ -646,14 +662,33 @@ Please check your local CLI tool authentication status`,
           status: 'pending',
           created_at: optimisticSend.createdAt,
           content: { content: optimisticSend.displayMessage },
-        },
+        } satisfies IMessageText,
       ]);
       await sendOptimisticMessage(optimisticSend);
-      return;
-    }
+    },
+    [
+      atPath,
+      clearFiles,
+      conversationContext?.workspace,
+      conversation_id,
+      enqueue,
+      executeCommand,
+      hasPendingCommands,
+      isBusy,
+      selectedSessions,
+      sendOptimisticMessage,
+      supportsMidturnDelivery,
+      t,
+      teamSendMessage,
+      uploadFile,
+    ]
+  );
 
-    await executeCommand({ input: message, files: allFiles });
-  };
+  const { enabled: crossSessionEnabled } = useCrossSessionMessageEnabled();
+
+  // Supporting agents can receive a message during an active turn. Other
+  // agents keep the explicit draft-queue path available while busy.
+  const onSendHandler = handleSend;
 
   const [interrupting, setInterrupting] = useState(false);
   const handleInterruptSend = async () => {

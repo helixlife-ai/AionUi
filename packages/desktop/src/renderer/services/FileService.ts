@@ -325,6 +325,8 @@ class FileServiceClass {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      // In Electron, dragged files may expose an absolute disk path.
+      const electronFile = file as File & { path?: string };
 
       if (!isSupportedFile(file.name, allSupportedExts)) {
         throw new Error(FILE_UNSUPPORTED_ERROR);
@@ -365,14 +367,6 @@ class FileServiceClass {
         } finally {
           tracker.finish();
         }
-        if (error instanceof Error && error.message === UPLOAD_ABORTED_ERROR) {
-          // User-initiated abort: drop this file silently (the UI already reflects it).
-          continue;
-        }
-        console.error('Failed to upload file:', error);
-        continue;
-      } finally {
-        tracker.finish();
       }
 
       processedFiles.push({

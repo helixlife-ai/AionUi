@@ -378,34 +378,10 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({
               boxSizing: 'border-box',
             }}
           >
-            <Streamdown
-              mode='static'
-              shikiTheme={getMarkdownShikiThemes()}
-              mermaid={{ config: { theme: getMermaidTheme(currentTheme) } }}
-              controls={{ table: false, mermaid: false }}
-              remarkPlugins={[...Object.values(defaultRemarkPlugins), remarkBreaks]}
-              rehypePlugins={[defaultRehypePlugins.raw, defaultRehypePlugins.sanitize, defaultRehypePlugins.katex]}
-              components={{
-                ...HEADING_COMPONENTS,
-                a({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) {
-                  const localFileReference = resolveLocalFileLinkReference(typeof href === 'string' ? href : '');
-                  if (localFileReference) {
-                    return (
-                      <LocalFileLink reference={localFileReference} onOpen={handleLocalFileLink}>
-                        {children}
-                      </LocalFileLink>
-                    );
-                  }
-                  return (
-                    <a href={href} rel='noreferrer' {...props} onClick={handleExternalLinkClick}>
-                      {children}
-                    </a>
-                  );
-                },
-                img({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) {
-                  return <MarkdownImage src={src} alt={alt} baseDir={baseDir} workspace={workspace} {...props} />;
-                },
-              }}
+            <ReactMarkdown
+              remarkPlugins={MARKDOWN_REMARK_PLUGINS}
+              rehypePlugins={SANITIZED_HTML_REHYPE_PLUGINS}
+              components={components}
             >
               {previewSource}
             </ReactMarkdown>

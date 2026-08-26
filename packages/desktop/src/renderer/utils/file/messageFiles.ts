@@ -1,4 +1,5 @@
-import { type ChatFileRef, chatFileRefKey, uploadFileRef } from '@/common/types/chatFile';
+import { AIONUI_FILES_MARKER, AIONUI_TIMESTAMP_REGEX } from '@/common/config/constants';
+import { type ChatFileRef, chatFileRefKey, chatFileRefPath, uploadFileRef } from '@/common/types/chatFile';
 import type { FileOrFolderItem } from '@/renderer/utils/file/fileTypes';
 
 /**
@@ -59,4 +60,18 @@ export const splitChatFileRefs = (refs: ChatFileRef[]): { uploadFiles: string[];
     }
   }
   return { uploadFiles, atPath };
+};
+
+/** Build the local optimistic row using the same marker format as persisted messages. */
+export const buildDisplayMessage = (input: string, files: ChatFileRef[], workspacePath: string): string => {
+  if (files.length === 0) return input;
+  const normalizedWorkspace = workspacePath.replace(/[\\/]+$/, '');
+  const displayPaths = files.map((ref) => {
+    const filePath = chatFileRefPath(ref).replace(AIONUI_TIMESTAMP_REGEX, '$1');
+    if (!normalizedWorkspace || ref.kind === 'project') return ref.kind === 'project' && normalizedWorkspace
+      ? `${normalizedWorkspace}/${filePath}`
+      : filePath;
+    return filePath;
+  });
+  return `${input}\n\n${AIONUI_FILES_MARKER}\n${displayPaths.join('\n')}`;
 };

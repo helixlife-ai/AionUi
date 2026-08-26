@@ -85,3 +85,8 @@ export async function setActiveTheme(activeId: string): Promise<Theme> {
   }
   return resolved;
 }
+
+/** Seed Electron's cross-window theme relay. WebUI has no Electron surfaces to notify. */
+export async function seedElectronTheme(theme: Theme): Promise<void> {
+  await publishThemeToElectron(theme);
+}

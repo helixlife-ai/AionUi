@@ -30,7 +30,7 @@ import { showFileAttachError, filterPathsWithinUploadLimit } from '@/renderer/ut
 import type { AcpModelInfo } from '../types';
 import { getAvailableModels } from '../utils/modelUtils';
 import { Button, Checkbox, Dropdown, Menu, Tooltip } from '@arco-design/web-react';
-import { ArrowUp, Brain, FolderUpload, Lightning, Plus, Shield, UploadOne } from '@icon-park/react';
+import { ArrowUp, Brain, FolderOpen, FolderUpload, Lightning, Paperclip, Plus, Shield, UploadOne } from '@icon-park/react';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isAgentHubPermissionSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';

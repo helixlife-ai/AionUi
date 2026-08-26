@@ -104,6 +104,7 @@ const ChatWorkspace: React.FC<WorkspaceProps> = ({
   });
 
   const fileOpsHook = useWorkspaceFileOps({
+    conversation_id,
     workspace,
     eventPrefix,
     messageApi,

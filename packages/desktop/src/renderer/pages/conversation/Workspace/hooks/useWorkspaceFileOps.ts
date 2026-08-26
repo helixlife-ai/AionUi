@@ -22,6 +22,7 @@ import type { MessageApi, RenameModalState, DeleteModalState } from '../types';
 import type { FileOrFolderItem } from '@/renderer/utils/file/fileTypes';
 
 interface UseWorkspaceFileOpsOptions {
+  conversation_id: string;
   workspace: string;
   eventPrefix: 'acp' | 'codex' | 'aionrs';
   messageApi: MessageApi;
@@ -55,6 +56,7 @@ interface UseWorkspaceFileOpsOptions {
  */
 export function useWorkspaceFileOps(options: UseWorkspaceFileOpsOptions) {
   const {
+    conversation_id,
     workspace,
     eventPrefix,
     messageApi,
@@ -136,7 +138,7 @@ export function useWorkspaceFileOps(options: UseWorkspaceFileOpsOptions) {
       setSelected([]);
       selectedKeysRef.current = [];
       selectedNodeRef.current = null;
-      emitter.emit(`${eventPrefix}.selected.file`, []);
+      emitter.emit(`${eventPrefix}.selected.file`, [], conversation_id);
       closeDeleteModal();
       setTimeout(() => refreshWorkspace(), 200);
     } catch (error) {
@@ -154,6 +156,7 @@ export function useWorkspaceFileOps(options: UseWorkspaceFileOpsOptions) {
     selectedKeysRef,
     selectedNodeRef,
     setDeleteModal,
+    conversation_id,
   ]);
 
   /**
@@ -206,7 +209,7 @@ export function useWorkspaceFileOps(options: UseWorkspaceFileOpsOptions) {
       setSelected([]);
       selectedKeysRef.current = [];
       selectedNodeRef.current = null;
-      emitter.emit(`${eventPrefix}.selected.file`, []);
+      emitter.emit(`${eventPrefix}.selected.file`, [], conversation_id);
       refreshWorkspace();
       messageApi.success(t('conversation.workspace.contextMenu.renameSuccess'));
     } catch (error) {
@@ -231,6 +234,7 @@ export function useWorkspaceFileOps(options: UseWorkspaceFileOpsOptions) {
     selectedKeysRef,
     selectedNodeRef,
     setRenameLoading,
+    conversation_id,
   ]);
 
   /**
@@ -250,10 +254,10 @@ export function useWorkspaceFileOps(options: UseWorkspaceFileOpsOptions) {
         relativePath: nodeData.relativePath || undefined,
       };
 
-      emitter.emit(`${eventPrefix}.selected.file.append`, [payload]);
+      emitter.emit(`${eventPrefix}.selected.file.append`, [payload], conversation_id);
       messageApi.success(t('conversation.workspace.contextMenu.addedToChat'));
     },
-    [closeContextMenu, ensureNodeSelected, eventPrefix, messageApi, t]
+    [closeContextMenu, conversation_id, ensureNodeSelected, eventPrefix, messageApi, t]
   );
 
   /**

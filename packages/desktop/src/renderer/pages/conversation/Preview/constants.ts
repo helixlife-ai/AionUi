@@ -58,6 +58,9 @@ export const MAX_SPLIT_WIDTH = 80;
  */
 export const LARGE_TEXT_VIEWER_THRESHOLD = 30_000;
 
+export const LARGE_TEXT_PREVIEW_THRESHOLD = 120_000;
+export const LARGE_TEXT_PREVIEW_MAX_LENGTH = 40_000;
+
 /**
  * 具有内置打开按钮的文件类型
  * File types with built-in open buttons

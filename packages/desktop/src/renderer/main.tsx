@@ -130,6 +130,7 @@ import {
 } from './components/layout/InstallationIntegrityDialog';
 import { isAgentHubBackendWarmingScreenEnabled } from './utils/hub/agentHubUiPolicy';
 import { waitForBackendReady } from './services/backendReadiness';
+import { createRuntimeInstallationReconciler } from './services/runtime/runtimeInstallationReconciler';
 
 // Arco ships several locales that predate its newer components: sections such
 // as Form, ColorPicker and the Calendar month/year formats are missing there.

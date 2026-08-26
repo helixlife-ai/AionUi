@@ -10,7 +10,6 @@ import { formatFileSize } from '@/renderer/services/FileService';
 import { CONTENT_FREE_TYPES, formatSizeAboveLimit } from '@/renderer/utils/file/previewPayload';
 import { classifyPreviewError, previewErrorToI18nKey } from '@/renderer/utils/previewError';
 import { copyText } from '@/renderer/utils/ui/clipboard';
-import { isElectronDesktop } from '@/renderer/utils/platform';
 import { canCopyAbsolutePath, canRevealInFolder, previewTabPaths } from './previewTabPaths';
 import { isRefreshActionable, refreshButtonState, refreshStateToken } from './refreshButtonState';
 import { reloadViaViewer } from '../../context/tabReloaderRegistry';

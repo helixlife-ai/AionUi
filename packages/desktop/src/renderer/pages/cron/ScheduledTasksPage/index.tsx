@@ -23,7 +23,7 @@ import ThemedLogo from '@/renderer/components/agent/ThemedLogo';
 import TalkToButlerButton from '@/renderer/components/base/TalkToButlerButton';
 import { AionSearchInput } from '@/renderer/components/base';
 import SettingsPageHeader from '@/renderer/pages/settings/components/SettingsPageHeader';
-import { Robot } from '@icon-park/react';
+import { Attention, Robot } from '@icon-park/react';
 import { isAgentHubKeepAwakeHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 
 const ScheduledTasksPage: React.FC = () => {
