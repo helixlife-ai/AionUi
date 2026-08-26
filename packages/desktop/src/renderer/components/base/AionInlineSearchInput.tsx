@@ -44,12 +44,13 @@ export type AionInlineSearchInputProps = {
 
 const AionInlineSearchInput = forwardRef<HTMLInputElement, AionInlineSearchInputProps>((props, ref) => {
   const { value, onChange, placeholder, className, style, autoFocus, disabled, wrapTestId, inputProps } = props;
+  const { onKeyDown, onKeyUp, onMouseDown, onClick, ...restInputProps } = inputProps ?? {};
 
   return (
     <div className={classNames(styles.searchbar, className)} style={style} data-testid={wrapTestId}>
       <Search theme='outline' size='13' className={styles.icon} fill='currentColor' />
       <input
-        {...inputProps}
+        {...restInputProps}
         ref={ref as Ref<HTMLInputElement>}
         className={styles.input}
         value={value}
@@ -58,6 +59,27 @@ const AionInlineSearchInput = forwardRef<HTMLInputElement, AionInlineSearchInput
         autoFocus={autoFocus}
         data-testid={props['data-testid']}
         onChange={(event) => onChange(event.target.value)}
+        onMouseDown={(event) => {
+          // Keep focus in the search box; Arco Menu/Dropdown treats bubbling
+          // mousedown as an outside interaction and may dismiss the popup.
+          event.stopPropagation();
+          onMouseDown?.(event);
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          onClick?.(event);
+        }}
+        onKeyDown={(event) => {
+          // Letters and digits must stay in this input. Nested Arco menus listen
+          // for the same keys (typeahead / item hotkeys) and will close the
+          // flyout or swallow digits if the event bubbles.
+          event.stopPropagation();
+          onKeyDown?.(event);
+        }}
+        onKeyUp={(event) => {
+          event.stopPropagation();
+          onKeyUp?.(event);
+        }}
       />
     </div>
   );
