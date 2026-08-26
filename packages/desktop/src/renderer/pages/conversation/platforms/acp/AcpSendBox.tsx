@@ -5,6 +5,7 @@ import type { IMessageText } from '@/common/chat/chatLib';
 import { isSideQuestionSupported } from '@/common/chat/sideQuestion';
 import { parseError, uuid } from '@/common/utils';
 import AgentModeSelector from '@/renderer/components/agent/AgentModeSelector';
+import ContextUsageIndicator from '@/renderer/components/agent/ContextUsageIndicator';
 import CommandQueuePanel from '@/renderer/components/chat/CommandQueuePanel';
 import MobileActionSheet, {
   type MobileActionSheetEntry,
@@ -14,6 +15,7 @@ import MobileActionSheet, {
 import SendBox from '@/renderer/components/chat/SendBox';
 import ThoughtDisplay from '@/renderer/components/chat/ThoughtDisplay';
 import FileAttachButton from '@/renderer/components/media/FileAttachButton';
+import { audioExts, getFileExtension, imageExts } from '@/renderer/services/FileService';
 import FilePreview from '@/renderer/components/media/FilePreview';
 import HorizontalFileList from '@/renderer/components/media/HorizontalFileList';
 import { classifyConfigSetError, useAcpConfigOptions } from '@/renderer/hooks/agent/useAcpConfigOptions';
@@ -31,7 +33,6 @@ import {
   useUpdateMessageList,
 } from '@/renderer/pages/conversation/Messages/hooks';
 import {
-  shouldEnqueueConversationCommand,
   useConversationCommandQueue,
   type ConversationCommandQueueItem,
 } from '@/renderer/pages/conversation/platforms/useConversationCommandQueue';
@@ -49,11 +50,15 @@ import { useTeamPermission } from '@/renderer/pages/team/hooks/TeamPermissionCon
 import type { TeamSendBoxRuntime } from '@/renderer/pages/team/components/teamSendRuntime';
 import { allSupportedExts } from '@/renderer/services/FileService';
 import { iconColors } from '@/renderer/styles/colors';
+import type { SessionRef } from '@/common/adapter/ipcBridge';
+import CrossSessionDisabledBanner from '@/renderer/components/chat/CrossSessionDisabledBanner';
+import { useCrossSessionMessageEnabled } from '@/renderer/hooks/chat/useCrossSessionMessageEnabled';
 import { emitter, useAddEventListener } from '@/renderer/utils/emitter';
-import { mergeFileSelectionItems } from '@/renderer/utils/file/fileSelection';
-import { buildDisplayMessage } from '@/renderer/utils/file/messageFiles';
-import { Message, Tag } from '@arco-design/web-react';
-import { Brain, MagicHat, Shield } from '@icon-park/react';
+import { localSelectionItems, mergeFileSelectionItems } from '@/renderer/utils/file/fileSelection';
+import { collectChatFileRefs, splitChatFileRefs } from '@/renderer/utils/file/messageFiles';
+import type { ChatFileRef } from '@/common/types/chatFile';
+import { Button, Message, Tag } from '@arco-design/web-react';
+import { Brain, Lightning, MagicHat, Shield } from '@icon-park/react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { classifyConversationBusyError } from '../conversationBusyError';
@@ -126,21 +131,20 @@ const AcpSendBox: React.FC<{
   backend: string;
   session_mode?: string;
   agent_name?: string;
-  workspacePath?: string;
   messageState: UseAcpMessageReturn;
-  teamSendMessage?: (payload: { input: string; files: string[] }) => Promise<void>;
+  teamSendMessage?: (payload: { input: string; files: ChatFileRef[] }) => Promise<void>;
   teamRuntime?: TeamSendBoxRuntime;
-}> = ({
-  conversation_id,
-  backend,
-  session_mode,
-  agent_name,
-  workspacePath,
-  messageState,
-  teamSendMessage,
-  teamRuntime,
-}) => {
-  const { aiProcessing, setAiProcessing, resetState, hasThinkingMessage, slashCommands } = messageState;
+}> = ({ conversation_id, backend, session_mode, agent_name, messageState, teamSendMessage, teamRuntime }) => {
+  const {
+    aiProcessing,
+    setAiProcessing,
+    turnStartedAtMs,
+    resetState,
+    hasThinkingMessage,
+    slashCommands,
+    tokenUsage,
+    context_limit,
+  } = messageState;
   const { t } = useTranslation();
   const teamPermission = useTeamPermission();
   // In team mode, all agents show the permission mode selector (members don't propagate)
@@ -159,6 +163,24 @@ const AcpSendBox: React.FC<{
       name,
       status: 'loaded',
     }));
+  const promptCapability = conversationContext?.promptCapability;
+  // Hint shown on a media chip when the agent takes no native image/audio
+  // blocks — the attachment then reaches it as a file path. SVG is never
+  // sent natively (vision APIs reject it), so it always hints like a path.
+  const mediaPathHintFor = useCallback(
+    (path: string): string | undefined => {
+      const ext = getFileExtension(path).toLowerCase();
+      const isNativeImage = ext !== '.svg' && imageExts.includes(ext);
+      const isNativeAudio = audioExts.includes(ext);
+      if (!isNativeImage && !isNativeAudio) return undefined;
+      const supported = isNativeImage ? promptCapability?.image : promptCapability?.audio;
+      if (supported) return undefined;
+      return t('conversation.sendbox.mediaPathFallback', {
+        defaultValue: 'This agent has no native support for this file type; it will be sent as a file path.',
+      });
+    },
+    [promptCapability, t]
+  );
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
   const [currentMode, setCurrentMode] = useState<string | undefined>(session_mode);
   const prepareRuntimeConfig = useCallback(async () => {
@@ -168,7 +190,7 @@ const AcpSendBox: React.FC<{
     conversation_id,
     prepareRuntime: prepareRuntimeConfig,
     prepareSetRuntime: teamPermission?.warmupSession,
-    loadConfigOptions: teamPermission?.loadConfigOptions,
+    configOptionsPort: teamPermission?.configOptionsPort,
     enabled: true,
   });
   const runtimeMode = runtimeConfig.mode;
@@ -188,7 +210,7 @@ const AcpSendBox: React.FC<{
     backend,
     prepareRuntime: prepareRuntimeConfig,
     prepareSetRuntime: teamPermission?.warmupSession,
-    loadConfigOptions: teamPermission?.loadConfigOptions,
+    configOptionsPort: teamPermission?.configOptionsPort,
     enabled: isMobile,
     onSelectModelSuccess: () => Message.success(t('agent.model.switchSuccess')),
     onSelectModelFailed: (_modelId, error) => Message.error(t(configErrorMessageKey(error))),
@@ -235,7 +257,7 @@ const AcpSendBox: React.FC<{
   const optimisticAttemptRef = React.useRef(new Map<string, string>());
   const activeOptimisticSendIdsRef = React.useRef(new Set<string>());
   const runtimeView = useConversationRuntimeView(conversation_id);
-  const { markSendStarted, markSendAccepted, markSendFailed } = runtimeView;
+  const { markSendStarted, markSendAccepted, markSendFailed, supportsMidturnDelivery } = runtimeView;
 
   // Shared file handling logic
   const { handleFilesAdded, clearFiles } = useSendBoxFiles({
@@ -276,7 +298,6 @@ const AcpSendBox: React.FC<{
   useAcpInitialMessage({
     conversation_id: conversation_id,
     backend,
-    workspacePath,
     setAiProcessing,
     resetState,
     markSendStarted,
@@ -399,7 +420,7 @@ const AcpSendBox: React.FC<{
         markSendStarted();
         setAiProcessing(true);
         const result = await ipcBridge.acpConversation.sendMessage.invoke({
-          input: displayMessage,
+          input,
           conversation_id,
           files: sendFiles,
         });
@@ -507,7 +528,6 @@ Please check your local CLI tool authentication status`,
       t,
       teamPermission,
       teamSendMessage,
-      workspacePath,
     ]
   );
 
@@ -572,15 +592,22 @@ Please check your local CLI tool authentication status`,
     resetActiveExecution,
   } = useConversationCommandQueue({
     conversation_id: conversation_id,
+    // The queue (panel, runner, auto-send) is always live: backends that can
+    // deliver mid-turn (supports_midturn_delivery) still need a working
+    // enqueue for the explicit "add to queue" entry, and queued items must
+    // keep auto-sending once their turn arrives, same as non-supporting
+    // backends. What changed is who can trigger enqueue implicitly — see
+    // onSendHandler below.
     enabled: true,
     isBusy,
     runtimeGate: commandQueueRuntimeGate,
     onExecute: executeCommand,
   });
 
-  const onSendHandler = async (message: string) => {
-    const atPathFiles = atPath.map((item) => (typeof item === 'string' ? item : item.path));
-    const allFiles = [...uploadFile, ...atPathFiles];
+  // `@@` session references the user picked. Declared before the handlers that
+  // read it — every send path has to both forward and release it.
+  const [selectedSessions, setSelectedSessions] = useState<SessionRef[]>([]);
+  const { enabled: crossSessionEnabled } = useCrossSessionMessageEnabled();
 
     clearFiles();
     emitter.emit('acp.selected.file.clear');
@@ -628,12 +655,55 @@ Please check your local CLI tool authentication status`,
     await executeCommand({ input: message, files: allFiles });
   };
 
+  const [interrupting, setInterrupting] = useState(false);
+  const handleInterruptSend = async () => {
+    if (!teamRuntime?.onInterruptSend || !content.trim() || interrupting) return;
+    const files = collectChatFileRefs(uploadFile, atPath);
+    const input = content;
+    setContent('');
+    clearFiles();
+    // `onInterruptSend` is the TEAM interrupt path, and `@@` is disabled in team
+    // conversations (`isTeamConversation` below), so `selectedSessions` is
+    // always empty here. Cleared anyway so the state cannot leak if that
+    // relationship ever changes.
+    setSelectedSessions([]);
+    emitter.emit('acp.selected.file.clear');
+    setInterrupting(true);
+    try {
+      await teamRuntime.onInterruptSend({ input, files });
+    } finally {
+      setInterrupting(false);
+    }
+  };
+
+  // Explicit "add to queue" entry — visibility is keyed only to the user's
+  // own input (non-empty draft), never to the agent's busy/replying state:
+  // tying it to that racy, async signal made the entry appear/disappear
+  // unpredictably. Clicking while idle is semantically fine — the queue's own
+  // mode governs (auto drains immediately, manual holds). Shown for both
+  // supporting and non-supporting backends. Clears the draft the same way a
+  // send would.
+  const canQueueCurrentDraft = content.trim().length > 0;
+  const handleAddToQueue = useCallback(() => {
+    const allFiles = collectChatFileRefs(uploadFile, atPath);
+    // `@@` references must ride along, and must be released from the send box
+    // the same way the draft text is — otherwise they leak into whatever the
+    // user sends next.
+    enqueue({ input: content, files: allFiles, sessions: selectedSessions.length > 0 ? selectedSessions : undefined });
+    setContent('');
+    clearFiles();
+    setSelectedSessions([]);
+    emitter.emit('acp.selected.file.clear');
+  }, [atPath, clearFiles, content, enqueue, selectedSessions, setContent, uploadFile]);
+
   const handleEditQueuedCommand = useCallback(
     (item: ConversationCommandQueueItem) => {
       remove(item.id);
       setContent(item.input);
-      setUploadFile(Array.from(new Set(item.files)));
-      setAtPath([]);
+      // Restore upload refs → uploadFile paths, project refs → atPath items.
+      const { uploadFiles, atPath: restoredAtPath } = splitChatFileRefs(item.files);
+      setUploadFile(uploadFiles);
+      setAtPath(restoredAtPath);
       emitter.emit('acp.selected.file.clear');
     },
     [remove, setAtPath, setContent, setUploadFile]
@@ -641,9 +711,15 @@ Please check your local CLI tool authentication status`,
 
   const appendSelectedFiles = useCallback(
     (files: string[]) => {
-      setUploadFile((prev) => [...prev, ...files]);
+      // "Add files" picks a file from the backend machine's own filesystem
+      // (native dialog / server-fs browse) — an absolute backend path. Send it
+      // as a `local` ref (via the atPath lane, external-owned), NOT an `upload`
+      // ref: the raw path is not under the managed upload dir and would be
+      // rejected. Merge into this box's atPath only (no cross-column emit).
+      const merged = mergeFileSelectionItems(atPathRef.current, localSelectionItems(files));
+      if (merged !== atPathRef.current) setAtPath(merged as Array<string | FileOrFolderItem>);
     },
-    [setUploadFile]
+    [setAtPath]
   );
   const { openFileSelector, onSlashBuiltinCommand } = useOpenFileSelector({
     onFilesSelected: appendSelectedFiles,
@@ -813,13 +889,27 @@ Please check your local CLI tool authentication status`,
     t,
   ]);
 
-  useAddEventListener('acp.selected.file', setAtPath);
-  useAddEventListener('acp.selected.file.append', (selectedItems: Array<string | FileOrFolderItem>) => {
-    const merged = mergeFileSelectionItems(atPathRef.current, selectedItems);
-    if (merged !== atPathRef.current) {
-      setAtPath(merged as Array<string | FileOrFolderItem>);
-    }
-  });
+  // Accept file-selection events only when targeted at this conversation (or
+  // untargeted); on the multi-column team route this stops same-type peers from
+  // receiving each other's selections. See emitter EventTypes comment.
+  useAddEventListener(
+    'acp.selected.file',
+    (items: Array<string | FileOrFolderItem>, targetConversationId: string | undefined) => {
+      if (targetConversationId === undefined || targetConversationId === conversation_id) setAtPath(items);
+    },
+    [conversation_id, setAtPath]
+  );
+  useAddEventListener(
+    'acp.selected.file.append',
+    (selectedItems: Array<string | FileOrFolderItem>, targetConversationId: string | undefined) => {
+      if (targetConversationId !== undefined && targetConversationId !== conversation_id) return;
+      const merged = mergeFileSelectionItems(atPathRef.current, selectedItems);
+      if (merged !== atPathRef.current) {
+        setAtPath(merged as Array<string | FileOrFolderItem>);
+      }
+    },
+    [conversation_id, setAtPath]
+  );
 
   // Stop conversation handler
   const handleStop = async (): Promise<void> => {
@@ -847,6 +937,30 @@ Please check your local CLI tool authentication status`,
   const effectiveHandleStop = teamRuntime?.onStop ?? handleStop;
   const handleSendNowQueued = useCallback(
     async (item: ConversationCommandQueueItem) => {
+      if (supportsMidturnDelivery) {
+        // Supporting agents can deliver directly into the running turn — no
+        // need to stop/restart. Remove the item BEFORE executing (rather than
+        // after success) so the queue's own auto-drain effect can never
+        // double-pick it: send-now can be clicked while the turn is still
+        // busy (isProcessing → canExecute stays false, drain naturally
+        // skips) or while idle (canExecute true, drain WOULD race to dequeue
+        // the same front-of-queue item concurrently with this manual send).
+        // Removing first closes that race in both cases.
+        remove(item.id);
+        try {
+          await executeCommand({ input: item.input, files: item.files, sessions: item.sessions });
+        } catch {
+          // executeCommand already surfaces the failure (busy-conflict toast,
+          // error message card, etc.) via its own catch path — don't show a
+          // second one. Restore the user's content instead of dropping it:
+          // enqueue appends to the end, so promote it back to the front to
+          // match "send now" intent (it was already next in line).
+          const restored = enqueue({ input: item.input, files: item.files, sessions: item.sessions });
+          if (restored) prioritize(restored.id);
+        }
+        return;
+      }
+
       // Stop the current reply (best-effort), then promote the chosen command
       // to the front of the queue in auto mode.  The drain effect will fire it
       // once the execution gate shows canExecute — avoiding the 409 race that
@@ -855,9 +969,9 @@ Please check your local CLI tool authentication status`,
       await effectiveHandleStop();
       prioritize(item.id);
     },
-    [effectiveHandleStop, prioritize]
+    [effectiveHandleStop, enqueue, executeCommand, prioritize, remove, supportsMidturnDelivery]
   );
-  const sendBoxWidthClass = getChatSurfaceWidthClass(Boolean(teamPermission));
+  const sendBoxWidthClass = getChatSurfaceWidthClass();
 
   return (
     <div className={`${sendBoxWidthClass} flex flex-col mt-auto mb-16px`}>
@@ -879,23 +993,38 @@ Please check your local CLI tool authentication status`,
       <ThoughtDisplay
         running={teamRuntime?.loading ?? (aiProcessing && !hasThinkingMessage)}
         statusText={teamRuntime?.statusText}
-        externalElapsedSource={Boolean(teamRuntime)}
-        startedAtMs={teamRuntime?.startedAtMs ?? null}
+        externalElapsedSource={Boolean(teamRuntime) || turnStartedAtMs != null}
+        startedAtMs={teamRuntime ? (teamRuntime.startedAtMs ?? null) : turnStartedAtMs}
         onStop={effectiveHandleStop}
         onRetryStart={teamRuntime?.onRetryStart ? () => void teamRuntime.onRetryStart?.() : undefined}
       />
-
+      <CrossSessionDisabledBanner />
       <SendBox
         onMobilePlusClick={isMobile ? () => setIsMobileSheetOpen(true) : undefined}
         value={content}
         onChange={handleContentChange}
         selectedWorkspaceItems={atPath}
         onSelectedWorkspaceItemsChange={(items) => {
-          emitter.emit('acp.selected.file', items);
+          emitter.emit('acp.selected.file', items, conversation_id);
           setAtPath(items);
         }}
+        selectedSessions={selectedSessions}
+        onSelectedSessionsChange={setSelectedSessions}
+        crossSessionEnabled={crossSessionEnabled}
+        isTeamConversation={Boolean(teamRuntime)}
         loading={teamRuntime?.loading ?? isBusy}
+        active={teamRuntime?.isActive}
+        onFocused={teamRuntime?.onFocus}
         disabled={false}
+        sendDisabled={!supportsMidturnDelivery && isBusy}
+        sendDisabledTooltip={
+          !supportsMidturnDelivery && isBusy
+            ? t('conversation.commandQueue.midturnBlockedSendHint', {
+                defaultValue:
+                  'The current agent is still working and cannot receive another message yet. Add it to Draft box instead.',
+              })
+            : undefined
+        }
         placeholder={t('acp.sendbox.placeholder', {
           backend: agent_name || backend,
           defaultValue: `Send message to {{backend}}...`,
@@ -930,7 +1059,7 @@ Please check your local CLI tool authentication status`,
                 onModeChanged={isLeaderInTeam ? teamPermission?.propagateMode : undefined}
                 beforeRuntimeSync={prepareRuntimeConfig}
                 beforeRuntimeSet={teamPermission?.warmupSession}
-                loadConfigOptions={teamPermission?.loadConfigOptions}
+                configOptionsPort={teamPermission?.configOptionsPort}
               />
             )}
           </div>
@@ -943,6 +1072,7 @@ Please check your local CLI tool authentication status`,
                   <FilePreview
                     key={path}
                     path={path}
+                    hint={mediaPathHintFor(path)}
                     onRemove={() => setUploadFile(uploadFile.filter((v) => v !== path))}
                   />
                 ))}
@@ -960,7 +1090,7 @@ Please check your local CLI tool authentication status`,
                         closable
                         onClose={() => {
                           const newAtPath = atPath.filter((v) => (typeof v === 'string' ? true : v.path !== item.path));
-                          emitter.emit('acp.selected.file', newAtPath);
+                          emitter.emit('acp.selected.file', newAtPath, conversation_id);
                           setAtPath(newAtPath);
                         }}
                       >
@@ -979,6 +1109,35 @@ Please check your local CLI tool authentication status`,
         onSlashBuiltinCommand={onSlashBuiltinCommand}
         allowSendWhileLoading
         compactActions={false}
+        sendButtonPrefix={
+          // Agents reporting a window size (UsageUpdate.size) get a progress
+          // ring; agents reporting only a token count get a hollow ring whose
+          // popover shows the raw count — never a percentage against a
+          // guessed denominator. No usage report at all → nothing.
+          <>
+            {teamRuntime?.onInterruptSend && content.trim() && (
+              <Button
+                size='mini'
+                type='secondary'
+                icon={<Lightning />}
+                loading={interrupting}
+                onClick={() => void handleInterruptSend()}
+              >
+                {t('team.interruptAndSend')}
+              </Button>
+            )}
+            {tokenUsage ? <ContextUsageIndicator tokenUsage={tokenUsage} context_limit={context_limit} /> : undefined}
+          </>
+        }
+        onAddToDraft={handleAddToQueue}
+        addToDraftDisabled={!canQueueCurrentDraft}
+        addToDraftTooltip={
+          isBusy
+            ? t('conversation.commandQueue.addToQueueBusyHint', {
+                defaultValue: 'Save to Draft box and send it later.',
+              })
+            : t('conversation.commandQueue.addToQueue', { defaultValue: 'Save to Draft box' })
+        }
       ></SendBox>
       {isMobile && (
         <>

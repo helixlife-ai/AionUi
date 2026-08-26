@@ -26,17 +26,10 @@ import glitteringInputFieldCss from '@renderer/theme/presets/glittering-input-fi
 
 const T0 = 0;
 
-const decorative = (id: string, name: string, appearance: Theme['appearance'], css: string, cover?: string): Theme => ({
-  id,
-  name,
-  appearance,
-  css,
-  cover,
-  builtin: true,
-  created_at: T0,
-  updated_at: T0,
-});
-
+// Only the official themes ship built in: Light, Dark, and "follow system"
+// (the System sentinel is resolved to Light/Dark in resolveActiveTheme, not listed here).
+// The former decorative community skins were deprecated and removed; a persisted
+// activeId that still points at one resolves to Light via resolveActiveTheme.
 export const BUILTIN_THEMES: Theme[] = [
   {
     id: LIGHT_THEME_ID,
@@ -48,19 +41,6 @@ export const BUILTIN_THEMES: Theme[] = [
     updated_at: T0,
   },
   { id: DARK_THEME_ID, name: 'Dark', appearance: 'dark', builtin: true, created_at: T0, updated_at: T0 },
-  decorative('misaka-mikoto-theme', 'Misaka Mikoto Theme', 'light', misakaMikotoCss, misakaMikotoCover),
-  decorative('hello-kitty', 'Hello Kitty', 'light', helloKittyCss, helloKittyCover),
-  decorative('retro-windows', 'Retro Windows', 'light', retroWindowsCss, retroWindowsCover),
-  decorative('retroma-y2k-jp-v42-pure', 'Y2K电子账本 by 椰树女王', 'light', retromaY2kCss, y2kJpCover),
-  decorative(
-    'retroma-obsidian-book',
-    'Retroma Obsidian Book',
-    'dark',
-    retromaObsidianBookCss,
-    retromaObsidianBookCover
-  ),
-  decorative('discourse-horizon', 'Discourse Horizon', 'light', discourseHorizonCss),
-  decorative('glittering-input-field', 'Glittering Input Field', 'light', glitteringInputFieldCss),
 ];
 
 export const BUILTIN_THEME_IDS = new Set(BUILTIN_THEMES.map((t) => t.id));

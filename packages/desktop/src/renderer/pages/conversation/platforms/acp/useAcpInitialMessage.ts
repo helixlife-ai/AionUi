@@ -21,7 +21,6 @@ import { buildSendFailureError } from './buildSendFailureError';
 type UseAcpInitialMessageParams = {
   conversation_id: string;
   backend: string;
-  workspacePath?: string;
   setAiProcessing: (value: boolean) => void;
   resetState: () => void;
   markSendStarted?: () => void;
@@ -38,7 +37,6 @@ type UseAcpInitialMessageParams = {
 export const useAcpInitialMessage = ({
   conversation_id,
   backend,
-  workspacePath,
   setAiProcessing,
   resetState,
   markSendStarted,
@@ -71,7 +69,7 @@ export const useAcpInitialMessage = ({
 
         void checkAndUpdateTitle(conversation_id, input);
         const result = await ipcBridge.acpConversation.sendMessage.invoke({
-          input: displayMessage,
+          input,
           conversation_id: conversation_id,
           files: sendFiles,
         });
@@ -141,6 +139,5 @@ export const useAcpInitialMessage = ({
     resetState,
     setAiProcessing,
     t,
-    workspacePath,
   ]);
 };

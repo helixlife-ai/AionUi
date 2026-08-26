@@ -326,8 +326,16 @@ describe('AssistantSettings', () => {
       </ConfigProvider>
     );
 
+    // Wait for ThemedLogo detection to settle
+    await act(async () => {
+      await Promise.resolve();
+    });
+
     const row = screen.getByTestId('enabled-assistant-row-claude');
     expect(row.querySelector('.arco-avatar-circle')).toHaveStyle({ height: '20px', width: '20px' });
-    expect(row.querySelector('img')).toHaveClass('object-contain');
+    const logo = row.querySelector('img, span[role="img"]');
+    expect(logo).not.toBeNull();
+    expect(logo).toHaveClass('object-contain');
+    vi.unstubAllGlobals();
   });
 });

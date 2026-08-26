@@ -90,6 +90,9 @@ export const OFFICECLI_INSTALL_URL = 'https://github.com/iOfficeAI/OfficeCLI/rel
 
 interface OfficeWatchViewerProps {
   docType: DocType;
+  // Preferred identity: the backend resolves pe→path and keys the watch by it, so
+  // start/stop match even when the tab has no device path (explorer office files).
+  fileRef?: ChatFileRef;
   file_path?: string;
   content?: string;
   workspace?: string;
@@ -176,7 +179,7 @@ export function shouldShowOfficeInstallHint(code: OfficeWatchErrorCode | undefin
  * Used by PptViewer, OfficeDocViewer, and ExcelViewer — each passes its
  * docType to select the correct bridge, proxy path, and i18n keys.
  */
-const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_path, workspace }) => {
+const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, fileRef, file_path, workspace }) => {
   const { t } = useTranslation();
   const tRef = useRef(t);
   tRef.current = t;
@@ -187,18 +190,21 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
   const [status, setStatus] = useState<'starting' | 'installing'>('starting');
   const [error, setError] = useState<OfficeWatchErrorState | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  // Mirror both identities for the unmount cleanup; stop prefers the ref.
   const file_pathRef = useRef(file_path);
   const startedPathRef = useRef<string | null>(null);
 
   useEffect(() => {
     file_pathRef.current = file_path;
+    fileRefRef.current = fileRef;
     const bridge = BRIDGE[docType];
     const translate = tRef.current;
 
     // Drop any previous iframe/webview immediately so proxy SSE/ping stop.
     setWatchUrl(null);
 
-    if (!file_path) {
+    // A ChatFileRef alone is enough (explorer office tabs have no device path).
+    if (!fileRef && !file_path) {
       setLoading(false);
       setError({ message: translate('preview.errors.missingFilePath') });
       return;
@@ -346,7 +352,7 @@ const OfficeWatchViewer: React.FC<OfficeWatchViewerProps> = ({ docType, file_pat
             <div className='text-12px text-t-secondary mb-12px'>{t(keys.installHint)}</div>
           )}
           {showServerInstallGuide && (
-            <div className='text-left mb-12px'>
+            <div className='text-start mb-12px'>
               <div className='text-12px text-t-secondary mb-8px'>{t('preview.office.serverInstall.hint')}</div>
               <code className='block select-all rounded-8px bg-2 px-10px py-8px text-12px text-t-primary'>
                 {OFFICECLI_SERVER_INSTALL_COMMAND}

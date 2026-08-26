@@ -7,6 +7,7 @@ import {
   Cat,
   Communication,
   Earth,
+  Inbox,
   Info,
   Lightning,
   LinkCloud,
@@ -114,6 +115,12 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
       },
       pet: { id: 'pet', label: t('pet.desktopPet'), icon: <Cat />, path: 'pet' },
       system: { id: 'system', label: t('settings.system'), icon: <System />, path: 'system' },
+      archived: {
+        id: 'archived',
+        label: t('settings.archived.navLabel'),
+        icon: <Inbox />,
+        path: 'archived',
+      },
       about: { id: 'about', label: t('settings.about'), icon: <Info />, path: 'about' },
     };
 

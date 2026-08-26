@@ -66,7 +66,7 @@ class ConfigServiceImpl {
 
   // Idempotent: concurrent callers share the same in-flight promise, and a
   // resolved init returns immediately. Modules that need persisted settings on
-  // module load (theme/colorScheme/language) await whenReady() before reading.
+  // module load (theme/language) await whenReady() before reading.
   initialize(): Promise<void> {
     if (this.initPromise) return this.initPromise;
     const generation = ++this.initGeneration;
