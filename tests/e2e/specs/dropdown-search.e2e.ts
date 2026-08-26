@@ -18,19 +18,11 @@ import { closeAssistantEditor, fillAssistantName, goToGuid } from '../helpers';
 const SEARCH_THRESHOLD = 5;
 
 async function openGuidPlusDropdown(page: Page): Promise<void> {
-  await page.locator('[data-testid="file-upload-btn"]').waitFor({ state: 'visible', timeout: 15_000 });
+  const plusButton = page.locator('[data-testid="file-upload-btn"]');
+  await plusButton.waitFor({ state: 'visible', timeout: 15_000 });
   const dropdownMenu = page.locator('.arco-dropdown-menu').last();
 
-  await page.evaluate(() => {
-    const button = document.querySelector('[data-testid="file-upload-btn"]');
-    const trigger = button?.parentElement;
-    if (!trigger) {
-      throw new Error('Guid plus dropdown trigger not found');
-    }
-    ['mouseenter', 'mouseover', 'mousemove'].forEach((type) => {
-      trigger.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
-    });
-  });
+  await plusButton.click();
   try {
     await dropdownMenu.waitFor({ state: 'visible', timeout: 1_500 });
   } catch {
@@ -40,7 +32,9 @@ async function openGuidPlusDropdown(page: Page): Promise<void> {
       if (!trigger) {
         throw new Error('Guid plus dropdown trigger not found');
       }
-      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+      ['mouseenter', 'mouseover', 'mousemove', 'click'].forEach((type) => {
+        trigger.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+      });
     });
     await dropdownMenu.waitFor({ state: 'visible', timeout: 5_000 });
   }

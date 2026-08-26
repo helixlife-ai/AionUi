@@ -1,5 +1,5 @@
 {
-  "version": "v0.2.9",
+  "version": "v0.2.11",
   "name": "AgentHub",
   "display_name": "Studio",
   "icon_url": "https://aio-resources.newidea.pro/data/AgentHub/icon.svg",
@@ -7,7 +7,7 @@
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": "内置 133 个官方精选科研技能",
+  "desc": "修复 Skill 搜索功能偶发闪退的问题\n优化旧版 Studio 历史数据的迁移逻辑",
   "startup": true,
   "force_update": true,
   "device_limit": [

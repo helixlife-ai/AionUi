@@ -105,7 +105,7 @@ ENV DISABLE_AUTOUPDATER=1
 # Studio 历史导入工具(Agent Hub 扩展)。容器启动时由 compose command 调用,
 # 从 happy server 拉取并解密该设备 SN 的 Studio 历史会话,导入 aionui-backend.db。
 # tweetnacl 装在脚本同级 node_modules,供 ESM import 解析。
-COPY scripts/studio-history-import/import.mjs /opt/studio-import/import.mjs
+COPY scripts/studio-history-import/ /opt/studio-import/
 RUN cd /opt/studio-import && npm install --omit=dev tweetnacl && npm cache clean --force
 
 # 一体机全量更新只同步 docker-compose.yaml 到设备 —— 不含 aio_deploy/ 下的其它文件。
