@@ -20,10 +20,10 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).not.toContain('studio-server.newidea.pro');
   });
 
-  it('uses the v0.2.11 release consistently', () => {
-    expect(deploymentConfig.version).toBe('v0.2.11');
+  it('uses the v0.2.12 release consistently', () => {
+    expect(deploymentConfig.version).toBe('v0.2.12');
     expect(deploymentConfig.desc).toBe('修复 Skill 搜索功能偶发闪退的问题\n优化旧版 Studio 历史数据的迁移逻辑');
-    expect(compose).toContain('application/agent-hub:v0.2.11');
+    expect(compose).toContain('application/agent-hub:v0.2.12');
     expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.9');
   });
 });

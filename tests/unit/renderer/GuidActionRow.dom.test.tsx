@@ -313,4 +313,21 @@ describe('GuidActionRow skill/MCP submenu search', () => {
     expect(screen.getByText('skill-3')).toBeInTheDocument();
     expect(screen.queryByText('skill-4')).not.toBeInTheDocument();
   });
+
+  it('keeps the skill search focused after consecutive letters and digits', () => {
+    renderActionRow();
+
+    const search = screen.getByTestId('guid-skill-search');
+    fireEvent.focus(search);
+    fireEvent.keyDown(search, { key: 's' });
+    fireEvent.change(search, { target: { value: 's' } });
+    fireEvent.keyDown(search, { key: 'k' });
+    fireEvent.keyDown(search, { key: '3' });
+    fireEvent.keyPress(search, { key: '3' });
+    fireEvent.change(search, { target: { value: 'skill-3' } });
+
+    expect(search).toHaveValue('skill-3');
+    expect(search).toHaveFocus();
+    expect(screen.getByText('skill-3')).toBeInTheDocument();
+  });
 });
