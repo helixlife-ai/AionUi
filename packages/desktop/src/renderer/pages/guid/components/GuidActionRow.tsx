@@ -31,7 +31,7 @@ import type { AcpModelInfo } from '../types';
 import { getAvailableModels } from '../utils/modelUtils';
 import { Button, Checkbox, Dropdown, Menu, Tooltip } from '@arco-design/web-react';
 import { ArrowUp, Brain, FolderUpload, Lightning, Plus, Shield, UploadOne } from '@icon-park/react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isAgentHubPermissionSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import styles from '../index.module.css';
@@ -47,6 +47,10 @@ import styles from '../index.module.css';
  * flyout). While the user is interacting with search we also force the SubMenu
  * popup to stay open, because filtering shrinks the list and Arco would
  * otherwise fire mouseLeave.
+ *
+ * Windows Chromium also moves focus onto `role="menuitem"` for typeahead and
+ * fires mouseLeave when filtered items remount. Keep the input focused and
+ * ignore that leave while searching.
  */
 const SubmenuSearchList: React.FC<{
   showSearch: boolean;
@@ -56,6 +60,7 @@ const SubmenuSearchList: React.FC<{
   searchTestId: string;
   emptyText: string;
   isEmpty: boolean;
+  searchInputRef?: React.Ref<HTMLInputElement>;
   onSearchFocus?: () => void;
   onSearchBlur?: () => void;
   children: React.ReactNode;
@@ -67,6 +72,7 @@ const SubmenuSearchList: React.FC<{
   searchTestId,
   emptyText,
   isEmpty,
+  searchInputRef,
   onSearchFocus,
   onSearchBlur,
   children,
@@ -79,11 +85,14 @@ const SubmenuSearchList: React.FC<{
         onMouseDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => event.stopPropagation()}
+        onKeyPress={(event) => event.stopPropagation()}
       >
         <AionInlineSearchInput
+          ref={searchInputRef}
           value={query}
           onChange={onQueryChange}
           placeholder={placeholder}
+          autoFocus
           data-testid={searchTestId}
           inputProps={{
             onFocus: onSearchFocus,
@@ -100,9 +109,18 @@ const SubmenuSearchList: React.FC<{
 
 const submenuSearchTriggerProps = (keepOpen: boolean) => ({
   popupStyle: { overflowX: 'hidden' as const },
-  mouseLeaveDelay: 300,
+  mouseLeaveDelay: keepOpen ? 800 : 300,
+  blurToHide: false,
   ...(keepOpen ? { popupVisible: true } : {}),
 });
+
+const isFocusInsideSearchPopup = (input: HTMLInputElement | null): boolean => {
+  const active = document.activeElement;
+  if (!input || !(active instanceof Element)) return false;
+  if (active === input) return true;
+  const popup = input.closest('.arco-dropdown, .arco-trigger-popup, .arco-dropdown-menu');
+  return !!popup?.contains(active);
+};
 
 type GuidActionRowProps = {
   // File handling
@@ -185,6 +203,8 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
   const [mcpQuery, setMcpQuery] = useState('');
   const [skillSearchFocused, setSkillSearchFocused] = useState(false);
   const [mcpSearchFocused, setMcpSearchFocused] = useState(false);
+  const skillSearchInputRef = useRef<HTMLInputElement>(null);
+  const mcpSearchInputRef = useRef<HTMLInputElement>(null);
   const skillSearchActive = skillSearchFocused || skillQuery.length > 0;
   const mcpSearchActive = mcpSearchFocused || mcpQuery.length > 0;
   // Skills/MCP submenus render in a nested Arco portal. Clicks there look like
@@ -206,8 +226,37 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
     return () => document.removeEventListener('mousedown', onMouseDown, true);
   }, []);
 
+  useLayoutEffect(() => {
+    if (!skillSearchFocused) return;
+    skillSearchInputRef.current?.focus({ preventScroll: true });
+  }, [skillQuery, skillSearchFocused]);
+
+  useLayoutEffect(() => {
+    if (!mcpSearchFocused) return;
+    mcpSearchInputRef.current?.focus({ preventScroll: true });
+  }, [mcpQuery, mcpSearchFocused]);
+
+  const restoreSearchFocusIfStillInPopup = useCallback(
+    (inputRef: { current: HTMLInputElement | null }, setFocused: (value: boolean) => void) => {
+      window.setTimeout(() => {
+        const input = inputRef.current;
+        if (isFocusInsideSearchPopup(input)) {
+          input?.focus({ preventScroll: true });
+          return;
+        }
+        setFocused(false);
+      }, 0);
+    },
+    []
+  );
+
   const handlePlusDropdownVisibleChange = useCallback((visible: boolean) => {
-    if (!visible && pointerInsidePlusMenuRef.current) {
+    if (
+      !visible &&
+      (pointerInsidePlusMenuRef.current ||
+        document.activeElement === skillSearchInputRef.current ||
+        document.activeElement === mcpSearchInputRef.current)
+    ) {
       return;
     }
     setIsPlusDropdownOpen(visible);
@@ -543,12 +592,14 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
             searchTestId='guid-skill-search'
             emptyText={t('settings.skillsHub.noSearchResults', { defaultValue: 'No matching skills.' })}
             isEmpty={filteredSkills.length === 0}
+            searchInputRef={skillSearchInputRef}
             onSearchFocus={() => setSkillSearchFocused(true)}
-            onSearchBlur={() => setSkillSearchFocused(false)}
+            onSearchBlur={() => restoreSearchFocusIfStillInPopup(skillSearchInputRef, setSkillSearchFocused)}
           >
             {filteredSkills.map((skill) => (
               <Menu.Item
                 key={`skill-${skill.name}`}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleSkill(skill.name, skill.isAuto);
@@ -587,12 +638,14 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
             searchTestId='guid-mcp-search'
             emptyText={t('mcp.noServersFound', { defaultValue: 'No servers found matching your criteria' })}
             isEmpty={filteredMcpServers.length === 0}
+            searchInputRef={mcpSearchInputRef}
             onSearchFocus={() => setMcpSearchFocused(true)}
-            onSearchBlur={() => setMcpSearchFocused(false)}
+            onSearchBlur={() => restoreSearchFocusIfStillInPopup(mcpSearchInputRef, setMcpSearchFocused)}
           >
             {filteredMcpServers.map((server) => (
               <Menu.Item
                 key={`mcp-${server.id}`}
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleMcpServer(server.id);
