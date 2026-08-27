@@ -6,8 +6,8 @@
 
 import { Search } from '@icon-park/react';
 import classNames from 'classnames';
-import type { CSSProperties, InputHTMLAttributes, Ref } from 'react';
-import React, { forwardRef } from 'react';
+import type { CSSProperties, InputHTMLAttributes, MutableRefObject, Ref } from 'react';
+import React, { forwardRef, useCallback, useLayoutEffect, useRef } from 'react';
 import styles from './AionInlineSearchInput.module.css';
 
 /**
@@ -42,21 +42,64 @@ export type AionInlineSearchInputProps = {
   >;
 };
 
+const SEARCH_KEY_EVENTS = ['keydown', 'keyup', 'keypress', 'beforeinput'] as const;
+
+const stopKeyEventFromLeavingInput = (event: Event) => {
+  event.stopPropagation();
+};
+
+const setForwardedRef = <T,>(ref: Ref<T> | undefined, value: T | null) => {
+  if (!ref) return;
+  if (typeof ref === 'function') {
+    ref(value);
+    return;
+  }
+  (ref as MutableRefObject<T | null>).current = value;
+};
+
 const AionInlineSearchInput = forwardRef<HTMLInputElement, AionInlineSearchInputProps>((props, ref) => {
   const { value, onChange, placeholder, className, style, autoFocus, disabled, wrapTestId, inputProps } = props;
-  const { onKeyDown, onKeyUp, onMouseDown, onClick, ...restInputProps } = inputProps ?? {};
+  const { onKeyDown, onKeyUp, onKeyPress, onMouseDown, onClick, ...restInputProps } = inputProps ?? {};
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const setInputRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      inputRef.current = node;
+      setForwardedRef(ref, node);
+    },
+    [ref]
+  );
+
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return undefined;
+    // Native bubble listeners run before parent Menu/Dropdown handlers.
+    // React stopPropagation alone is not enough on Windows: Chromium maps
+    // role="menuitem" to typeahead (letters + digits) and keypress still fires.
+    for (const type of SEARCH_KEY_EVENTS) {
+      el.addEventListener(type, stopKeyEventFromLeavingInput);
+    }
+    return () => {
+      for (const type of SEARCH_KEY_EVENTS) {
+        el.removeEventListener(type, stopKeyEventFromLeavingInput);
+      }
+    };
+  }, []);
 
   return (
     <div className={classNames(styles.searchbar, className)} style={style} data-testid={wrapTestId}>
       <Search theme='outline' size='13' className={styles.icon} fill='currentColor' />
       <input
         {...restInputProps}
-        ref={ref as Ref<HTMLInputElement>}
+        ref={setInputRef}
         className={styles.input}
         value={value}
         placeholder={placeholder}
         disabled={disabled}
         autoFocus={autoFocus}
+        autoComplete='off'
+        autoCorrect='off'
+        spellCheck={false}
         data-testid={props['data-testid']}
         onChange={(event) => onChange(event.target.value)}
         onMouseDown={(event) => {
@@ -70,15 +113,16 @@ const AionInlineSearchInput = forwardRef<HTMLInputElement, AionInlineSearchInput
           onClick?.(event);
         }}
         onKeyDown={(event) => {
-          // Letters and digits must stay in this input. Nested Arco menus listen
-          // for the same keys (typeahead / item hotkeys) and will close the
-          // flyout or swallow digits if the event bubbles.
           event.stopPropagation();
           onKeyDown?.(event);
         }}
         onKeyUp={(event) => {
           event.stopPropagation();
           onKeyUp?.(event);
+        }}
+        onKeyPress={(event) => {
+          event.stopPropagation();
+          onKeyPress?.(event);
         }}
       />
     </div>
