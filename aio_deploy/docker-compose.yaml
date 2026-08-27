@@ -1,7 +1,7 @@
 name: agent-hub
 services:
   agent-hub:
-    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.11
+    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.12
     container_name: agent-hub
     user: '0'
     # 资源倾斜：在启动阶段给予默认应用大部分资源
