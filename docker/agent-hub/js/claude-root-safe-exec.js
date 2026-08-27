@@ -17,6 +17,43 @@
  */
 const { spawn } = require('child_process');
 
+function appendResourceAttributes(current, additions) {
+  const attributes = current ? current.split(',').filter(Boolean) : [];
+  const additionKeys = new Set(additions.map(([key]) => key));
+  const retained = attributes.filter((item) => !additionKeys.has(item.split('=', 1)[0]));
+  return [...retained, ...additions.map(([key, value]) => `${key}=${encodeURIComponent(value)}`)].join(',');
+}
+
+/**
+ * Enable Claude Code native tracing only for the Claude child process.
+ * Keeping OTEL_* out of the container-wide environment prevents Codex from
+ * inheriting Claude's agent identity.
+ *
+ * @param {NodeJS.ProcessEnv} env
+ * @returns {NodeJS.ProcessEnv}
+ */
+function configureClaudeTelemetry(env) {
+  const enabled = String(env.OTEL_TRACES_EXPORTER || '')
+    .toLowerCase()
+    .split(',')
+    .map((value) => value.trim())
+    .includes('otlp');
+  const endpoint = String(env.OTEL_EXPORTER_OTLP_ENDPOINT || '').trim();
+  if (!enabled || !endpoint) return env;
+
+  const next = { ...env };
+  next.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
+  next.CLAUDE_CODE_ENHANCED_TELEMETRY_BETA = '1';
+  next.OTEL_SERVICE_NAME = 'Studio';
+
+  const additions = [
+    ['service.name', 'Studio'],
+    ['app_server_name', 'claude-code'],
+  ];
+  next.OTEL_RESOURCE_ATTRIBUTES = appendResourceAttributes(env.OTEL_RESOURCE_ATTRIBUTES, additions);
+  return next;
+}
+
 /**
  * @param {string[]} incoming
  * @param {{ isRoot?: boolean, env?: NodeJS.ProcessEnv }} [opts]
@@ -48,7 +85,7 @@ function buildClaudeLaunch(incoming, opts = {}) {
 
   const wantsFullAuto = hadYolo || modeValue === 'bypassPermissions';
   const out = [];
-  const env = { ...baseEnv };
+  let env = { ...baseEnv };
 
   if (isRoot && wantsFullAuto) {
     // Undocumented Claude Code escape hatch for root in containers / sandboxes.
@@ -65,6 +102,7 @@ function buildClaudeLaunch(incoming, opts = {}) {
   }
 
   out.push(...passthrough);
+  env = configureClaudeTelemetry(env);
   return { argv: out, env };
 }
 
@@ -91,7 +129,7 @@ function main() {
   });
 }
 
-module.exports = { buildClaudeLaunch };
+module.exports = { buildClaudeLaunch, configureClaudeTelemetry };
 
 if (require.main === module) {
   main();
