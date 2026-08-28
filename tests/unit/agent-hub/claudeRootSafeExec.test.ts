@@ -68,13 +68,14 @@ describe('Claude Code native telemetry launch environment', () => {
       OTEL_TRACES_EXPORTER: 'console,otlp',
       OTEL_EXPORTER_OTLP_ENDPOINT: 'http://collector:4318',
       OTEL_EXPORTER_OTLP_PROTOCOL: 'http/protobuf',
-      OTEL_RESOURCE_ATTRIBUTES: 'region=cn,service.name=stale',
+      OTEL_RESOURCE_ATTRIBUTES: 'region=cn,application_name=stale',
     });
 
     expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe('http://collector:4318');
-    expect(env.OTEL_SERVICE_NAME).toBe('Studio');
+    expect(env.OTEL_SERVICE_NAME).toBeUndefined();
     expect(env.OTEL_RESOURCE_ATTRIBUTES).toContain('region=cn');
+    expect(env.OTEL_RESOURCE_ATTRIBUTES).toContain('application_name=Studio');
     expect(env.OTEL_RESOURCE_ATTRIBUTES).toContain('app_server_name=claude-code');
-    expect(env.OTEL_RESOURCE_ATTRIBUTES).not.toContain('service.name=stale');
+    expect(env.OTEL_RESOURCE_ATTRIBUTES).not.toContain('application_name=stale');
   });
 });

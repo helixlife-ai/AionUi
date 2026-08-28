@@ -44,10 +44,9 @@ function configureClaudeTelemetry(env) {
   const next = { ...env };
   next.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
   next.CLAUDE_CODE_ENHANCED_TELEMETRY_BETA = '1';
-  next.OTEL_SERVICE_NAME = 'Studio';
 
   const additions = [
-    ['service.name', 'Studio'],
+    ['application_name', 'Studio'],
     ['app_server_name', 'claude-code'],
   ];
   next.OTEL_RESOURCE_ATTRIBUTES = appendResourceAttributes(env.OTEL_RESOURCE_ATTRIBUTES, additions);

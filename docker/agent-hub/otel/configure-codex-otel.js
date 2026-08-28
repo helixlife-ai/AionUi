@@ -24,7 +24,7 @@ function buildCodexOtelConfig(env) {
   if (!enabled || !endpoint) return '';
 
   const attributes = {
-    'service.name': 'Studio',
+    application_name: 'Studio',
     app_server_name: 'codex',
   };
 
