@@ -24,8 +24,8 @@ function buildCodexOtelConfig(env) {
   if (!enabled || !endpoint) return '';
 
   const attributes = {
-    'resourceAttributes.service.name': 'Studio',
-    'resourceAttributes.app_server_name': 'codex',
+    'service.name': 'Studio',
+    app_server_name: 'codex',
   };
 
   return `

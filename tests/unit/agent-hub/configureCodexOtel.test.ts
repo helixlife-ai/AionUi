@@ -28,8 +28,9 @@ describe('Codex native telemetry config', () => {
 
     expect(config).toContain('trace_exporter = { "otlp-http"');
     expect(config).toContain('endpoint = "http://collector:4318/v1/traces"');
-    expect(config).toContain('"resourceAttributes.service.name" = "Studio"');
-    expect(config).toContain('"resourceAttributes.app_server_name" = "codex"');
+    expect(config).toContain('"service.name" = "Studio"');
+    expect(config).toContain('"app_server_name" = "codex"');
+    expect(config).not.toContain('"resourceAttributes.service.name"');
     expect(config).toContain('log_user_prompt = true');
   });
 
