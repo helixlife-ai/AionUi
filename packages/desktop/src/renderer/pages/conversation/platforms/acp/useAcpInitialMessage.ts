@@ -7,10 +7,9 @@
 import { ipcBridge } from '@/common';
 import type { TMessage } from '@/common/chat/chatLib';
 import type { TConversationRuntimeSummary } from '@/common/config/storage';
+import { type ChatFileRef, isChatFileRef, uploadFileRef } from '@/common/types/chatFile';
 import { parseError, uuid } from '@/common/utils';
 import { emitter } from '@/renderer/utils/emitter';
-import { buildDisplayMessage } from '@/renderer/utils/file/messageFiles';
-import { preparePdfAttachmentsForSend } from '@/renderer/utils/hub/pdfAttachments/preparePdfAttachmentsForSend';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getConversationRuntimeWorkspaceErrorMessage } from '../../utils/conversationCreateError';
@@ -21,7 +20,6 @@ import { buildSendFailureError } from './buildSendFailureError';
 type UseAcpInitialMessageParams = {
   conversation_id: string;
   backend: string;
-  workspacePath?: string;
   setAiProcessing: (value: boolean) => void;
   resetState: () => void;
   markSendStarted?: () => void;
@@ -38,7 +36,6 @@ type UseAcpInitialMessageParams = {
 export const useAcpInitialMessage = ({
   conversation_id,
   backend,
-  workspacePath,
   setAiProcessing,
   resetState,
   markSendStarted,
@@ -62,18 +59,22 @@ export const useAcpInitialMessage = ({
       try {
         const initialMessage = JSON.parse(storedMessage);
         const input = typeof initialMessage.input === 'string' ? initialMessage.input : '';
-        const files = Array.isArray(initialMessage.files) ? initialMessage.files : [];
-        const sendFiles = await preparePdfAttachmentsForSend(files, { backend });
-        const displayMessage = buildDisplayMessage(input, sendFiles, workspacePath || '');
+        // Initial files use source-tagged refs. Legacy string entries are kept
+        // compatible by treating them as device uploads.
+        const files: ChatFileRef[] = Array.isArray(initialMessage.files)
+          ? initialMessage.files
+              .map((file: unknown) => (typeof file === 'string' ? uploadFileRef(file) : file))
+              .filter(isChatFileRef)
+          : [];
 
         markSendStarted?.();
         setAiProcessing(true);
 
         void checkAndUpdateTitle(conversation_id, input);
         const result = await ipcBridge.acpConversation.sendMessage.invoke({
-          input: displayMessage,
+          input,
           conversation_id: conversation_id,
-          files: sendFiles,
+          files,
         });
         markSendAccepted?.(result.turn_id, result.runtime, result.msg_id);
 
@@ -141,6 +142,5 @@ export const useAcpInitialMessage = ({
     resetState,
     setAiProcessing,
     t,
-    workspacePath,
   ]);
 };

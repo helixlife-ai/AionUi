@@ -253,9 +253,9 @@ export function useWorkspaceTree({ workspace, conversation_id, eventPrefix }: Us
               isFile: nodeData.isFile,
               relativePath: nodeData.relativePath,
             },
-          ]);
+          ], conversation_id);
         } else if (shouldEmit) {
-          emitter.emit(`${eventPrefix}.selected.file`, []);
+          emitter.emit(`${eventPrefix}.selected.file`, [], conversation_id);
         }
         return;
       }
@@ -277,7 +277,7 @@ export function useWorkspaceTree({ workspace, conversation_id, eventPrefix }: Us
               isFile: false,
               relativePath: nodeData.relativePath,
             },
-          ]);
+          ], conversation_id);
         }
       } else if (nodeData.fullPath) {
         selectedNodeRef.current = null;
@@ -290,7 +290,7 @@ export function useWorkspaceTree({ workspace, conversation_id, eventPrefix }: Us
               isFile: true,
               relativePath: nodeData.relativePath,
             },
-          ]);
+          ], conversation_id);
         }
       }
     },

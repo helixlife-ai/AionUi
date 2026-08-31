@@ -67,6 +67,13 @@ export async function showNotification({
   // Check if notification is enabled
   const notificationEnabled = await ProcessConfig.get('system.notificationEnabled');
   if (notificationEnabled === false) {
+    console.log('[Notification] Skipped: notifications are disabled in settings');
+    return;
+  }
+
+  // Do not notify while the user is already looking at the app.
+  if (mainWindowRef && !mainWindowRef.isDestroyed() && mainWindowRef.isFocused()) {
+    console.log('[Notification] Skipped: main window is focused');
     return;
   }
 

@@ -4,11 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { SessionRef } from '@/common/adapter/ipcBridge';
+import { type ChatFileRef, isChatFileRef, uploadFileRef } from '@/common/types/chatFile';
+
 export type PendingAcpSend = {
   id: string;
   conversation_id: string;
   input: string;
-  files: string[];
+  files: ChatFileRef[];
+  sessions?: SessionRef[];
   displayMessage: string;
   createdAt: number;
   status: 'pending' | 'work' | 'error';
@@ -26,7 +30,7 @@ const isPendingAcpSend = (value: unknown, conversation_id: string): value is Pen
     item.conversation_id === conversation_id &&
     typeof item.input === 'string' &&
     Array.isArray(item.files) &&
-    item.files.every((file) => typeof file === 'string') &&
+    item.files.every(isChatFileRef) &&
     typeof item.displayMessage === 'string' &&
     typeof item.createdAt === 'number' &&
     (item.status === 'pending' || item.status === 'work' || item.status === 'error')
@@ -39,7 +43,38 @@ export const readPendingAcpSends = (conversation_id: string): PendingAcpSend[] =
     const raw = window.sessionStorage.getItem(getPendingAcpSendStorageKey(conversation_id));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? parsed.filter((item) => isPendingAcpSend(item, conversation_id)) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((item) => {
+      if (isPendingAcpSend(item, conversation_id)) return [item];
+      if (!item || typeof item !== 'object') return [];
+      const legacy = item as Partial<PendingAcpSend> & { files?: unknown };
+      if (
+        typeof legacy.id !== 'string' ||
+        legacy.conversation_id !== conversation_id ||
+        typeof legacy.input !== 'string' ||
+        typeof legacy.displayMessage !== 'string' ||
+        typeof legacy.createdAt !== 'number' ||
+        !Array.isArray(legacy.files)
+      ) {
+        return [];
+      }
+      const files = legacy.files.flatMap((file) =>
+        typeof file === 'string' && file ? [uploadFileRef(file)] : isChatFileRef(file) ? [file] : []
+      );
+      const status = legacy.status;
+      if (status !== 'pending' && status !== 'work' && status !== 'error') return [];
+      return [
+        {
+          id: legacy.id,
+          conversation_id,
+          input: legacy.input,
+          files,
+          displayMessage: legacy.displayMessage,
+          createdAt: legacy.createdAt,
+          status,
+        },
+      ];
+    });
   } catch (error) {
     console.warn('[pending-acp-send] Failed to read pending sends:', error);
     return [];

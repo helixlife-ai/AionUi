@@ -91,7 +91,7 @@ export function useWorkspaceEvents(options: UseWorkspaceEventsOptions) {
       selectedKeysRef.current = [];
       refreshWorkspace();
     }
-    emitter.emit(`${eventPrefix}.selected.file`, []);
+    emitter.emit(`${eventPrefix}.selected.file`, [], conversation_id);
   }, [
     conversation_id,
     workspace,

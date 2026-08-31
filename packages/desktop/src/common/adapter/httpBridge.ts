@@ -6,6 +6,8 @@
  * so existing renderer code works without changes.
  */
 
+import { refreshSession, WS_CLOSE_POLICY_VIOLATION } from './sessionRefresh';
+
 // ---------------------------------------------------------------------------
 // Base URL
 // ---------------------------------------------------------------------------
@@ -166,6 +168,8 @@ export type HttpRequestOptions = {
   signal?: AbortSignal;
   /** When false, skip the conversation-scoped default signal. Default true. */
   useDefaultSignal?: boolean;
+  /** Extra request headers merged on top of the default Content-Type. */
+  headers?: Record<string, string>;
 };
 
 export type HttpRequestSignalProvider = () => AbortSignal | undefined;
@@ -274,17 +278,65 @@ function redactForLog(value: unknown, depth = 0): unknown {
   );
 }
 
+const REFRESH_ENDPOINT = '/api/auth/refresh';
+
+/**
+ * Paths where a 401 is a genuine credential decision rather than an expired
+ * session — refreshing and replaying them would be recursive or nonsensical.
+ */
+function isAuthEndpoint(path: string): boolean {
+  return path.startsWith(REFRESH_ENDPOINT) || path === '/login' || path === '/logout';
+}
+
+/**
+ * Resolve the Core CSRF double-submit token for the current context.
+ *
+ * The open-source WebUI removed its CSRF layer with the legacy webserver (M6);
+ * a double-submit scheme is slated to return in M7. Until then this is a stub
+ * that reports "no token available", so the shared session-refresh primitive
+ * (`sessionRefresh.ts`) attaches no `x-csrf-token` header and the backend —
+ * which enforces no CSRF check here — accepts the request unchanged.
+ *
+ * It exists as the single seam every state-changing request would call for its
+ * token, so restoring CSRF in M7 (and the aionpro superset, whose backend does
+ * enforce the double-submit check) only swaps this body — no caller changes.
+ *
+ * Returns '' — always, for now.
+ */
+export function resolveCoreCsrfToken(): string {
+  return '';
+}
+
+function sendHttpRequest(
+  method: string,
+  path: string,
+  headers: Record<string, string>,
+  body?: unknown,
+  signal?: AbortSignal
+): Promise<Response> {
+  const url = `${getBaseUrl()}${path}`;
+  return fetch(url, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal,
+  });
+}
+
 export async function httpRequest<T>(
   method: string,
   path: string,
   body?: unknown,
   options?: HttpRequestOptions
 ): Promise<T> {
-  const url = `${getBaseUrl()}${path}`;
   const headers: Record<string, string> = {};
 
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
+  }
+
+  if (options?.headers) {
+    Object.assign(headers, options.headers);
   }
 
   console.debug(
@@ -295,12 +347,7 @@ export async function httpRequest<T>(
   const signal = resolveRequestSignal(path, options);
   let response: Response;
   try {
-    response = await fetch(url, {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal,
-    });
+    response = await sendHttpRequest(method, path, headers, body, signal);
   } catch (error) {
     if (isHttpAbortError(error)) {
       console.debug(`[httpBridge] ${method} ${path} aborted`);
@@ -391,14 +438,16 @@ export function httpPost<Data, Params = undefined>(
 
 export function httpPut<Data, Params = undefined>(
   path: string | ((params: Params) => string),
-  mapBody?: (params: Params) => unknown
+  mapBody?: (params: Params) => unknown,
+  mapHeaders?: (params: Params) => Record<string, string> | undefined
 ): ProviderLike<Data, Params> {
   return {
     provider: () => {},
     invoke: (async (params?: Params) => {
       const resolvedPath = typeof path === 'function' ? path(params!) : path;
       const body = mapBody ? mapBody(params!) : params;
-      return httpRequest<Data>('PUT', resolvedPath, body);
+      const headers = mapHeaders ? mapHeaders(params!) : undefined;
+      return httpRequest<Data>('PUT', resolvedPath, body, headers ? { headers } : undefined);
     }) as ProviderLike<Data, Params>['invoke'],
   };
 }
@@ -502,6 +551,14 @@ function ensureWs(): void {
   current.addEventListener('close', (e) => {
     console.debug('[ensureWs] CLOSED code=' + e.code + ' reason=' + e.reason);
     if (ws === current) ws = null;
+    if (e.code === WS_CLOSE_POLICY_VIOLATION) {
+      // Auth policy violation (expired/missing session). Blindly reconnecting with
+      // the same dead cookie is the #4124 loop — refresh once and only reconnect if
+      // it succeeds. On failure the realtime stream stays down until re-auth;
+      // browser.ts's bridge socket drives the /login redirect.
+      void handleWsAuthClose();
+      return;
+    }
     scheduleWsReconnect();
   });
 
@@ -538,6 +595,44 @@ function scheduleWsReconnect(): void {
     wsReconnectTimer = null;
     ensureWs();
   }, delay);
+}
+
+/**
+ * Handle a realtime socket closed for auth policy violation (code 1008): attempt
+ * one shared session refresh, then reconnect only if the session was renewed.
+ * A failed refresh means the session is truly dead — we stop rather than loop.
+ */
+async function handleWsAuthClose(): Promise<void> {
+  const refreshed = await refreshSession();
+  if (refreshed) {
+    wsReconnectAttempt = 0;
+    ensureWs();
+  }
+}
+
+/**
+ * Send an outbound frame over the shared WS singleton, wrapped in the realtime
+ * envelope `{ name, data }` (backend routes by `name`; the fs monitor uses
+ * `name === "fs"`, see stage-1 protocol.md v3).
+ *
+ * Ordered-stream semantics: if the socket is not OPEN the frame is **dropped**
+ * (never buffered). The caller re-declares full state on reconnect (the monitor
+ * client zeroes `current` and re-subscribes via `realtime.reconnected`), so a
+ * dropped outbound never leaves an undetectable gap. Returns `true` when the
+ * frame was handed to the socket.
+ */
+export function wsSend(name: string, data: unknown): boolean {
+  ensureWs();
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    return false;
+  }
+  try {
+    ws.send(JSON.stringify({ name, data }));
+    return true;
+  } catch (e) {
+    console.error('[wsSend] send failed:', e);
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------

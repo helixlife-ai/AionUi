@@ -6,7 +6,7 @@
 
 import {
   classifyConfigSetError,
-  type AcpConfigOptionsLoader,
+  type AcpConfigOptionsPort,
   useAcpConfigOptions,
 } from '@/renderer/hooks/agent/useAcpConfigOptions';
 import type { AgentModeOption } from '@/renderer/utils/model/agentTypes';
@@ -69,7 +69,7 @@ export interface AgentModeSelectorProps {
   /** Optional runtime preparation only before applying a runtime mode change. */
   beforeRuntimeSet?: () => Promise<void>;
   /** Optional config option loader for runtime owners such as team sessions. */
-  loadConfigOptions?: AcpConfigOptionsLoader;
+  configOptionsPort?: AcpConfigOptionsPort;
 }
 
 /**
@@ -100,7 +100,7 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
   dynamicModes,
   beforeRuntimeSync,
   beforeRuntimeSet,
-  loadConfigOptions,
+  configOptionsPort,
 }) => {
   const { t } = useTranslation();
   const layout = useLayoutContext();
@@ -109,7 +109,7 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
     conversation_id: conversation_id ?? '',
     prepareRuntime: beforeRuntimeSync,
     prepareSetRuntime: beforeRuntimeSet ?? beforeRuntimeSync,
-    loadConfigOptions,
+    configOptionsPort,
     enabled: Boolean(conversation_id),
   });
   const runtimeMode = runtimeConfig.mode;
@@ -141,9 +141,20 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
     [modeLabelFormatter]
   );
 
+  // A mode the backend accepted but has not applied yet (codex always; claude/agy when
+  // switched mid-turn). Kept apart from `current_mode` on purpose: `current_mode` must
+  // keep answering "which permission is governing right now".
+  const pendingMode = conversation_id ? runtimeConfig.pendingValues?.[runtimeMode?.id ?? 'mode'] : undefined;
+  const pendingModeLabel = useMemo(() => {
+    if (!pendingMode || pendingMode === current_mode) return undefined;
+    const option = modes.find((mode) => mode.value === pendingMode);
+    return option ? getDisplayModeLabel(option) : pendingMode;
+  }, [pendingMode, current_mode, modes, getDisplayModeLabel]);
+
   const can_switchMode = modes.length > 0 && Boolean(conversation_id || onModeSelect);
+  const runtimeModeBlocked = Boolean(runtimeMode && runtimeConfig.isConfigOptionBlocked?.(runtimeMode.id));
   // Mobile conversation header agent pill is display-only by design.
-  const canInteract = can_switchMode && !(compact && compactLabelType === 'agent');
+  const canInteract = can_switchMode && !runtimeModeBlocked && !(compact && compactLabelType === 'agent');
 
   // When initialMode prop changes (e.g. agent switch on Guid page), update local state.
   // Validate against available modes to handle backends with non-standard default
@@ -230,8 +241,13 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
               data-mode-value={mode.value}
               data-testid={`aionrs-mode-option-${mode.value}`}
             >
+              {/* Fixed-width marker slot, three states now: ✓ = in force, ⏱ = accepted
+                  but applies next turn, blank = neither. Reusing this slot rather than a
+                  trailing badge is deliberate — the menu is ~260px and its labels already
+                  truncate, so a right-hand "下一轮生效" would overflow. The two markers
+                  are mutually exclusive by construction. */}
               <span aria-hidden='true' className='w-16px shrink-0 text-primary'>
-                {current_mode === mode.value ? '✓' : ''}
+                {current_mode === mode.value ? '✓' : pendingMode === mode.value ? '⏱' : ''}
               </span>
               {mode.description ? (
                 <Tooltip content={mode.description} position='right'>
@@ -257,14 +273,20 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
         : can_switchMode
           ? getCurrentModeLabel()
           : agent_name || backend || 'Agent';
+    // With a pending target the pill has to say two things in the width of one. The
+    // "权限 · " prefix is what gives: the shield icon already marks this as the
+    // permission pill, so the prefix is the least informative part at that moment, and
+    // dropping it pays for "→ <target>" outright.
+    const showPendingTarget = Boolean(pendingModeLabel) && compactLabelType !== 'agent';
+    const baseWithPending = showPendingTarget ? `${baseCompactLabel} → ${pendingModeLabel}` : baseCompactLabel;
     const compactLabel =
       compactLabelOverride ||
-      (compactLabelPrefix && compactLabelType !== 'agent'
+      (compactLabelPrefix && compactLabelType !== 'agent' && !showPendingTarget
         ? hideCompactLabelPrefixOnMobile && isMobile
           ? baseCompactLabel
           : `${compactLabelPrefix} · ${baseCompactLabel}`
-        : baseCompactLabel);
-    if (!canInteract && legacyCompactBehavior) {
+        : baseWithPending);
+    if (!canInteract && legacyCompactBehavior && !runtimeModeBlocked) {
       return null;
     }
 
@@ -312,7 +334,7 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
   // Full mode: logo + name + optional mode label
   const content = (
     <div
-      className={`flex items-center gap-2 bg-2 w-fit rounded-full px-[8px] py-[2px] ${can_switchMode ? 'cursor-pointer hover:bg-3' : ''}`}
+      className={`flex items-center gap-2 bg-2 w-fit rounded-full px-[8px] py-[2px] ${canInteract ? 'cursor-pointer hover:bg-3' : ''}`}
       style={{
         opacity: isLoading || runtimeConfig.setStatus.state === 'setting' ? 0.6 : 1,
         transition: 'opacity 0.2s',
@@ -320,7 +342,7 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
     >
       {renderLogo()}
       <span className='text-sm text-t-primary'>{agent_name || backend}</span>
-      {can_switchMode && (
+      {canInteract && (
         <>
           {current_mode !== defaultMode && <span className='text-xs text-t-tertiary'>({getCurrentModeLabel()})</span>}
           <Down size={12} className='text-t-tertiary' />
@@ -330,13 +352,13 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
   );
 
   // If mode switching is not supported, just render the content without dropdown
-  if (!can_switchMode) {
-    return <div className='ml-16px'>{content}</div>;
+  if (!canInteract) {
+    return <div className='ms-16px'>{content}</div>;
   }
 
   // Render dropdown with mode selection menu
   return (
-    <div className='ml-16px'>
+    <div className='ms-16px'>
       <Dropdown
         trigger='click'
         popupVisible={dropdownVisible}

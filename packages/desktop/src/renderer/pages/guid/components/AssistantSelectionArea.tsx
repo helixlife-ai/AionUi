@@ -10,11 +10,38 @@ import { Down, Robot } from '@icon-park/react';
 import { Button } from '@arco-design/web-react';
 import { AionSearchInput } from '@/renderer/components/base';
 import { useAssistantOrder } from '@/renderer/hooks/assistant/useAssistantOrder';
+import { useManagedAgentRuntimeCatalog } from '@/renderer/hooks/agent/useManagedAgents';
+import { managedAgentSearchText } from '@/renderer/utils/model/agentTypes';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { resolveAssistantAvatar } from '@/renderer/utils/model/assistantAvatar';
 import { resolveAssistantName } from '@/renderer/utils/model/assistantDisplay';
 import { selectableAssistants } from '@/renderer/utils/model/assistantSelection';
 import { useTranslation } from 'react-i18next';
+import ThemedLogo from '@/renderer/components/agent/ThemedLogo';
+
+/**
+ * Mirrors the Agent settings search: matches the assistant's own name and
+ * description plus the joined runtime-agent haystack (backend/command/binary),
+ * so both surfaces find the same agents for the same query.
+ */
+export function assistantMatchesSearch(
+  assistant: Assistant,
+  localeKey: string,
+  query: string,
+  agentSearchText?: string
+): boolean {
+  const searchableText = [
+    assistant.name,
+    assistant.name_i18n?.[localeKey],
+    assistant.description,
+    assistant.description_i18n?.[localeKey],
+    agentSearchText,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return searchableText.includes(query);
+}
 
 export function resolveAssistantVisibleLimit(width: number): number {
   if (width >= 720) return 4;
@@ -170,6 +197,16 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
   const overflowColumns = widthVisibleLimit;
   // Search only earns its row when the unfiltered list is long enough to scan.
   const showOverflowSearch = Math.ceil(overflowAssistants.length / overflowColumns) > 5;
+  const managedAgentRuntimeCatalog = useManagedAgentRuntimeCatalog();
+  // Same haystack as the Agent settings search: joining the runtime catalog row
+  // adds backend/command/binary fields, so e.g. "ag" finds Antigravity (`agy`).
+  const agentSearchTextById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const agent of managedAgentRuntimeCatalog) {
+      map.set(agent.id, managedAgentSearchText(agent, localeKey));
+    }
+    return map;
+  }, [localeKey, managedAgentRuntimeCatalog]);
   const filteredOverflowAssistants = useMemo(() => {
     const query = showOverflowSearch ? search.trim().toLowerCase() : '';
     if (!query) return overflowAssistants;
@@ -209,7 +246,7 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
       >
         <span className='inline-flex h-20px w-20px items-center justify-center overflow-hidden rounded-999px bg-fill-2'>
           {avatar.kind === 'image' ? (
-            <img src={avatar.value} alt='' className='h-full w-full object-contain' />
+            <ThemedLogo src={avatar.value} alt='' className='object-contain' style={{ width: 20, height: 20 }} />
           ) : avatar.kind === 'emoji' ? (
             <span className={styles.assistantCardEmoji}>{avatar.value}</span>
           ) : (
@@ -227,7 +264,7 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
     <div
       data-testid='assistant-overflow-panel'
       data-overflow-columns={overflowColumns}
-      className={`absolute left-0 top-[calc(100%+8px)] z-100 w-full rounded-12px border border-border-2 p-8px shadow-lg ${styles.assistantOverflowPanel}`}
+      className={`absolute start-0 top-[calc(100%+8px)] z-100 w-full rounded-12px border border-border-2 p-8px shadow-lg ${styles.assistantOverflowPanel}`}
       style={{ background: 'var(--bg-base, #fff)' }}
     >
       {showOverflowSearch ? (
@@ -269,7 +306,7 @@ const AssistantSelectionArea: React.FC<AssistantSelectionAreaProps> = ({
               <Button
                 data-testid='assistant-more-btn'
                 type='text'
-                className={`!ml-6px !inline-flex !h-34px !shrink-0 !items-center !gap-4px !rounded-999px !border-none !px-12px !py-8px !text-13px !text-t-secondary opacity-75 transition-opacity hover:opacity-100 ${styles.assistantSelectorInactive}`}
+                className={`!ms-6px !inline-flex !h-34px !shrink-0 !items-center !gap-4px !rounded-999px !border-none !px-12px !py-8px !text-13px !text-t-secondary opacity-75 transition-opacity hover:opacity-100 ${styles.assistantSelectorInactive}`}
                 onClick={() => setMoreVisible((visible) => !visible)}
               >
                 <span>{t('common.more', { defaultValue: 'More' })}</span>

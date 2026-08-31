@@ -5,7 +5,7 @@
  */
 
 import type { Theme } from './types';
-import { LIGHT_THEME_ID, DARK_THEME_ID } from './constants';
+import { DARK_THEME_ID, LIGHT_THEME_ID } from './constants';
 
 type OldCssTheme = {
   id: string;
@@ -34,25 +34,25 @@ const OLD_DEFAULT_ID = 'default-theme';
 export function migrateThemeConfig(old: OldThemeConfig): NewThemeConfig {
   const appearance = old.theme === 'dark' ? 'dark' : 'light';
 
-  let activeId: string;
   const oldActive = old['css.activeThemeId'] || '';
-  if (oldActive && oldActive !== OLD_DEFAULT_ID) {
-    activeId = oldActive;
-  } else {
-    activeId = appearance === 'dark' ? DARK_THEME_ID : LIGHT_THEME_ID;
-  }
+  const activeId =
+    oldActive && oldActive !== OLD_DEFAULT_ID
+      ? oldActive
+      : appearance === 'dark'
+        ? DARK_THEME_ID
+        : LIGHT_THEME_ID;
 
   const userThemes: Theme[] = (old['css.themes'] || [])
-    .filter((t) => !t.is_preset)
-    .map((t) => ({
-      id: t.id,
-      name: t.name,
-      cover: t.cover,
+    .filter((theme) => !theme.is_preset)
+    .map((theme) => ({
+      id: theme.id,
+      name: theme.name,
+      cover: theme.cover,
       appearance,
-      css: t.css,
+      css: theme.css,
       builtin: false,
-      created_at: t.created_at,
-      updated_at: t.updated_at,
+      created_at: theme.created_at,
+      updated_at: theme.updated_at,
     }));
 
   return { 'theme.activeId': activeId, 'theme.userThemes': userThemes };
