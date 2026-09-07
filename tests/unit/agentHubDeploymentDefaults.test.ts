@@ -26,4 +26,11 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).toContain('application/agent-hub:v0.2.11');
     expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.9');
   });
+
+  it('enables trace export to the appliance Collector by default', () => {
+    expect(compose).toContain('OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER:-otlp}');
+    expect(compose).toContain('OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}');
+    expect(compose).toContain('OTEL_EXPORTER_OTLP_PROTOCOL=${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}');
+    expect(compose).not.toContain('OTEL_RESOURCE_ATTRIBUTES=');
+  });
 });

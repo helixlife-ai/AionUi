@@ -112,6 +112,7 @@ RUN cd /opt/studio-import && npm install --omit=dev tweetnacl && npm cache clean
 # 把 Codex catalog + entrypoint 助手打进镜像，compose 即可直接调用
 COPY docker/agent-hub/codex-model-catalog.json /etc/agent-hub/codex-model-catalog.json
 COPY docker/agent-hub/js/ /etc/agent-hub/js/
+COPY docker/agent-hub/otel/ /etc/agent-hub/otel/
 
 # auto-inject 系统技能（cron/officecli/skill-creator/aionui-config，vendor 自
 # aioncore v0.1.53）。容器启动时 build-builtin-skills-hub.js 把它链入组合目录
