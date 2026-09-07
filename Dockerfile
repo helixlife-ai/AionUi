@@ -8,6 +8,30 @@
 #   - bundled-aioncore/linux-arm64/aioncore
 #   - static/         (renderer SPA)
 
+# ---- Official skills -------------------------------------------------------
+# Docker expands local tar archives during ADD, so neither this stage nor the
+# runtime image needs xz-utils. Keep the archive out of the final image layer.
+FROM node:22-trixie-slim AS official-skills
+WORKDIR /opt/agent-hub/builtin-skills-hub
+
+ADD docker/agent-hub/official-skills.tar.xz ./
+COPY docker/agent-hub/auto-inject/ ./auto-inject/
+
+RUN set -eu; \
+    official_count=0; \
+    for skill_dir in */; do \
+      skill_name="${skill_dir%/}"; \
+      if [ "$skill_name" = "auto-inject" ]; then continue; fi; \
+      if [ ! -f "${skill_dir}SKILL.md" ]; then \
+        echo "Missing SKILL.md in official skill: $skill_name" >&2; \
+        exit 1; \
+      fi; \
+      official_count=$((official_count + 1)); \
+    done; \
+    test "$official_count" -eq 92; \
+    test "$(find auto-inject -mindepth 2 -maxdepth 2 -type f -name SKILL.md | wc -l)" -eq 4; \
+    test -z "$(find . -type l -print -quit)"
+
 # ---- Builder ---------------------------------------------------------------
 # 固定 Node 22.23.1 与镜像 digest，避免可变标签漂移到 ARM64 上会触发
 # SIGILL 的 Node 22.23.2 构件。trixie 的 glibc 2.41 也满足 aioncore 要求。
@@ -110,16 +134,15 @@ COPY scripts/studio-history-import/ /opt/studio-import/
 RUN cd /opt/studio-import && npm install --omit=dev tweetnacl && npm cache clean --force
 
 # 一体机全量更新只同步 docker-compose.yaml 到设备 —— 不含 aio_deploy/ 下的其它文件。
-# 把 Codex catalog + entrypoint 助手打进镜像，compose 即可直接调用
+# 把 Codex catalog、官方技能与 entrypoint 助手打进镜像，compose 即可直接调用。
 COPY docker/agent-hub/codex-model-catalog.json /etc/agent-hub/codex-model-catalog.json
 COPY docker/agent-hub/js/ /etc/agent-hub/js/
 COPY docker/agent-hub/otel/ /etc/agent-hub/otel/
 
 # auto-inject 系统技能（cron/officecli/skill-creator/aionui-config，vendor 自
-# aioncore v0.1.53）。容器启动时 build-builtin-skills-hub.js 把它链入组合目录
-# /data/builtin-skills-hub，配合 compose 的 AIONUI_BUILTIN_SKILLS_PATH 生效。
+# aioncore v0.1.53）与 92 个官方技能在构建阶段组成只读技能目录。
 # 升级 aioncore 时同步刷新（见 docs/agent-hub-builtin-skills-replacement.md）。
-COPY docker/agent-hub/auto-inject/ /etc/agent-hub/auto-inject/
+COPY --from=official-skills /opt/agent-hub/builtin-skills-hub/ /etc/agent-hub/builtin-skills-hub/
 
 # ARM64 Node 运行时回归检查：v0.2.12 曾在 Dirent 遍历和两个周期任务中
 # 触发 SIGILL（退出码 132）。让问题在构建阶段失败，而不是发布后才暴露。
@@ -145,6 +168,7 @@ COPY --from=builder /out/aionui-web/static /app/aionui-web/static
 ENV AIONUI_PORT=25808
 ENV AIONUI_DATA_DIR=/data
 ENV AIONUI_ALLOW_REMOTE=1
+ENV AIONUI_BUILTIN_SKILLS_PATH=/etc/agent-hub/builtin-skills-hub
 VOLUME ["/data"]
 EXPOSE 25808
 
