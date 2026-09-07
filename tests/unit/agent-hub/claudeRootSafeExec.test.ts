@@ -3,11 +3,14 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const { buildClaudeLaunch } = require(path.resolve(process.cwd(), 'docker/agent-hub/js/claude-root-safe-exec.js')) as {
+const { buildClaudeLaunch, configureClaudeTelemetry } = require(
+  path.resolve(process.cwd(), 'docker/agent-hub/js/claude-root-safe-exec.js')
+) as {
   buildClaudeLaunch: (
     incoming: string[],
     opts?: { isRoot?: boolean; env?: NodeJS.ProcessEnv }
   ) => { argv: string[]; env: NodeJS.ProcessEnv };
+  configureClaudeTelemetry: (env: NodeJS.ProcessEnv) => NodeJS.ProcessEnv;
 };
 
 describe('claude-root-safe-exec buildClaudeLaunch', () => {
@@ -45,5 +48,34 @@ describe('claude-root-safe-exec buildClaudeLaunch', () => {
     });
     expect(env.IS_SANDBOX).toBeUndefined();
     expect(argv).toEqual(['--dangerously-skip-permissions', 'x']);
+  });
+});
+
+describe('Claude Code native telemetry launch environment', () => {
+  it('stays disabled without an explicit opt-in', () => {
+    const env = configureClaudeTelemetry({ OTEL_EXPORTER_OTLP_ENDPOINT: 'http://collector:4318' });
+    expect(env.CLAUDE_CODE_ENABLE_TELEMETRY).toBeUndefined();
+    expect(env.OTEL_TRACES_EXPORTER).toBeUndefined();
+  });
+
+  it('stays disabled when the traces endpoint is missing', () => {
+    const env = configureClaudeTelemetry({ OTEL_TRACES_EXPORTER: 'otlp' });
+    expect(env.CLAUDE_CODE_ENABLE_TELEMETRY).toBeUndefined();
+  });
+
+  it('adds Claude-specific tracing attributes without losing existing attributes', () => {
+    const env = configureClaudeTelemetry({
+      OTEL_TRACES_EXPORTER: 'console,otlp',
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'http://collector:4318',
+      OTEL_EXPORTER_OTLP_PROTOCOL: 'http/protobuf',
+      OTEL_RESOURCE_ATTRIBUTES: 'region=cn,application_name=stale',
+    });
+
+    expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBe('http://collector:4318');
+    expect(env.OTEL_SERVICE_NAME).toBeUndefined();
+    expect(env.OTEL_RESOURCE_ATTRIBUTES).toContain('region=cn');
+    expect(env.OTEL_RESOURCE_ATTRIBUTES).toContain('application_name=Studio');
+    expect(env.OTEL_RESOURCE_ATTRIBUTES).toContain('app_server_name=claude-code');
+    expect(env.OTEL_RESOURCE_ATTRIBUTES).not.toContain('application_name=stale');
   });
 });
