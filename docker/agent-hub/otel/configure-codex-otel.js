@@ -23,9 +23,11 @@ function buildCodexOtelConfig(env) {
   const endpoint = resolveTracesEndpoint(env.OTEL_EXPORTER_OTLP_ENDPOINT);
   if (!enabled || !endpoint) return '';
 
+  const model = String(env.CODEX_MODEL || 'agenthub-codex').trim() || 'agenthub-codex';
   const attributes = {
     application_name: 'Studio',
     app_server_name: 'codex',
+    model,
   };
 
   return `
