@@ -20,10 +20,11 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).not.toContain('studio-server.newidea.pro');
   });
 
-  it('uses the v0.2.14 release consistently', () => {
-    expect(deploymentConfig.version).toBe('v0.2.14');
-    expect(deploymentConfig.desc).toBe('完善 Codex 遥测模型信息上报\n修复 Studio 遥测服务连接问题');
-    expect(compose).toContain('application/agent-hub:v0.2.14');
+  it('uses the v0.2.15 release consistently', () => {
+    expect(deploymentConfig.version).toBe('v0.2.15');
+    expect(deploymentConfig.desc).toBe('修复部分 ARM64 设备的 Node 运行时兼容问题\n提升后台周期任务稳定性');
+    expect(compose).toContain('application/agent-hub:v0.2.15');
+    expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.14');
     expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.13');
   });
 
