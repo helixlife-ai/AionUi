@@ -1,12 +1,14 @@
 name: agent-hub
 services:
   agent-hub:
-    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.13
+    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.14
     container_name: agent-hub
     user: '0'
     # 资源倾斜：在启动阶段给予默认应用大部分资源
     cpu_shares: 4096
     mem_reservation: 1g
+    networks:
+      - web
     ports:
       - '25808:25808'
     volumes:
@@ -168,3 +170,8 @@ services:
         node --experimental-sqlite /opt/studio-import/import.mjs >>/data/logs/studio-import.log 2>&1 || true
         wait $$AIONUI_PID
     restart: unless-stopped
+
+networks:
+  web:
+    name: web-net
+    external: true

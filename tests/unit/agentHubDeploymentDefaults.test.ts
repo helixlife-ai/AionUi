@@ -20,11 +20,11 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).not.toContain('studio-server.newidea.pro');
   });
 
-  it('uses the v0.2.11 release consistently', () => {
-    expect(deploymentConfig.version).toBe('v0.2.11');
-    expect(deploymentConfig.desc).toBe('修复 Skill 搜索功能偶发闪退的问题\n优化旧版 Studio 历史数据的迁移逻辑');
-    expect(compose).toContain('application/agent-hub:v0.2.11');
-    expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.9');
+  it('uses the v0.2.14 release consistently', () => {
+    expect(deploymentConfig.version).toBe('v0.2.14');
+    expect(deploymentConfig.desc).toBe('完善 Codex 遥测模型信息上报\n修复 Studio 遥测服务连接问题');
+    expect(compose).toContain('application/agent-hub:v0.2.14');
+    expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.13');
   });
 
   it('enables trace export to the appliance Collector by default', () => {
@@ -32,5 +32,11 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).toContain('OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}');
     expect(compose).toContain('OTEL_EXPORTER_OTLP_PROTOCOL=${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}');
     expect(compose).not.toContain('OTEL_RESOURCE_ATTRIBUTES=');
+  });
+
+  it('joins the appliance Collector network', () => {
+    expect(compose).toContain('networks:\n      - web');
+    expect(compose).toContain('name: web-net');
+    expect(compose).toContain('external: true');
   });
 });

@@ -30,8 +30,19 @@ describe('Codex native telemetry config', () => {
     expect(config).toContain('endpoint = "http://collector:4318/v1/traces"');
     expect(config).toContain('"application_name" = "Studio"');
     expect(config).toContain('"app_server_name" = "codex"');
+    expect(config).toContain('"model" = "agenthub-codex"');
     expect(config).not.toContain('"service.name"');
     expect(config).toContain('log_user_prompt = true');
+  });
+
+  it('reports the configured Codex model on every exported span', () => {
+    const config = buildCodexOtelConfig({
+      OTEL_TRACES_EXPORTER: 'otlp',
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'http://collector:4318',
+      CODEX_MODEL: 'custom-codex-model',
+    });
+
+    expect(config).toContain('"model" = "custom-codex-model"');
   });
 
   it('does not duplicate a signal path supplied by the collector', () => {
