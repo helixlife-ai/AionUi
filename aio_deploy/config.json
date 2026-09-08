@@ -1,5 +1,5 @@
 {
-  "version": "v0.2.14",
+  "version": "v0.2.15",
   "name": "AgentHub",
   "display_name": "Studio",
   "icon_url": "https://aio-resources.newidea.pro/data/AgentHub/icon.svg",
@@ -7,7 +7,7 @@
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": "完善 Codex 遥测模型信息上报\n修复 Studio 遥测服务连接问题",
+  "desc": "修复部分 ARM64 设备的 Node 运行时兼容问题\n提升后台周期任务稳定性",
   "startup": true,
   "force_update": true,
   "device_limit": [
