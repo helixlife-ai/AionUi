@@ -9,8 +9,9 @@
 #   - static/         (renderer SPA)
 
 # ---- Builder ---------------------------------------------------------------
-# trixie = glibc 2.41，aioncore v0.1.41+ 要求 GLIBC_2.39（bookworm 不满足）。
-FROM node:22-trixie AS builder
+# 固定 Node 22.23.1 与镜像 digest，避免可变标签漂移到 ARM64 上会触发
+# SIGILL 的 Node 22.23.2 构件。trixie 的 glibc 2.41 也满足 aioncore 要求。
+FROM node:22.23.1-trixie@sha256:3145536027ca5268e24654f7efebf1dbdd684cda3708324e6c53f4ad61af8710 AS builder
 WORKDIR /app
 
 RUN npm install -g bun
@@ -60,9 +61,9 @@ RUN PACK_PLATFORM=linux PACK_ARCH=arm64 GH_TOKEN=${GH_TOKEN} node scripts/pack-w
 RUN mkdir -p /out && tar -xzf dist-web-cli/aionui-web-*-linux-arm64.tar.gz -C /out
 
 # ---- Runtime ---------------------------------------------------------------
-# trixie-slim 的 glibc 2.41 满足 aioncore 要求；运行时需要 Node：codex 等 ACP
-# CLI 是 node shebang 的 JS 入口，aioncore 在 PATH 上探测并 spawn。
-FROM node:22-trixie-slim AS runtime
+# 运行时与构建阶段使用同一 Node 补丁版本，并固定多架构镜像 digest。
+# Node 仍是必需依赖：Codex 等 ACP CLI 通过 node shebang 启动。
+FROM node:22.23.1-trixie-slim@sha256:e6d9a389d34ff9678438af985c9913fbd1eb6ed36e80fea56644f4b4f6dd70ba AS runtime
 WORKDIR /app
 
 # libicu76 与 ca-certificates：officecli 预览与 HTTPS 调用。
@@ -119,6 +120,22 @@ COPY docker/agent-hub/otel/ /etc/agent-hub/otel/
 # /data/builtin-skills-hub，配合 compose 的 AIONUI_BUILTIN_SKILLS_PATH 生效。
 # 升级 aioncore 时同步刷新（见 docs/agent-hub-builtin-skills-replacement.md）。
 COPY docker/agent-hub/auto-inject/ /etc/agent-hub/auto-inject/
+
+# ARM64 Node 运行时回归检查：v0.2.12 曾在 Dirent 遍历和两个周期任务中
+# 触发 SIGILL（退出码 132）。让问题在构建阶段失败，而不是发布后才暴露。
+RUN test "$(node --version)" = "v22.23.1" \
+    && mkdir -p /tmp/agent-hub-smoke/data/conversations/codex-temp-smoke \
+      /tmp/agent-hub-smoke/skills/example \
+    && printf '%s\n' '---' 'name: example' 'description: smoke test' '---' \
+      > /tmp/agent-hub-smoke/skills/example/SKILL.md \
+    && node -e \
+      'const fs=require("fs"); const entries=fs.readdirSync("/tmp/agent-hub-smoke/data",{withFileTypes:true}); if(!entries.some((entry)=>entry.isDirectory())) process.exit(1)' \
+    && AIONUI_DATA_DIR=/tmp/agent-hub-smoke/data \
+      HELIXLIFE_SKILLS_SRC=/tmp/agent-hub-smoke/skills \
+      node /etc/agent-hub/js/build-builtin-skills-hub.js \
+    && node /etc/agent-hub/js/trust-codex-projects.js \
+      /tmp/agent-hub-smoke/config.toml \
+    && rm -rf /tmp/agent-hub-smoke
 
 COPY --from=builder /out/aionui-web/bundled-aioncore /app/aionui-web/bundled-aioncore
 COPY --chmod=755 --from=builder /out/aionui-web/aionui-web /app/aionui-web/aionui-web
