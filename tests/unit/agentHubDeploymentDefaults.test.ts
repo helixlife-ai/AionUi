@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const compose = fs.readFileSync(path.resolve('aio_deploy/docker-compose.yaml'), 'utf8');
+const dockerfile = fs.readFileSync(path.resolve('Dockerfile'), 'utf8');
 const deploymentConfig = JSON.parse(fs.readFileSync(path.resolve('aio_deploy/config.json'), 'utf8')) as {
   version: string;
   desc: string;
@@ -25,6 +26,13 @@ describe('Agent Hub deployment defaults', () => {
     expect(deploymentConfig.desc).toBe('内置 92 个官方精选科研技能\n优化官方技能的加载与更新方式');
     expect(compose).toContain('application/agent-hub:v0.2.16');
     expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.15');
+  });
+
+  it('does not invoke the removed runtime skill assembler while building the image', () => {
+    expect(dockerfile).not.toContain('build-builtin-skills-hub.js');
+    expect(dockerfile).toContain(
+      'COPY --from=official-skills /opt/agent-hub/builtin-skills-hub/ /etc/agent-hub/builtin-skills-hub/'
+    );
   });
 
   it('enables trace export to the appliance Collector by default', () => {
