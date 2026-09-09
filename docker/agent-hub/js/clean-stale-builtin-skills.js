@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
  * Clean up stale builtin-skill state when AIONUI_BUILTIN_SKILLS_PATH redirects
- * the builtin corpus (Agent Hub points it at {dataDir}/builtin-skills-hub).
+ * the builtin corpus to the image-owned directory.
  *
  * Two kinds of leftovers on devices that ran other configurations:
- *   1. the official corpus tree materialized at {dataDir}/builtin-skills/
- *      (materialization is skipped under the redirect, so it never refreshes)
+ *   1. official corpus trees left in {dataDir}/builtin-skills/ or
+ *      {dataDir}/builtin-skills-hub/ by older images
  *   2. skills-table rows with source='builtin' whose skill no longer exists
  *      in the current hub — the startup catalog sync only upserts, never
- *      deletes (covers both the replaced official 21 and skills dropped
- *      from the OpenClaw bundle)
+ *      deletes (covers both the replaced official corpus and skills dropped
+ *      from a newer archive)
  *
  * Idempotent: no-op when the redirect is unset or nothing is stale.
  *
@@ -24,19 +24,21 @@ const { DatabaseSync } = require('node:sqlite');
 const dataDir = process.env.AIONUI_DATA_DIR || '/data';
 const hubDir = (process.env.AIONUI_BUILTIN_SKILLS_PATH || '').trim();
 const legacyTree = path.join(dataDir, 'builtin-skills');
+const legacyHub = path.join(dataDir, 'builtin-skills-hub');
 
 if (!hubDir || hubDir === legacyTree) {
   process.exit(0);
 }
 
-// 1. Drop the stale official tree (aioncore-managed; nothing reads it under
-//    the redirect).
-if (fs.existsSync(legacyTree)) {
+// 1. Drop stale official trees (aioncore-managed; nothing reads them under
+//    the image-owned redirect). Never touch {dataDir}/skills (My Skills).
+for (const staleTree of [legacyTree, legacyHub]) {
+  if (path.resolve(staleTree) === path.resolve(hubDir) || !fs.existsSync(staleTree)) continue;
   try {
-    fs.rmSync(legacyTree, { recursive: true, force: true });
-    console.log(`[agent-hub] removed stale builtin-skills tree: ${legacyTree}`);
+    fs.rmSync(staleTree, { recursive: true, force: true });
+    console.log(`[agent-hub] removed stale builtin-skills tree: ${staleTree}`);
   } catch (err) {
-    console.log(`[agent-hub] warn: failed to remove ${legacyTree}: ${err.message}`);
+    console.log(`[agent-hub] warn: failed to remove ${staleTree}: ${err.message}`);
   }
 }
 
