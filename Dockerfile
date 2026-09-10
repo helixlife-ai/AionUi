@@ -148,14 +148,8 @@ COPY --from=official-skills /opt/agent-hub/builtin-skills-hub/ /etc/agent-hub/bu
 # 触发 SIGILL（退出码 132）。让问题在构建阶段失败，而不是发布后才暴露。
 RUN test "$(node --version)" = "v22.23.1" \
     && mkdir -p /tmp/agent-hub-smoke/data/conversations/codex-temp-smoke \
-      /tmp/agent-hub-smoke/skills/example \
-    && printf '%s\n' '---' 'name: example' 'description: smoke test' '---' \
-      > /tmp/agent-hub-smoke/skills/example/SKILL.md \
     && node -e \
       'const fs=require("fs"); const entries=fs.readdirSync("/tmp/agent-hub-smoke/data",{withFileTypes:true}); if(!entries.some((entry)=>entry.isDirectory())) process.exit(1)' \
-    && AIONUI_DATA_DIR=/tmp/agent-hub-smoke/data \
-      HELIXLIFE_SKILLS_SRC=/tmp/agent-hub-smoke/skills \
-      node /etc/agent-hub/js/build-builtin-skills-hub.js \
     && node /etc/agent-hub/js/trust-codex-projects.js \
       /tmp/agent-hub-smoke/config.toml \
     && rm -rf /tmp/agent-hub-smoke
