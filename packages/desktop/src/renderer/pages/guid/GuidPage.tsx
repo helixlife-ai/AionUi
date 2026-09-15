@@ -603,6 +603,9 @@ const GuidPage: React.FC = () => {
   // Build the model selector node
   const modelSelectorNode = (
     <GuidModelSelector
+      backend={agentSelection.selectedAssistantBackend ?? undefined}
+      scopeKey={agentSelection.selectedAssistantId ?? ''}
+      disabled={guidInput.loading}
       isGeminiMode={isGeminiMode}
       modelList={modelSelection.modelList}
       current_model={modelSelection.current_model}

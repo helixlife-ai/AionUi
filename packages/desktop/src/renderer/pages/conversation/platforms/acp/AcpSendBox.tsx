@@ -6,6 +6,10 @@ import { isSideQuestionSupported } from '@/common/chat/sideQuestion';
 import { parseError, uuid } from '@/common/utils';
 import AgentModeSelector from '@/renderer/components/agent/AgentModeSelector';
 import ContextUsageIndicator from '@/renderer/components/agent/ContextUsageIndicator';
+import {
+  StudioConversationModelSelector,
+  isStudioModelSelectorEnabled,
+} from '@/renderer/components/agent/StudioModelSelector';
 import CommandQueuePanel from '@/renderer/components/chat/CommandQueuePanel';
 import MobileActionSheet, {
   type MobileActionSheetEntry,
@@ -1047,6 +1051,15 @@ Please check your local CLI tool authentication status`,
         }
         rightTools={
           <div className='flex items-center gap-8px min-w-0'>
+            {isStudioModelSelectorEnabled() && (
+              <StudioConversationModelSelector
+                backend={backend}
+                conversationId={conversation_id}
+                model={runtimeConfig.model}
+                disabled={isBusy || Boolean(teamRuntime?.loading) || runtimeConfig.setStatus.state === 'setting'}
+                setModel={runtimeConfig.setConfigOption}
+              />
+            )}
             {showModeSelector && (
               <AgentModeSelector
                 backend={backend}

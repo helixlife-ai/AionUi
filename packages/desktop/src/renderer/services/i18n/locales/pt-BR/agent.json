@@ -1,4 +1,22 @@
 {
+  "studioModels": {
+    "demoNotice": "Demonstração: modelos e taxas são exemplos. A seleção não altera o modelo em execução.",
+    "choose": "Selecionar modelo",
+    "referenceRate": "Fator de referência",
+    "rateUnavailable": "Fatores indisponíveis. Os modelos continuam disponíveis. Reabra para tentar novamente.",
+    "disclaimer": "Os fatores comparam o consumo relativo. A cobrança real segue os Token da tarefa.",
+    "empty": "Este agente ainda não retornou modelos.",
+    "selected": "{{model}} selecionado",
+    "scenarios": {
+      "reading": "Leitura e escrita científica",
+      "analysis": "Interpretação e planejamento",
+      "daily": "Perguntas rápidas, tarefas diárias",
+      "reasoning": "Análise complexa, raciocínio profundo",
+      "report": "Pesquisa e relatórios",
+      "longContext": "Documentos longos, tarefas complexas",
+      "generic": "Disponível no agente atual"
+    }
+  },
   "health": {
     "detectedError": "Erro detectado com o agente atual ({{agent}})",
     "autoSwitching": ". O sistema tentará alternar automaticamente.",
