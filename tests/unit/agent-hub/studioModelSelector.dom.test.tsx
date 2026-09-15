@@ -37,6 +37,12 @@ const open = async () => {
 afterEach(cleanup);
 
 describe('Studio model selection', () => {
+  it('uses a larger bold check that inherits the model accent color', async () => {
+    render(<StudioModelSelector models={models} value='deepseek-v4-flash' onSelect={vi.fn()} />);
+    const selected = within(await open()).getByRole('button', { pressed: true });
+    expect(selected.querySelector('svg')).toHaveAttribute('width', '18');
+    expect(selected.querySelector('[stroke-width="4"]')).toHaveAttribute('stroke', 'currentColor');
+  });
   it('shows the six-model design with descriptions and fixed-format rates', async () => {
     render(<StudioModelSelector models={models} rates={rates} value='deepseek-v4-flash' onSelect={vi.fn()} />);
     const panel = await open();
