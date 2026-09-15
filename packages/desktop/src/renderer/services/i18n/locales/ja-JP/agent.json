@@ -1,4 +1,22 @@
 {
+  "studioModels": {
+    "demoNotice": "デモ：モデルと倍率は例です。選択しても実行モデルは変更されません。",
+    "choose": "モデルを選択",
+    "referenceRate": "参考倍率",
+    "rateUnavailable": "倍率を取得できません。モデルは使用できます。再度開くと再試行します。",
+    "disclaimer": "倍率は相対的な使用量の比較用です。実際の請求はタスクの Token 消費に基づきます。",
+    "empty": "このエージェントからモデルがまだ報告されていません。",
+    "selected": "{{model}} を選択しました",
+    "scenarios": {
+      "reading": "文献読解・論文執筆",
+      "analysis": "分析の解釈・研究計画",
+      "daily": "簡単な質問・日常タスク",
+      "reasoning": "複雑な分析・深い推論",
+      "report": "研究・レポート作成",
+      "longContext": "長文読解・複雑なタスク",
+      "generic": "現在のエージェントが提供するモデル"
+    }
+  },
   "health": {
     "detectedError": "現在のエージェント ({{agent}}) の応答エラーを検出しました",
     "autoSwitching": "。システムは自動的に切り替えを試みます。",

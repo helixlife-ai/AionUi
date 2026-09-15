@@ -7,6 +7,7 @@
 import { ipcBridge } from '@/common';
 import type { IMcpServer, IProvider, TProviderWithModel } from '@/common/config/storage';
 import AgentModeSelector from '@/renderer/components/agent/AgentModeSelector';
+import { isStudioModelSelectorEnabled } from '@/renderer/components/agent/StudioModelSelector';
 import { DROPDOWN_SEARCH_THRESHOLD } from '@/renderer/components/agent/runtimeSelectorOptions';
 import AionInlineSearchInput from '@/renderer/components/base/AionInlineSearchInput';
 import MobileActionSheet from '@/renderer/components/chat/MobileActionSheet';
@@ -742,6 +743,7 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
         />
       )}
       <div className={styles.actionSubmit}>
+        {isMobile && isStudioModelSelectorEnabled() && modelSelectorNode}
         {/* Desktop keeps the inline model/permission selectors; on mobile they move into the sheet. */}
         {!isMobile && configOptionCount > 0 && (
           <div className={styles.actionConfigGroup} data-mobile={isMobile ? 'true' : undefined}>

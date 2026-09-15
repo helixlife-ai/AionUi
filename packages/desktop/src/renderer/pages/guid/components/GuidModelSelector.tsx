@@ -10,7 +10,7 @@ import { getModelDisplayLabel } from '@/renderer/utils/model/agentLogo';
 import type { AgentRuntimeDerivedOption } from '@/renderer/utils/model/agentRuntimeCatalog';
 import type { AcpModelInfo } from '../types';
 import { getAvailableModels } from '../utils/modelUtils';
-import { Button, Dropdown, Menu, Tooltip } from '@arco-design/web-react';
+import { Button, Dropdown, Menu, Message, Tooltip } from '@arco-design/web-react';
 import { Brain, Down, Plus } from '@icon-park/react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -25,8 +25,16 @@ import {
   RuntimeSelectorSubMenuTitle,
 } from '@/renderer/components/agent/runtimeSelectorOptions';
 import { isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
+import StudioModelSelector, {
+  isStudioModelSelectorEnabled,
+  StudioDemoModelSelector,
+  STUDIO_MODEL_DEMO_ENABLED,
+} from '@/renderer/components/agent/StudioModelSelector';
 
 type GuidModelSelectorProps = {
+  backend?: string;
+  scopeKey?: string;
+  disabled?: boolean;
   // Gemini model state
   isGeminiMode: boolean;
   modelList: IProvider[];
@@ -45,6 +53,9 @@ type GuidModelSelectorProps = {
 const providerCompositeId = (providerId: string, modelName: string) => `${providerId}::${modelName}`;
 
 const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
+  backend,
+  scopeKey,
+  disabled,
   isGeminiMode,
   modelList,
   current_model,
@@ -112,6 +123,30 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
     modelLabel: acpButtonLabel,
     thoughtLevel: normalizedThoughtLevelOption,
   });
+
+  if (isStudioModelSelectorEnabled() && !isGeminiMode) {
+    if (STUDIO_MODEL_DEMO_ENABLED)
+      return (
+        <StudioDemoModelSelector scopeKey={scopeKey ?? 'new-conversation'} disabled={disabled} backend={backend} />
+      );
+    return (
+      <StudioModelSelector
+        scopeKey={scopeKey}
+        disabled={disabled}
+        models={currentAcpCachedModelInfo?.available_models ?? []}
+        value={selectedAcpModel || currentAcpCachedModelInfo?.current_model_id}
+        currentLabel={acpSelectedLabel}
+        onSelect={(id) => {
+          setSelectedAcpModel(id);
+          Message.success(
+            t('agent.studioModels.selected', {
+              model: currentAcpCachedModelInfo?.available_models.find((model) => model.id === id)?.label || id,
+            })
+          );
+        }}
+      />
+    );
+  }
 
   if (isAgentHubModelSelectorHidden()) {
     return null;

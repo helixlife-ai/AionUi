@@ -1,4 +1,22 @@
 {
+  "studioModels": {
+    "demoNotice": "展示模式：模型與倍率為範例，選擇不會變更實際執行模型。",
+    "choose": "選擇模型",
+    "referenceRate": "參考倍率",
+    "rateUnavailable": "參考倍率暫不可用，不影響模型使用。重新開啟列表時將自動重試。",
+    "disclaimer": "倍率僅用於比較模型的相對消耗，實際以任務扣減 Token 為準。",
+    "empty": "目前 Agent 尚未傳回可選模型。",
+    "selected": "已選擇 {{model}}",
+    "scenarios": {
+      "reading": "文獻閱讀、論文寫作",
+      "analysis": "分析解讀、研究方案",
+      "daily": "快速問答、日常任務",
+      "reasoning": "複雜分析、深度推理",
+      "report": "綜合研究與報告整理",
+      "longContext": "長文閱讀與複雜任務",
+      "generic": "目前 Agent 提供的模型"
+    }
+  },
   "health": {
     "detectedError": "檢測到當前 Agent ({{agent}}) 回應異常",
     "autoSwitching": "。系統將自動嘗試切換線路。",
