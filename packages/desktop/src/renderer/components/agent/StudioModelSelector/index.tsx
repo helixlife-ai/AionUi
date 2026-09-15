@@ -162,7 +162,7 @@ export default function StudioModelSelector({
               <Button
                 key={model.id}
                 type='text'
-                className={`${styles.row} ${model.id === value ? styles.selected : ''}`}
+                className={styles.row}
                 aria-pressed={model.id === value}
                 disabled={disabled || selecting}
                 onClick={() => void select(model.id)}
@@ -170,7 +170,9 @@ export default function StudioModelSelector({
                 <span className={styles.copy}>
                   <span className={styles.name}>
                     {model.label}
-                    {model.id === value && <Check className={styles.check} />}
+                    {model.id === value && (
+                      <Check className={styles.check} size={18} strokeWidth={4} fill='currentColor' />
+                    )}
                   </span>
                   <span className={styles.description}>
                     {descriptionKey

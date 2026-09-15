@@ -14,8 +14,8 @@
   color: var(--text-primary);
 }
 .trigger[aria-expanded='true'] {
-  border-color: var(--success);
-  background: color-mix(in srgb, var(--success) 5%, var(--bg-1));
+  border-color: var(--studio-model-accent);
+  background: color-mix(in srgb, var(--studio-model-accent) 5%, var(--bg-1));
 }
 .triggerLabel {
   overflow: hidden;
@@ -72,13 +72,14 @@
   color: var(--text-primary);
   text-align: start;
 }
-.row:global(.arco-btn):hover,
-.selected:global(.arco-btn) {
-  background: color-mix(in srgb, var(--success) 6%, var(--bg-1));
-  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+.row:global(.arco-btn):global(.arco-btn-text)[aria-pressed='true'],
+.row:global(.arco-btn):global(.arco-btn-text)[aria-pressed='true']:hover,
+.row:global(.arco-btn):global(.arco-btn-text):not(:disabled):not(:global(.arco-btn-disabled)):hover {
+  background: color-mix(in srgb, var(--studio-model-accent) 6%, var(--bg-1));
+  border-color: color-mix(in srgb, var(--studio-model-accent) 30%, transparent);
 }
 .row:focus-visible {
-  outline: 2px solid var(--success);
+  outline: 2px solid var(--studio-model-accent);
   outline-offset: -2px;
 }
 .copy {
@@ -98,7 +99,7 @@
   overflow-wrap: anywhere;
 }
 .check {
-  color: var(--success);
+  color: var(--studio-model-accent);
   flex-shrink: 0;
 }
 .description {
@@ -109,7 +110,7 @@
 .rate {
   width: 112px;
   flex-shrink: 0;
-  color: var(--success);
+  color: var(--studio-model-accent);
   text-align: end;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -147,4 +148,8 @@
     width: 96px;
     font-size: 12px;
   }
+}
+.triggerWrap,
+.panel {
+  --studio-model-accent: #077b49;
 }
