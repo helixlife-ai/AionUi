@@ -1,7 +1,7 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Message, Notification } from '@arco-design/web-react';
+import { Message } from '@arco-design/web-react';
 import GuidModelSelector from '@/renderer/pages/guid/components/GuidModelSelector';
 import { StudioConversationModelSelector } from '@/renderer/components/agent/StudioModelSelector';
 import type { AcpDerivedOption } from '@/renderer/hooks/agent/useAcpConfigOptions';
@@ -11,8 +11,7 @@ vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }));
 vi.mock('@/renderer/hooks/agent/useModelProviderList', () => ({ useProvidersQuery: () => ({ data: [] }) }));
 vi.mock('@arco-design/web-react', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@arco-design/web-react')>()),
-  Message: { success: vi.fn(), error: vi.fn() },
-  Notification: { info: vi.fn() },
+  Message: { success: vi.fn(), info: vi.fn(), error: vi.fn() },
 }));
 
 afterEach(() => {
@@ -49,7 +48,7 @@ describe('Studio Web integration', () => {
     const panel = await screen.findByRole('region');
     fireEvent.click(within(panel).getByRole('button', { name: /Kimi-K3/ }));
     expect(setSelectedAcpModel).toHaveBeenCalledWith('agenthub-kimi-k3');
-    expect(Notification.info).not.toHaveBeenCalled();
+    expect(Message.success).toHaveBeenCalledWith('agent.studioModels.selected');
   });
 
   it('does not re-enable the blocked Aion CLI provider selector on Web', () => {
@@ -110,12 +109,12 @@ describe('Studio Web integration', () => {
     fireEvent.click(screen.getByRole('button', { name: /studioModels.choose: DeepSeek/ }));
     fireEvent.click(within(await screen.findByRole('region')).getByRole('button', { name: /Kimi-K3/ }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith('agent.config.failed'));
-    expect(Notification.info).not.toHaveBeenCalled();
+    expect(Message.info).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: /studioModels.choose: DeepSeek/ })).toBeInTheDocument();
   });
 
   it('does not report success when runtime configuration is unavailable', async () => {
-    vi.mocked(Message.success).mockClear();
+    vi.mocked(Message.info).mockClear();
     const setter = vi.fn();
     render(
       <StudioConversationModelSelector
@@ -132,7 +131,7 @@ describe('Studio Web integration', () => {
     fireEvent.click(within(panel).getByRole('button', { name: /DeepSeek/ }));
     await waitFor(() => expect(Message.error).toHaveBeenCalledWith('agent.config.failed'));
     expect(setter).not.toHaveBeenCalled();
-    expect(Notification.info).not.toHaveBeenCalled();
+    expect(Message.info).not.toHaveBeenCalled();
   });
 
   it('uses the Codex fallback request ID even with an empty runtime catalog', async () => {
@@ -172,12 +171,11 @@ describe('Studio Web integration', () => {
     fireEvent.click(within(await screen.findByRole('region')).getByRole('button', { name: /Kimi/ }));
     expect(setter).toHaveBeenCalledWith('model', 'agenthub-kimi-k3');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(Notification.info).not.toHaveBeenCalled();
+    expect(Message.info).not.toHaveBeenCalled();
     resolveSwitch();
     await waitFor(() =>
-      expect(Notification.info).toHaveBeenCalledWith({
-        title: 'agent.studioModels.selected',
-        content: 'agent.studioModels.switchWarning',
+      expect(Message.info).toHaveBeenCalledWith({
+        content: 'agent.studioModels.selected — agent.studioModels.switchWarning',
         duration: 6000,
       })
     );
@@ -190,7 +188,7 @@ describe('Studio Web integration', () => {
     );
     expect(screen.getByRole('button', { name: /studioModels.choose: DeepSeek/ })).toBeDisabled();
     expect(setter).not.toHaveBeenCalled();
-    expect(Notification.info).not.toHaveBeenCalled();
+    expect(Message.info).not.toHaveBeenCalled();
   });
 
   it('does not warn or call the runtime when selecting the current model', async () => {
@@ -206,7 +204,7 @@ describe('Studio Web integration', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /studioModels.choose: DeepSeek/ }));
     fireEvent.click(within(await screen.findByRole('region')).getByRole('button', { name: /DeepSeek/ }));
-    expect(Notification.info).not.toHaveBeenCalled();
+    expect(Message.info).not.toHaveBeenCalled();
     expect(setter).not.toHaveBeenCalled();
   });
 });
