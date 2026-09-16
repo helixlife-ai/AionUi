@@ -1,5 +1,5 @@
 import React from 'react';
-import { Message, Notification } from '@arco-design/web-react';
+import { Message } from '@arco-design/web-react';
 import { useTranslation } from 'react-i18next';
 import type { AcpDerivedOption } from '@/renderer/hooks/agent/useAcpConfigOptions';
 import StudioModelSelector from './index';
@@ -39,9 +39,8 @@ function ConversationModelControl({ conversationId, model, disabled, setModel, b
           Message.error(t('agent.config.failed'));
           throw error;
         }
-        Notification.info({
-          title: t('agent.studioModels.selected', { model: models.find((item) => item.id === id)?.label || id }),
-          content: t('agent.studioModels.switchWarning'),
+        Message.info({
+          content: `${t('agent.studioModels.selected', { model: models.find((item) => item.id === id)?.label || id })} — ${t('agent.studioModels.switchWarning')}`,
           duration: 6000,
         });
       }}
