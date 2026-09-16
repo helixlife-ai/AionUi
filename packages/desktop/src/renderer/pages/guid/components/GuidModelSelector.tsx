@@ -25,11 +25,13 @@ import {
   RuntimeSelectorSubMenuTitle,
 } from '@/renderer/components/agent/runtimeSelectorOptions';
 import { isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
-import StudioModelSelector, {
-  isStudioModelSelectorEnabled,
-  StudioDemoModelSelector,
-  STUDIO_MODEL_DEMO_ENABLED,
-} from '@/renderer/components/agent/StudioModelSelector';
+import StudioModelSelector, { isStudioModelSelectorEnabled } from '@/renderer/components/agent/StudioModelSelector';
+import {
+  getStudioModels,
+  isStudioBackend,
+  resolveStudioDraftModel,
+  STUDIO_MODEL_RATES,
+} from '@/renderer/components/agent/StudioModelSelector/catalog';
 
 type GuidModelSelectorProps = {
   backend?: string;
@@ -124,23 +126,21 @@ const GuidModelSelector: React.FC<GuidModelSelectorProps> = ({
     thoughtLevel: normalizedThoughtLevelOption,
   });
 
-  if (isStudioModelSelectorEnabled() && !isGeminiMode) {
-    if (STUDIO_MODEL_DEMO_ENABLED)
-      return (
-        <StudioDemoModelSelector scopeKey={scopeKey ?? 'new-conversation'} disabled={disabled} backend={backend} />
-      );
+  if (isStudioModelSelectorEnabled() && !isGeminiMode && isStudioBackend(backend)) {
+    const models = getStudioModels(backend);
     return (
       <StudioModelSelector
+        backend={backend}
         scopeKey={scopeKey}
         disabled={disabled}
-        models={currentAcpCachedModelInfo?.available_models ?? []}
-        value={selectedAcpModel || currentAcpCachedModelInfo?.current_model_id}
-        currentLabel={acpSelectedLabel}
+        models={models}
+        rates={STUDIO_MODEL_RATES}
+        value={resolveStudioDraftModel(backend, selectedAcpModel)}
         onSelect={(id) => {
           setSelectedAcpModel(id);
           Message.success(
             t('agent.studioModels.selected', {
-              model: currentAcpCachedModelInfo?.available_models.find((model) => model.id === id)?.label || id,
+              model: models.find((model) => model.id === id)?.label || id,
             })
           );
         }}

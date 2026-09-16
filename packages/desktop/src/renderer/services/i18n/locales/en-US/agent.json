@@ -1,5 +1,6 @@
 {
   "studioModels": {
+    "switchWarning": "Switching models may prevent cache reuse, increase Token usage, and slow the first response. History may be compressed if it exceeds the context limit.",
     "demoNotice": "Demo: models and rates are examples. Selection does not change the running model.",
     "choose": "Choose model",
     "referenceRate": "Reference rate",

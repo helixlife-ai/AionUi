@@ -1,5 +1,6 @@
 {
   "studioModels": {
+    "switchWarning": "Al cambiar de modelo, la caché podría no reutilizarse, aumentar el consumo de Token y ralentizar la primera respuesta. El historial podría comprimirse si supera el límite de contexto.",
     "demoNotice": "Demostración: los modelos y las tarifas son ejemplos. La selección no cambia el modelo en ejecución.",
     "choose": "Elegir modelo",
     "referenceRate": "Factor de referencia",

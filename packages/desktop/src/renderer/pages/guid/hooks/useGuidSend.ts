@@ -20,6 +20,11 @@ import {
   seedConversationCache,
 } from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
 import type { AcpModelInfo } from '../types';
+import {
+  isStudioModelSelectorEnabled,
+  isStudioBackend,
+  resolveStudioDraftModel,
+} from '@/renderer/components/agent/StudioModelSelector/catalog';
 
 export type GuidSendDeps = {
   // Input state
@@ -144,7 +149,9 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
             .map((server) => toSessionMcpServer(server));
 
     const assistantOverrideModel =
-      selectedAcpModel || currentAcpCachedModelInfo?.current_model_id || current_model?.use_model || undefined;
+      isStudioModelSelectorEnabled() && isStudioBackend(assistantBackend)
+        ? resolveStudioDraftModel(assistantBackend, selectedAcpModel)
+        : selectedAcpModel || currentAcpCachedModelInfo?.current_model_id || current_model?.use_model || undefined;
     const assistantOverrides = {
       model: assistantOverrideModel,
       permission: selectedMode || undefined,

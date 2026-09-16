@@ -12,12 +12,12 @@ describe('Studio model metadata', () => {
       expect(withStudioFallback(models).filter((model) => model.label === 'DeepSeek-V4.1-Flash')).toHaveLength(1);
     }
   );
-  it('deduplicates fallback and retains the exact backend ID', () => {
+  it('deduplicates fallback with its confirmed request ID', () => {
     const models = withStudioFallback([
-      { id: 'DeepSeek-V4-Flash', label: 'Renamed' },
-      { id: 'deepseek-v4-flash', label: 'duplicate' },
+      { id: 'agenthub-claude', label: 'Renamed' },
+      { id: 'agenthub-claude', label: 'duplicate' },
     ]);
-    expect(models).toEqual([{ id: 'DeepSeek-V4-Flash', label: 'DeepSeek-V4.1-Flash' }]);
+    expect(models).toEqual([{ id: 'agenthub-claude', label: 'DeepSeek-V4.1-Flash' }]);
   });
   it.each([
     [1.9, '1.9×'],
