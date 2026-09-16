@@ -1,5 +1,6 @@
 {
   "studioModels": {
+    "switchWarning": "切換模型可能無法重用上下文快取，增加 Token 消耗並使首次回應變慢；上下文超限時可能壓縮歷史資訊。",
     "demoNotice": "展示模式：模型與倍率為範例，選擇不會變更實際執行模型。",
     "choose": "選擇模型",
     "referenceRate": "參考倍率",

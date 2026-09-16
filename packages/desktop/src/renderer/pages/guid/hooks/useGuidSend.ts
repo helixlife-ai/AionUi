@@ -20,6 +20,11 @@ import {
   prefetchConversationRouteChunk,
   seedConversationCache,
 } from '@/renderer/pages/conversation/utils/prefetchConversationRoute';
+import {
+  isStudioModelSelectorEnabled,
+  isStudioBackend,
+  resolveStudioDraftModel,
+} from '@/renderer/components/agent/StudioModelSelector/catalog';
 
 export type GuidSendDeps = {
   // Input state
@@ -164,7 +169,9 @@ export const useGuidSend = (deps: GuidSendDeps): GuidSendResult => {
     // another). Omit it: no pick means no override, and the agent resolves the
     // model from the user's own config.
     const assistantOverrideModel =
-      selectedAcpModel || (assistantBackend === 'aionrs' ? current_model?.use_model : undefined) || undefined;
+      isStudioModelSelectorEnabled() && isStudioBackend(assistantBackend)
+        ? resolveStudioDraftModel(assistantBackend, selectedAcpModel)
+        : selectedAcpModel || (assistantBackend === 'aionrs' ? current_model?.use_model : undefined) || undefined;
     const assistantOverrides = {
       model: assistantOverrideModel,
       permission: selectedMode || undefined,

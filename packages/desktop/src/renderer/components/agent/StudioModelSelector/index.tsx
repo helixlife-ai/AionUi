@@ -3,20 +3,16 @@ import { Button, Spin, Tooltip, Trigger } from '@arco-design/web-react';
 import { Check, Down, Info, Up } from '@icon-park/react';
 import { useTranslation } from 'react-i18next';
 import { formatStudioModelRate, getStudioModelDescriptionKey, withStudioFallback } from './catalog';
-import type { StudioModelOption, StudioModelRates } from './catalog';
+import type { StudioBackend, StudioModelOption, StudioModelRates } from './catalog';
 import styles from './StudioModelSelector.module.css';
 
 export type { StudioModelOption, StudioModelRates } from './catalog';
 export { default as StudioConversationModelSelector } from './StudioConversationModelSelector';
-export { default as StudioDemoModelSelector } from './StudioDemoModelSelector';
-export { STUDIO_MODEL_DEMO_ENABLED } from './catalog';
 
-/** Enable the Studio presentation only in the browser host. */
-export function isStudioModelSelectorEnabled(): boolean {
-  return typeof window !== 'undefined' && !window.electronAPI;
-}
+export { isStudioModelSelectorEnabled } from './catalog';
 
 export type StudioModelSelectorProps = {
+  backend?: StudioBackend;
   notice?: string;
   models: StudioModelOption[];
   value?: string | null;
@@ -31,6 +27,7 @@ export type StudioModelSelectorProps = {
 
 /** Present a runtime-owned catalog without inventing model IDs or changing global agent configuration. */
 export default function StudioModelSelector({
+  backend = 'claude',
   notice,
   models,
   value,
@@ -54,7 +51,7 @@ export default function StudioModelSelector({
   const triggerRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
   const effectiveRates = loadRates ? fetchedRates : rates;
-  const catalog = withStudioFallback(models);
+  const catalog = withStudioFallback(models, backend);
   const uniqueModels = catalog.filter((model, index) => catalog.findIndex((item) => item.id === model.id) === index);
   const label =
     uniqueModels.find((model) => model.id === value)?.label || currentLabel || value || t('agent.studioModels.choose');

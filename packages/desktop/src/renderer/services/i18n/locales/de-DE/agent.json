@@ -1,5 +1,6 @@
 {
   "studioModels": {
+    "switchWarning": "Beim Modellwechsel kann der Cache eventuell nicht wiederverwendet werden, der Token-Verbrauch steigen und die erste Antwort länger dauern. Bei Überschreitung des Kontextlimits kann der Verlauf komprimiert werden.",
     "demoNotice": "Demo: Modelle und Raten sind Beispiele. Die Auswahl ändert das laufende Modell nicht.",
     "choose": "Modell wählen",
     "referenceRate": "Referenzfaktor",

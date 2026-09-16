@@ -68,7 +68,11 @@ services:
         CODEX_MODEL_VALUE="$${CODEX_MODEL:-agenthub-codex}"
         # 必须用镜像内完整 catalog:手写的缺必填字段会导致 Codex 忽略配置、握手挂起。
         if [ -f /etc/agent-hub/codex-model-catalog.json ]; then
-          node -e "const fs=require('fs'); const src='/etc/agent-hub/codex-model-catalog.json'; const dst='/root/.codex/model-catalog.json'; const j=JSON.parse(fs.readFileSync(src,'utf8')); const slug=process.env.CODEX_MODEL||'agenthub-codex'; if (j.models&&j.models[0]) { j.models[0].slug=slug; j.models[0].display_name='Agent Hub Codex'; } fs.writeFileSync(dst, JSON.stringify(j, null, 2));"
+          if [ -f /etc/agent-hub/models/seed.js ]; then
+            node /etc/agent-hub/models/seed.js || exit 1
+          else
+            node -e "const fs=require('fs'); const src='/etc/agent-hub/codex-model-catalog.json'; const dst='/root/.codex/model-catalog.json'; const j=JSON.parse(fs.readFileSync(src,'utf8')); const slug=process.env.CODEX_MODEL||'agenthub-codex'; if (j.models&&j.models[0]) { j.models[0].slug=slug; j.models[0].display_name='Agent Hub Codex'; } fs.writeFileSync(dst, JSON.stringify(j, null, 2));"
+          fi
         else
           echo "[agent-hub] warn: codex-model-catalog.json missing; Codex may warn about unknown model metadata"
         fi

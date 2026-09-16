@@ -117,7 +117,7 @@ RUN mkdir -p /root/.config/pip \
 # 全局安装 Claude Code + Codex，使 aioncore 启动时能在 PATH 上自动探测到
 # 若不锁版本，每次重建都会使该层失效，即任何应用更新都会强迫用户重拉 600MB。
 # 升级 CLI 时显式修改这些 ARG。
-ARG CLAUDE_CODE_VERSION=2.1.220
+ARG CLAUDE_CODE_VERSION=2.1.242
 ARG CODEX_VERSION=0.146.0
 RUN npm install -g --unsafe-perm \
       @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
@@ -136,6 +136,8 @@ RUN cd /opt/studio-import && npm install --omit=dev tweetnacl && npm cache clean
 # 一体机全量更新只同步 docker-compose.yaml 到设备 —— 不含 aio_deploy/ 下的其它文件。
 # 把 Codex catalog、官方技能与 entrypoint 助手打进镜像，compose 即可直接调用。
 COPY docker/agent-hub/codex-model-catalog.json /etc/agent-hub/codex-model-catalog.json
+COPY docker/agent-hub/models/ /etc/agent-hub/models/
+COPY packages/desktop/src/renderer/components/agent/StudioModelSelector/models.json /etc/agent-hub/models/models.json
 COPY docker/agent-hub/js/ /etc/agent-hub/js/
 COPY docker/agent-hub/otel/ /etc/agent-hub/otel/
 
@@ -155,6 +157,8 @@ RUN test "$(node --version)" = "v22.23.1" \
     && rm -rf /tmp/agent-hub-smoke
 
 COPY --from=builder /out/aionui-web/bundled-aioncore /app/aionui-web/bundled-aioncore
+RUN node /etc/agent-hub/models/pinClaude.js /app/aionui-web/bundled-aioncore \
+      /usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe
 COPY --chmod=755 --from=builder /out/aionui-web/aionui-web /app/aionui-web/aionui-web
 COPY --from=builder /out/aionui-web/package.json /app/aionui-web/package.json
 COPY --from=builder /out/aionui-web/static /app/aionui-web/static

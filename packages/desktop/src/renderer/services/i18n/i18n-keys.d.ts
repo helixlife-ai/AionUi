@@ -76,6 +76,7 @@ export type I18nKey =
   | 'agent.studioModels.scenarios.reasoning'
   | 'agent.studioModels.scenarios.report'
   | 'agent.studioModels.selected'
+  | 'agent.studioModels.switchWarning'
   | 'agent.thoughtLevel.label'
   | 'agent.thoughtLevel.switchFailed'
   | 'agent.thoughtLevel.switchSuccess'

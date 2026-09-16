@@ -1,26 +1,37 @@
 # Studio Web 模型选择器
 
-仅替换 Web 输入框中的模型选择交互，Electron 和被屏蔽的 Aion CLI 供应商选择器保持原状。
+仅启用 Claude Code 和 Codex 的 Web 模型选择；Electron、Aion CLI、OpenClaw 保持原有行为。
 
-## 数据与切换
+## 已确认模型合同
 
-当前 `STUDIO_MODEL_DEMO_ENABLED=true`：新对话与已有对话均按 Agent 展示模型及示例倍率。Claude Code 显示 Qwen3.5-Plus、Qwen3.7-Plus、DeepSeek-V4.1-Flash、GLM-5.3、Kimi-K3 共五款；Codex 排除不支持 Responses 的 GLM-5.3，显示四款。DeepSeek-V4-Pro 已取消接入。默认显示 DeepSeek-V4.1-Flash。选择仅保存在组件按任务和 Agent 隔离的展示状态中，不写入新对话参数，也不调用 Agent 切换接口；弹层明确标注展示模式。页面重新挂载后展示选择恢复默认，不冒充后端持久化。
+`models.json` 是前端展示及镜像目录配置的同一份来源，当前列表与参考倍率是静态配置，不是 KB 在线接口。请求统一使用已核实的 `agenthub-*` ID。
 
-以下真实切换链路保留在展示开关关闭后的分支中：
+- Claude：Qwen3.5-Plus、Qwen3.7-Plus、DeepSeek-V4.1-Flash、GLM-5.3、Kimi-K3。
+- Codex：除 GLM-5.3 外的四款；DeepSeek-V4-Pro 不接入。
+- Flash 固定展示，Claude 使用 `agenthub-claude`，Codex 使用 `agenthub-codex`。
+- KB 负责计费和扣减；失败不自动切换到 Flash，倍率不参与前端计费。
 
-- 新对话：复用 `GuidModelSelector` 的运行时模型目录及草稿状态，创建对话时沿用 `assistantOverrides.model`。
-- 已有对话：复用 `useAcpConfigOptions` 的当前模型、选项和按 `conversation_id` 隔离的配置接口；不修改全局环境变量。
-- 生成中或配置更新中禁用切换；失败保留原模型并提示；切换任务会关闭弹层，忽略前一任务未完成的界面回调。
-- 后端返回的模型 ID 原样传递。显示名相同不代表 ID 相同，不把 `opus`、`sonnet` 等别名猜测成公司模型 ID。
+## 切换与隔离
 
-## KB 对接边界
+已有对话选择不同模型时直接发起运行时请求，成功后显示非阻塞通知：缓存可能无法复用、Token 消耗及首轮延迟可能增加，上下文超限时可能压缩历史信息。通知 6 秒后自动关闭，无需确认；失败时仅提示错误并保留原模型。新对话选模型及选择当前模型不显示风险通知。
 
-组件支持 `rates` 或 `loadRates`，以运行时模型 ID 为键。展示模式使用设计稿示例倍率；真实模式尚未提供 KB 倍率接口，因此显示 `--`。打开弹层获取倍率、失败重试和异常提示已在组件层实现。
+新对话通过草稿状态写入 `assistant.conversation_overrides.model`，未选择或旧展示 ID 无效时默认 Flash。运行时目录刷新不会把有效业务模型选择重置为 CLI 默认值。
 
-后续接入真实目录并关闭展示开关；`withStudioFallback` 在任何模式下都保留且去重 DeepSeek-V4.1-Flash，即使目录为空、请求失败或响应遗漏该模型。保留真实接口返回的 ID，固定兜底显示名称。前端保留入口不等于后端路由可用，需同时确认 KB 兜底模型映射。
+已有对话通过 `useAcpConfigOptions` 按 `conversation_id` 调用配置接口。Claude 沿用 `set_model`，Codex 沿用 `thread/settings/update`，都作用于后续轮次，不改全局环境变量。运行中禁止切换；配置未就绪或请求失败显示失败，不伪造成功状态。已有对话的当前值来自运行时，不把未知历史 ID 猜测成 Flash。
 
-本次不实现计费、API Key/Base URL 修改、AionCore 构建或新的 Node 服务。前端按任务路由的测试不等同于真实 Agent/KB 端到端切换验收；仍需验证目标模型兼容性、恢复对话后的实际模型以及跨任务隔离。
+已知阻塞：当前部署在启动及定时任务中清理旧连接标识，而 AionCore v0.1.53 在没有 `session_id` 时跳过运行时快照，恢复时可能回到创建时的模型。切换结果实际已写入 `acp_session.session_config.runtime.current_model_id`，但这不等于重启恢复已验收。普通会话 PATCH 明确禁止修改模型字段；本实现不绕过该约束。需要修复 AionCore 的无连接标识恢复逻辑后，才能保证完整生命周期的模型持久化。
 
-## 验证
+## 部署
 
-新增组件、倍率与 Web 集成测试位于 `tests/unit/agent-hub/studioModel*.test.ts*`，覆盖原始 ID 传递、禁用态、接口失败、倍率降级、任务隔离和 Aion CLI 保持屏蔽。
+无需修改 AionCore 或新增常驻 Node 服务：
+
+1. Dockerfile 固定 Claude Code 2.1.242，并通过构建期 `pinClaude.js` 同步 AionCore 优先启动的内置 CLI，以支持原生 `modelPicker` 多模型目录。仅升级 PATH 下的 CLI 无效；Rust 二进制不变。
+2. 镜像复制本组件的 `models.json` 至 `/etc/agent-hub/models/`。
+3. Compose 启动时运行 `docker/agent-hub/models/seed.js`：合并 Claude 模型目录，保留其他设置；基于现有完整模板生成 Codex 四模型目录。
+4. Node 脚本只在容器启动时执行，不参与请求转发，不在用户切换时重写配置。认证及 Base URL 继续沿用部署环境。
+
+必须同时更新镜像与 Compose；旧运行时未配置目录时，前端展示模型不代表 AionCore 一定允许切换。Codex 各模型暂用现有模板能力元数据，尚待供应商提供真实上下文及推理能力参数。
+
+## 验证边界
+
+单元测试覆盖请求 ID、草稿默认值、协议过滤、失败保留、会话回调隔离、目录初始化和无损配置合并。模拟网关验证客户端发出的模型 ID，不代表 KB 实际路由、工具调用兼容性或计费已验收。真实 KB 联调仍需逐模型验证。

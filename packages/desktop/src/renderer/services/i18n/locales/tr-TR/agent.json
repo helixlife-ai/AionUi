@@ -1,5 +1,6 @@
 {
   "studioModels": {
+    "switchWarning": "Model değişikliği önbelleğin yeniden kullanımını engelleyebilir, Token tüketimini artırabilir ve ilk yanıtı yavaşlatabilir. Bağlam sınırı aşılırsa geçmiş sıkıştırılabilir.",
     "demoNotice": "Demo: Modeller ve oranlar örnektir. Seçim çalışan modeli değiştirmez.",
     "choose": "Model seç",
     "referenceRate": "Referans katsayısı",
