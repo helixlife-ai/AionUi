@@ -22,6 +22,12 @@ import { useConversationHistoryContext } from '@/renderer/hooks/context/Conversa
 import { shouldLoadHeavyCatalogs } from '@/renderer/services/backendReadiness';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useCustomAgentsLoader } from './useCustomAgentsLoader';
+import {
+  isStudioModelSelectorEnabled,
+  getStudioFallback,
+  getStudioModels,
+  isStudioBackend,
+} from '@/renderer/components/agent/StudioModelSelector/catalog';
 
 export {
   buildAgentRuntimeModeState,
@@ -233,8 +239,15 @@ export const useGuidAssistantSelection = ({
     [managedAgentRuntimeCatalog, selectedAssistant?.agent_id]
   );
   const selectedAgentRuntimeModelInfo = useMemo(
-    () => buildAgentRuntimeModelInfo(selectedManagedAgentRuntimeCatalog),
-    [selectedManagedAgentRuntimeCatalog]
+    () =>
+      isStudioModelSelectorEnabled() && isStudioBackend(selectedAssistantBackend)
+        ? {
+            current_model_id: getStudioFallback(selectedAssistantBackend).id,
+            current_model_label: getStudioFallback(selectedAssistantBackend).label,
+            available_models: getStudioModels(selectedAssistantBackend),
+          }
+        : buildAgentRuntimeModelInfo(selectedManagedAgentRuntimeCatalog),
+    [selectedManagedAgentRuntimeCatalog, selectedAssistantBackend]
   );
   const currentAgentAvailableCommands = useMemo(
     () => buildAgentRuntimeSlashCommands(selectedManagedAgentRuntimeCatalog),

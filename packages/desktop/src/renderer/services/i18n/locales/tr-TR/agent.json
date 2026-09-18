@@ -1,4 +1,23 @@
 {
+  "studioModels": {
+    "switchWarning": "Model değişikliği önbelleğin yeniden kullanımını engelleyebilir, Token tüketimini artırabilir ve ilk yanıtı yavaşlatabilir. Bağlam sınırı aşılırsa geçmiş sıkıştırılabilir.",
+    "demoNotice": "Demo: Modeller ve oranlar örnektir. Seçim çalışan modeli değiştirmez.",
+    "choose": "Model seç",
+    "referenceRate": "Referans katsayısı",
+    "rateUnavailable": "Katsayılar kullanılamıyor. Modeller kullanılabilir. Yeniden denemek için tekrar açın.",
+    "disclaimer": "Katsayılar göreli kullanımı karşılaştırır. Gerçek ücret görevin Token kesintisine dayanır.",
+    "empty": "Bu aracı henüz model bildirmedi.",
+    "selected": "{{model}} seçildi",
+    "scenarios": {
+      "reading": "Literatür okuma, makale yazma",
+      "analysis": "Analiz yorumlama, araştırma planlama",
+      "daily": "Hızlı sorular, günlük görevler",
+      "reasoning": "Karmaşık analiz, derin akıl yürütme",
+      "report": "Araştırma ve rapor hazırlama",
+      "longContext": "Uzun belgeler, karmaşık görevler",
+      "generic": "Mevcut aracı tarafından sağlanır"
+    }
+  },
   "health": {
     "detectedError": "Detected error with current agent ({{agent}})",
     "autoSwitching": ". System will attempt to switch automatically.",

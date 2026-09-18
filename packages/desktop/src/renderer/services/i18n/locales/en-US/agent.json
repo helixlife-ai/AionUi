@@ -1,4 +1,23 @@
 {
+  "studioModels": {
+    "switchWarning": "Switching models may prevent cache reuse, increase Token usage, and slow the first response. History may be compressed if it exceeds the context limit.",
+    "demoNotice": "Demo: models and rates are examples. Selection does not change the running model.",
+    "choose": "Choose model",
+    "referenceRate": "Reference rate",
+    "rateUnavailable": "Rates are unavailable. Model selection still works. Reopen to retry.",
+    "disclaimer": "Rates compare relative model usage only. Actual charges follow the task’s Token deduction.",
+    "empty": "No models reported by this agent yet.",
+    "selected": "Selected {{model}}",
+    "scenarios": {
+      "reading": "Literature reading, paper writing",
+      "analysis": "Analysis interpretation, research planning",
+      "daily": "Quick questions, everyday tasks",
+      "reasoning": "Complex analysis, deep reasoning",
+      "report": "Research and report preparation",
+      "longContext": "Long-document reading, complex tasks",
+      "generic": "Available from the current agent"
+    }
+  },
   "health": {
     "detectedError": "Detected error with current agent ({{agent}})",
     "autoSwitching": ". System will attempt to switch automatically.",

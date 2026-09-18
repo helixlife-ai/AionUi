@@ -5,7 +5,7 @@
  */
 
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IMcpServer } from '@/common/config/storage';
 import { useGuidSend, type GuidSendDeps } from '@/renderer/pages/guid/hooks/useGuidSend';
 
@@ -76,6 +76,26 @@ const createDeps = (): GuidSendDeps => ({
 });
 
 describe('useGuidSend', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([
+    ['claude', null, 'agenthub-deepseek-v4-1-flash'],
+    ['codex', null, 'agenthub-deepseek-v4-1-flash'],
+    ['codex', 'agenthub-glm-5-3', 'agenthub-glm-5-3'],
+    ['claude', 'agenthub-glm-5-3', 'agenthub-glm-5-3'],
+    ['codex', 'agenthub-kimi-k3', 'agenthub-kimi-k3'],
+  ])('creates a Web %s conversation with the confirmed model override', async (backend, selection, expected) => {
+    vi.stubGlobal('electronAPI', undefined);
+    const deps = createDeps();
+    deps.selectedAssistantBackend = backend!;
+    deps.selectedAcpModel = selection;
+    const { result } = renderHook(() => useGuidSend(deps));
+    await act(async () => {
+      await result.current.handleSend();
+    });
+    expect(createConversationInvokeMock.mock.calls[0][0].assistant.conversation_overrides.model).toBe(expected);
+  });
+
   beforeEach(() => {
     createConversationInvokeMock.mockReset();
     createConversationInvokeMock.mockResolvedValue({ id: 'conv-1' });

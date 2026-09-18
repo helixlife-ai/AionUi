@@ -1,4 +1,23 @@
 {
+  "studioModels": {
+    "switchWarning": "모델 전환 시 캐시를 재사용하지 못해 Token 사용량이 늘고 첫 응답이 느려질 수 있습니다. 컨텍스트 한도를 초과하면 기록이 압축될 수 있습니다.",
+    "demoNotice": "데모: 모델과 배율은 예시이며 선택해도 실행 모델은 변경되지 않습니다.",
+    "choose": "모델 선택",
+    "referenceRate": "참고 배율",
+    "rateUnavailable": "배율을 사용할 수 없습니다. 모델은 사용할 수 있습니다. 다시 열면 재시도합니다.",
+    "disclaimer": "배율은 상대적 사용량 비교용입니다. 실제 요금은 작업의 Token 차감량을 따릅니다.",
+    "empty": "이 에이전트가 아직 모델을 반환하지 않았습니다.",
+    "selected": "{{model}} 선택됨",
+    "scenarios": {
+      "reading": "문헌 읽기, 논문 작성",
+      "analysis": "분석 해석, 연구 계획",
+      "daily": "빠른 질문, 일상 작업",
+      "reasoning": "복잡한 분석, 심층 추론",
+      "report": "연구 및 보고서 작성",
+      "longContext": "긴 문서 읽기, 복잡한 작업",
+      "generic": "현재 에이전트에서 제공하는 모델"
+    }
+  },
   "health": {
     "detectedError": "현재 에이전트 ({{agent}})에서 오류 감지됨",
     "autoSwitching": ". 시스템이 자동으로 전환을 시도합니다.",

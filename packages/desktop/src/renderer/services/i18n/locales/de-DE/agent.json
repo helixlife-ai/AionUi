@@ -1,4 +1,23 @@
 {
+  "studioModels": {
+    "switchWarning": "Beim Modellwechsel kann der Cache eventuell nicht wiederverwendet werden, der Token-Verbrauch steigen und die erste Antwort länger dauern. Bei Überschreitung des Kontextlimits kann der Verlauf komprimiert werden.",
+    "demoNotice": "Demo: Modelle und Raten sind Beispiele. Die Auswahl ändert das laufende Modell nicht.",
+    "choose": "Modell wählen",
+    "referenceRate": "Referenzfaktor",
+    "rateUnavailable": "Faktoren nicht verfügbar. Modelle bleiben nutzbar. Zum Wiederholen erneut öffnen.",
+    "disclaimer": "Faktoren vergleichen nur den relativen Verbrauch. Abgerechnet werden die Token der Aufgabe.",
+    "empty": "Dieser Agent hat noch keine Modelle gemeldet.",
+    "selected": "{{model}} ausgewählt",
+    "scenarios": {
+      "reading": "Literatur lesen, Arbeiten schreiben",
+      "analysis": "Analyse, Forschungsplanung",
+      "daily": "Kurze Fragen, Alltagsaufgaben",
+      "reasoning": "Komplexe Analyse, vertieftes Denken",
+      "report": "Forschung und Berichte",
+      "longContext": "Lange Dokumente, komplexe Aufgaben",
+      "generic": "Vom aktuellen Agent bereitgestellt"
+    }
+  },
   "health": {
     "detectedError": "Fehler beim aktuellen Agenten ({{agent}}) erkannt",
     "autoSwitching": ". Das System versucht automatisch zu wechseln.",

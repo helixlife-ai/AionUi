@@ -1,4 +1,23 @@
 {
+  "studioModels": {
+    "switchWarning": "Al cambiar de modelo, la caché podría no reutilizarse, aumentar el consumo de Token y ralentizar la primera respuesta. El historial podría comprimirse si supera el límite de contexto.",
+    "demoNotice": "Demostración: los modelos y las tarifas son ejemplos. La selección no cambia el modelo en ejecución.",
+    "choose": "Elegir modelo",
+    "referenceRate": "Factor de referencia",
+    "rateUnavailable": "Factores no disponibles. Puede seguir usando modelos. Vuelva a abrir para reintentar.",
+    "disclaimer": "Los factores comparan el consumo relativo. El cargo real corresponde a los Token de la tarea.",
+    "empty": "Este agente aún no ha devuelto modelos.",
+    "selected": "{{model}} seleccionado",
+    "scenarios": {
+      "reading": "Lectura y redacción científica",
+      "analysis": "Interpretación y planificación",
+      "daily": "Preguntas rápidas, tareas diarias",
+      "reasoning": "Análisis complejo, razonamiento profundo",
+      "report": "Investigación e informes",
+      "longContext": "Documentos largos, tareas complejas",
+      "generic": "Disponible en el agente actual"
+    }
+  },
   "health": {
     "detectedError": "Se detectó un error con el agente actual ({{agent}})",
     "autoSwitching": ". El sistema intentará cambiar automáticamente.",

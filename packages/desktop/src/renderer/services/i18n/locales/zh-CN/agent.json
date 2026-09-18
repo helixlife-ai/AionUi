@@ -1,4 +1,23 @@
 {
+  "studioModels": {
+    "switchWarning": "切换模型可能无法复用上下文缓存，增加 Token 消耗并使首轮响应变慢；上下文超限时可能压缩历史信息。",
+    "demoNotice": "展示模式：模型与倍率为示例，选择不会改变实际运行模型。",
+    "choose": "选择模型",
+    "referenceRate": "参考倍率",
+    "rateUnavailable": "参考倍率暂不可用，不影响模型使用。重新打开列表时将自动重试。",
+    "disclaimer": "倍率仅用于比较模型的相对消耗，实际以任务扣减 Token 为准。",
+    "empty": "当前 Agent 暂未返回可选模型。",
+    "selected": "已选择 {{model}}",
+    "scenarios": {
+      "reading": "文献阅读、论文写作",
+      "analysis": "分析解读、研究方案",
+      "daily": "快速问答、日常任务",
+      "reasoning": "复杂分析、深度推理",
+      "report": "综合研究与报告整理",
+      "longContext": "长文阅读与复杂任务",
+      "generic": "当前 Agent 提供的模型"
+    }
+  },
   "health": {
     "detectedError": "检测到当前 Agent ({{agent}}) 响应异常",
     "autoSwitching": "。系统将自动尝试切换线路。",
