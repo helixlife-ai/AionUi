@@ -2,7 +2,12 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { Button, Spin, Tooltip, Trigger } from '@arco-design/web-react';
 import { Check, Down, Info, Up } from '@icon-park/react';
 import { useTranslation } from 'react-i18next';
-import { formatStudioModelRate, getStudioModelDescriptionKey, withStudioFallback } from './catalog';
+import {
+  formatStudioModelRate,
+  getStudioModelDescriptionKey,
+  normalizeStudioModelId,
+  withStudioFallback,
+} from './catalog';
 import type { StudioBackend, StudioModelOption, StudioModelRates } from './catalog';
 import styles from './StudioModelSelector.module.css';
 
@@ -53,8 +58,12 @@ export default function StudioModelSelector({
   const effectiveRates = loadRates ? fetchedRates : rates;
   const catalog = withStudioFallback(models, backend);
   const uniqueModels = catalog.filter((model, index) => catalog.findIndex((item) => item.id === model.id) === index);
+  const normalizedValue = normalizeStudioModelId(value);
   const label =
-    uniqueModels.find((model) => model.id === value)?.label || currentLabel || value || t('agent.studioModels.choose');
+    uniqueModels.find((model) => model.id === normalizedValue)?.label ||
+    currentLabel ||
+    value ||
+    t('agent.studioModels.choose');
   const missingRates = uniqueModels.some((model) => formatStudioModelRate(effectiveRates?.[model.id]) === '--');
 
   useEffect(() => {
@@ -104,7 +113,7 @@ export default function StudioModelSelector({
 
   const select = async (id: string) => {
     if (disabled || selectingRef.current) return;
-    if (id === value) {
+    if (id === normalizedValue) {
       changeOpen(false);
       return;
     }
@@ -160,14 +169,14 @@ export default function StudioModelSelector({
                 key={model.id}
                 type='text'
                 className={styles.row}
-                aria-pressed={model.id === value}
+                aria-pressed={model.id === normalizedValue}
                 disabled={disabled || selecting}
                 onClick={() => void select(model.id)}
               >
                 <span className={styles.copy}>
                   <span className={styles.name}>
                     {model.label}
-                    {model.id === value && (
+                    {model.id === normalizedValue && (
                       <Check className={styles.check} size={18} strokeWidth={4} fill='currentColor' />
                     )}
                   </span>

@@ -1,7 +1,7 @@
 name: agent-hub
 services:
   agent-hub:
-    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.16
+    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.17
     container_name: agent-hub
     user: '0'
     # 资源倾斜：在启动阶段给予默认应用大部分资源
@@ -32,13 +32,13 @@ services:
       - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://paas-model.jova.bio/api/v1/helix}
       - ANTHROPIC_AUTH_TOKEN=${SERIAL_NUMBER}
       - ANTHROPIC_API_KEY=${SERIAL_NUMBER}
-      - ANTHROPIC_DEFAULT_OPUS_MODEL=agenthub-claude
-      - ANTHROPIC_DEFAULT_SONNET_MODEL=agenthub-claude
-      - ANTHROPIC_DEFAULT_HAIKU_MODEL=agenthub-claude
+      - ANTHROPIC_DEFAULT_OPUS_MODEL=agenthub-deepseek-v4-1-flash
+      - ANTHROPIC_DEFAULT_SONNET_MODEL=agenthub-deepseek-v4-1-flash
+      - ANTHROPIC_DEFAULT_HAIKU_MODEL=agenthub-deepseek-v4-1-flash
       - CLAUDE_CODE_MAX_OUTPUT_TOKENS=16000
       - OPENAI_API_KEY=${SERIAL_NUMBER}
       - CODEX_BASE_URL=${CODEX_BASE_URL:-https://paas-model.jova.bio/api/v1/helix/v1}
-      - CODEX_MODEL=${CODEX_MODEL:-agenthub-codex}
+      - CODEX_MODEL=${CODEX_MODEL:-agenthub-deepseek-v4-1-flash}
       # Claude Code/Codex 原生 OTel traces，由一体机 Collector 统一接收。
       - OTEL_TRACES_EXPORTER=${OTEL_TRACES_EXPORTER:-otlp}
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
@@ -65,13 +65,13 @@ services:
         fi
         # Codex helix 代理配置($$ 是 compose 转义,shell 里即 $)。Codex 每次调用都读 ~/.codex/config.toml。
         mkdir -p /root/.codex
-        CODEX_MODEL_VALUE="$${CODEX_MODEL:-agenthub-codex}"
+        CODEX_MODEL_VALUE="$${CODEX_MODEL:-agenthub-deepseek-v4-1-flash}"
         # 必须用镜像内完整 catalog:手写的缺必填字段会导致 Codex 忽略配置、握手挂起。
         if [ -f /etc/agent-hub/codex-model-catalog.json ]; then
           if [ -f /etc/agent-hub/models/seed.js ]; then
             node /etc/agent-hub/models/seed.js || exit 1
           else
-            node -e "const fs=require('fs'); const src='/etc/agent-hub/codex-model-catalog.json'; const dst='/root/.codex/model-catalog.json'; const j=JSON.parse(fs.readFileSync(src,'utf8')); const slug=process.env.CODEX_MODEL||'agenthub-codex'; if (j.models&&j.models[0]) { j.models[0].slug=slug; j.models[0].display_name='Agent Hub Codex'; } fs.writeFileSync(dst, JSON.stringify(j, null, 2));"
+            node -e "const fs=require('fs'); const src='/etc/agent-hub/codex-model-catalog.json'; const dst='/root/.codex/model-catalog.json'; const j=JSON.parse(fs.readFileSync(src,'utf8')); const slug=process.env.CODEX_MODEL||'agenthub-deepseek-v4-1-flash'; if (j.models&&j.models[0]) { j.models[0].slug=slug; j.models[0].display_name='Agent Hub Codex'; } fs.writeFileSync(dst, JSON.stringify(j, null, 2));"
           fi
         else
           echo "[agent-hub] warn: codex-model-catalog.json missing; Codex may warn about unknown model metadata"

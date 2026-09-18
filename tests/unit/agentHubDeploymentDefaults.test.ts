@@ -21,11 +21,11 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).not.toContain('studio-server.newidea.pro');
   });
 
-  it('uses the v0.2.16 release consistently', () => {
-    expect(deploymentConfig.version).toBe('v0.2.16');
-    expect(deploymentConfig.desc).toBe('内置 92 个官方精选科研技能\n优化官方技能的加载与更新方式');
-    expect(compose).toContain('application/agent-hub:v0.2.16');
-    expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.15');
+  it('uses the v0.2.17 release consistently', () => {
+    expect(deploymentConfig.version).toBe('v0.2.17');
+    expect(deploymentConfig.desc).toBe('Studio 新增 Claude Code 与 Codex 多模型切换\n兼容历史会话模型并统一模型路由');
+    expect(compose).toContain('application/agent-hub:v0.2.17');
+    expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.16');
   });
 
   it('does not invoke the removed runtime skill assembler while building the image', () => {
