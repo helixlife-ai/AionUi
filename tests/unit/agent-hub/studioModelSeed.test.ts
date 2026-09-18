@@ -53,16 +53,16 @@ describe('Studio deployment model catalogs', () => {
     ).toThrow();
   });
   it('seeds exact Claude IDs while preserving unrelated settings', () => {
-    const f = fixture(JSON.stringify({ permissions: { allow: ['Read'] }, model: 'agenthub-claude' }));
+    const f = fixture(JSON.stringify({ permissions: { allow: ['Read'] }, model: 'legacy-model' }));
     f.run();
     const settings = JSON.parse(fs.readFileSync(f.claude, 'utf8'));
     expect(settings.modelPicker.options.map((row: { model: string }) => row.model)).toEqual(
       models.map((model) => model.claude)
     );
     expect(settings.permissions).toEqual({ allow: ['Read'] });
-    expect(settings.model).toBe('agenthub-claude');
+    expect(settings.model).toBe('legacy-model');
   });
-  it('seeds only Responses-compatible Codex IDs and keeps required schema fields', () => {
+  it('seeds all confirmed Codex IDs and keeps required schema fields', () => {
     const f = fixture();
     f.run();
     const catalog = JSON.parse(fs.readFileSync(f.codex, 'utf8'));

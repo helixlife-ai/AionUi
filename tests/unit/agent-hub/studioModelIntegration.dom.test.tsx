@@ -60,7 +60,7 @@ describe('Studio Web integration', () => {
   const model: AcpDerivedOption = {
     id: 'model',
     category: 'model',
-    currentValue: 'agenthub-claude',
+    currentValue: 'agenthub-deepseek-v4-1-flash',
     options: [
       { value: 'sonnet', label: 'Sonnet' },
       { value: 'opus', label: 'Opus' },
@@ -113,6 +113,23 @@ describe('Studio Web integration', () => {
     expect(screen.getByRole('button', { name: /studioModels.choose: DeepSeek/ })).toBeInTheDocument();
   });
 
+  it('keeps a legacy Flash request ID while showing the current Flash label', async () => {
+    const setter = vi.fn();
+    render(
+      <StudioConversationModelSelector
+        backend='claude'
+        conversationId='legacy'
+        model={{ ...model, currentValue: 'agenthub-claude' }}
+        disabled={false}
+        setModel={setter}
+      />
+    );
+    expect(screen.getByRole('button', { name: /studioModels.choose: DeepSeek-V4.1-Flash/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /studioModels.choose: DeepSeek-V4.1-Flash/ }));
+    fireEvent.click(within(await screen.findByRole('region')).getByRole('button', { name: /DeepSeek-V4.1-Flash/ }));
+    expect(setter).not.toHaveBeenCalled();
+  });
+
   it('does not report success when runtime configuration is unavailable', async () => {
     vi.mocked(Message.info).mockClear();
     const setter = vi.fn();
@@ -127,14 +144,17 @@ describe('Studio Web integration', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /studioModels.choose:/ }));
     const panel = await screen.findByRole('region');
-    expect(within(panel).queryByText('GLM-5.3')).not.toBeInTheDocument();
+    expect(within(panel).getByText('GLM-5.3')).toBeInTheDocument();
     fireEvent.click(within(panel).getByRole('button', { name: /DeepSeek/ }));
     await waitFor(() => expect(Message.error).toHaveBeenCalledWith('agent.config.failed'));
     expect(setter).not.toHaveBeenCalled();
     expect(Message.info).not.toHaveBeenCalled();
   });
 
-  it('uses the Codex fallback request ID even with an empty runtime catalog', async () => {
+  it.each([
+    ['DeepSeek', 'agenthub-deepseek-v4-1-flash'],
+    ['GLM', 'agenthub-glm-5-3'],
+  ])('uses the confirmed Codex %s request ID even with an empty runtime catalog', async (label, id) => {
     const setter = vi.fn().mockResolvedValue(undefined);
     render(
       <StudioConversationModelSelector
@@ -146,8 +166,8 @@ describe('Studio Web integration', () => {
       />
     );
     fireEvent.click(screen.getByRole('button', { name: /studioModels.choose: Kimi/ }));
-    fireEvent.click(within(await screen.findByRole('region')).getByRole('button', { name: /DeepSeek/ }));
-    await waitFor(() => expect(setter).toHaveBeenCalledWith('model', 'agenthub-codex'));
+    fireEvent.click(within(await screen.findByRole('region')).getByRole('button', { name: new RegExp(label) }));
+    await waitFor(() => expect(setter).toHaveBeenCalledWith('model', id));
   });
 
   it('switches immediately and notifies only after runtime success without a dialog', async () => {

@@ -13,14 +13,33 @@ export type StudioBackend = 'claude' | 'codex';
 export const isStudioBackend = (backend?: string): backend is StudioBackend =>
   backend === 'claude' || backend === 'codex';
 
-export const STUDIO_FALLBACK_MODEL: StudioModelOption = { id: 'agenthub-claude', label: 'DeepSeek-V4.1-Flash' };
+export const STUDIO_FALLBACK_MODEL: StudioModelOption = {
+  id: 'agenthub-deepseek-v4-1-flash',
+  label: 'DeepSeek-V4.1-Flash',
+};
 
-/** The two stable KB aliases both route to Flash; never use a display name as a request ID. */
-export function getStudioFallback(backend: StudioBackend): StudioModelOption {
-  return { ...STUDIO_FALLBACK_MODEL, id: backend === 'codex' ? 'agenthub-codex' : 'agenthub-claude' };
+/** Both protocols use the same confirmed KB Flash request ID. */
+export function getStudioFallback(_backend: StudioBackend): StudioModelOption {
+  return { ...STUDIO_FALLBACK_MODEL };
 }
 
-/** Codex uses Responses; GLM-5.3 currently supports Messages only. */
+/** Legacy aliases remain valid in KB; new drafts use canonical IDs and Web displays the current label. */
+const legacyModelIds: Record<string, string> = {
+  'agenthub-claude': STUDIO_FALLBACK_MODEL.id,
+  'agenthub-codex': STUDIO_FALLBACK_MODEL.id,
+  'agenthub-glm5-3': 'agenthub-glm-5-3',
+  'deepseek-v4-flash': STUDIO_FALLBACK_MODEL.id,
+  'glm-5.3': 'agenthub-glm-5-3',
+  'qwen3.5-plus': 'agenthub-qwen3-5-plus',
+  'qwen3.7-plus': 'agenthub-qwen3-7-plus',
+};
+
+export function normalizeStudioModelId(value?: string | null): string | null {
+  if (!value) return null;
+  return legacyModelIds[value.toLowerCase()] ?? value;
+}
+
+/** All confirmed KB models support both Messages and Responses. */
 export function getStudioModels(backend: StudioBackend): StudioModelOption[] {
   return modelDefinitions.flatMap((model) => (model[backend] ? [{ id: model[backend], label: model.label }] : []));
 }
@@ -31,7 +50,10 @@ export const STUDIO_MODEL_RATES: StudioModelRates = Object.fromEntries(
 
 /** New drafts default to Flash, independently of another session's CLI default. */
 export function resolveStudioDraftModel(backend: StudioBackend, value?: string | null): string {
-  return getStudioModels(backend).some((model) => model.id === value) ? value! : getStudioFallback(backend).id;
+  const normalized = normalizeStudioModelId(value);
+  return getStudioModels(backend).some((model) => model.id === normalized)
+    ? normalized!
+    : getStudioFallback(backend).id;
 }
 
 /** Always retain the fallback, including failed/empty future catalog responses. */
@@ -49,9 +71,8 @@ export function withStudioFallback(
 const descriptions = {
   'agenthub-qwen3-5-plus': 'agent.studioModels.scenarios.reading',
   'agenthub-qwen3-7-plus': 'agent.studioModels.scenarios.analysis',
-  'agenthub-claude': 'agent.studioModels.scenarios.daily',
-  'agenthub-codex': 'agent.studioModels.scenarios.daily',
-  'agenthub-glm5-3': 'agent.studioModels.scenarios.report',
+  'agenthub-deepseek-v4-1-flash': 'agent.studioModels.scenarios.daily',
+  'agenthub-glm-5-3': 'agent.studioModels.scenarios.report',
   'agenthub-kimi-k3': 'agent.studioModels.scenarios.longContext',
 } as const;
 

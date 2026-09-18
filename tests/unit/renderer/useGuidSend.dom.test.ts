@@ -79,10 +79,10 @@ describe('useGuidSend', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it.each([
-    ['claude', null, 'agenthub-claude'],
-    ['codex', null, 'agenthub-codex'],
-    ['codex', 'agenthub-glm5-3', 'agenthub-codex'],
-    ['claude', 'agenthub-glm5-3', 'agenthub-glm5-3'],
+    ['claude', null, 'agenthub-deepseek-v4-1-flash'],
+    ['codex', null, 'agenthub-deepseek-v4-1-flash'],
+    ['codex', 'agenthub-glm-5-3', 'agenthub-glm-5-3'],
+    ['claude', 'agenthub-glm-5-3', 'agenthub-glm-5-3'],
     ['codex', 'agenthub-kimi-k3', 'agenthub-kimi-k3'],
   ])('creates a Web %s conversation with the confirmed model override', async (backend, selection, expected) => {
     vi.stubGlobal('electronAPI', undefined);
