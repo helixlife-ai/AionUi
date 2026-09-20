@@ -133,12 +133,13 @@ const useSendBoxDraft = (conversation_id: string) => {
 const AcpSendBox: React.FC<{
   conversation_id: string;
   backend: string;
+  initialModelId?: string;
   session_mode?: string;
   agent_name?: string;
   messageState: UseAcpMessageReturn;
   teamSendMessage?: (payload: { input: string; files: ChatFileRef[] }) => Promise<void>;
   teamRuntime?: TeamSendBoxRuntime;
-}> = ({ conversation_id, backend, session_mode, agent_name, messageState, teamSendMessage, teamRuntime }) => {
+}> = ({ conversation_id, backend, initialModelId, session_mode, agent_name, messageState, teamSendMessage, teamRuntime }) => {
   const {
     aiProcessing,
     setAiProcessing,
@@ -1056,6 +1057,7 @@ Please check your local CLI tool authentication status`,
                 backend={backend}
                 conversationId={conversation_id}
                 model={runtimeConfig.model}
+                initialModelId={initialModelId}
                 disabled={isBusy || Boolean(teamRuntime?.loading) || runtimeConfig.setStatus.state === 'setting'}
                 setModel={runtimeConfig.setConfigOption}
               />

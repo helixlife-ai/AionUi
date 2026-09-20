@@ -130,6 +130,20 @@ describe('Studio Web integration', () => {
     expect(setter).not.toHaveBeenCalled();
   });
 
+  it('uses the persisted conversation model when the runtime snapshot is empty', () => {
+    render(
+      <StudioConversationModelSelector
+        backend='codex'
+        conversationId='persisted'
+        model={{ ...model, currentValue: null }}
+        initialModelId='agenthub-kimi-k3'
+        disabled={false}
+        setModel={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: /studioModels.choose: Kimi-K3/ })).toBeInTheDocument();
+  });
+
   it('does not report success when runtime configuration is unavailable', async () => {
     vi.mocked(Message.info).mockClear();
     const setter = vi.fn();

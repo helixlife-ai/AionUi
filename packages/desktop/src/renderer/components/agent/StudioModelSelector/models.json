@@ -8,6 +8,15 @@
     "rate": { "min": 0.44, "max": 0.89 },
     "fallback": true
   },
-  { "label": "GLM-5.3", "claude": "agenthub-glm-5-3", "codex": "agenthub-glm-5-3", "rate": 1.9 },
+  {
+    "label": "GLM-5.3",
+    "claude": "agenthub-glm-5-3",
+    "codex": "agenthub-glm-5-3",
+    "codexReasoning": {
+      "default": "high",
+      "supported": ["low", "high", "max"]
+    },
+    "rate": 1.9
+  },
   { "label": "Kimi-K3", "claude": "agenthub-kimi-k3", "codex": "agenthub-kimi-k3", "rate": 4.22 }
 ]

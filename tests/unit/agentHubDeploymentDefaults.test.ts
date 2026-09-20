@@ -21,10 +21,12 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).not.toContain('studio-server.newidea.pro');
   });
 
-  it('uses the v0.2.17 release consistently', () => {
-    expect(deploymentConfig.version).toBe('v0.2.17');
-    expect(deploymentConfig.desc).toBe('Studio 新增 Claude Code 与 Codex 多模型切换\n兼容历史会话模型并统一模型路由');
-    expect(compose).toContain('application/agent-hub:v0.2.17');
+  it('uses the v0.2.18 release consistently', () => {
+    expect(deploymentConfig.version).toBe('v0.2.18');
+    expect(deploymentConfig.desc).toBe(
+      'Studio 修复 Claude Code 与 Codex 模型切换\n修复历史会话显示与模型上报并适配 GLM-5.3'
+    );
+    expect(compose).toContain('application/agent-hub:v0.2.18');
     expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.16');
   });
 
