@@ -77,6 +77,15 @@ describe('Studio deployment model catalogs', () => {
       priority: 0,
     });
   });
+  it('uses only Codex reasoning levels accepted by GLM-5.3', () => {
+    const f = fixture();
+    f.run();
+    const catalog = JSON.parse(fs.readFileSync(f.codex, 'utf8'));
+    const glm = catalog.models.find((row: { slug: string }) => row.slug === 'agenthub-glm-5-3');
+
+    expect(glm.default_reasoning_level).toBe('high');
+    expect(glm.supported_reasoning_levels.map((row: { effort: string }) => row.effort)).toEqual(['low', 'high', 'max']);
+  });
   it('is idempotent', () => {
     const f = fixture();
     f.run();
