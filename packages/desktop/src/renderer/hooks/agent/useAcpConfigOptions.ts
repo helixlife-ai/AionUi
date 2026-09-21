@@ -236,6 +236,12 @@ export function useAcpConfigOptions({
           value,
         });
         const confirmation = response.confirmation;
+        // Codex applies model changes from the next turn. Preserve the backend
+        // snapshot but treat this confirmation as a successful request.
+        if (confirmation === 'pending_next_turn') {
+          if (response.config_options) replaceSnapshot(response.config_options);
+          return response.config_options;
+        }
         if (!hasObservedValue(response, optionId, value)) {
           throw new Error(confirmation === 'command_ack' ? 'command_ack' : 'config_not_observed');
         }

@@ -128,6 +128,7 @@ const useSendBoxDraft = (conversation_id: string) => {
 const AcpSendBox: React.FC<{
   conversation_id: string;
   backend: string;
+  initialModelId?: string;
   session_mode?: string;
   agent_name?: string;
   workspacePath?: string;
@@ -137,6 +138,7 @@ const AcpSendBox: React.FC<{
 }> = ({
   conversation_id,
   backend,
+  initialModelId,
   session_mode,
   agent_name,
   workspacePath,
@@ -926,6 +928,7 @@ Please check your local CLI tool authentication status`,
                 backend={backend}
                 conversationId={conversation_id}
                 model={runtimeConfig.model}
+                initialModelId={initialModelId}
                 disabled={isBusy || Boolean(teamRuntime?.loading) || runtimeConfig.setStatus.state === 'setting'}
                 setModel={runtimeConfig.setConfigOption}
               />

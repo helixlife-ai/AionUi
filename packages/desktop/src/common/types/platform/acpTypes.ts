@@ -192,7 +192,11 @@ export interface AcpSessionConfigOption {
 
 export type AcpConfigOptionType = 'select' | 'boolean' | 'string';
 
-export type AcpConfigOptionConfirmation = 'observed' | 'command_ack';
+/**
+ * `pending_next_turn` means the agent accepted the change but will apply it
+ * from the next turn. It is a successful deferred switch, not a failure.
+ */
+export type AcpConfigOptionConfirmation = 'observed' | 'pending_next_turn' | 'command_ack';
 
 export type AcpConfigSelectOptionDto = {
   value: string;

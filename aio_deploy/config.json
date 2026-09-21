@@ -1,5 +1,5 @@
 {
-  "version": "v0.2.17",
+  "version": "v0.2.18",
   "name": "AgentHub",
   "display_name": "Studio",
   "icon_url": "https://aio-resources.newidea.pro/data/AgentHub/icon.svg",
@@ -7,7 +7,7 @@
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": "Studio 新增 Claude Code 与 Codex 多模型切换\n兼容历史会话模型并统一模型路由",
+  "desc": "Studio 修复 Claude Code 与 Codex 模型切换\n修复历史会话显示与模型上报并适配 GLM-5.3",
   "startup": true,
   "force_update": true,
   "device_limit": [
