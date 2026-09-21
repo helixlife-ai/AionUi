@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getStudioModels,
   normalizeStudioModelId,
+  resolveStudioConversationModel,
   resolveStudioDraftModel,
   withStudioFallback,
 } from '@/renderer/components/agent/StudioModelSelector/catalog';
@@ -29,9 +30,16 @@ describe('confirmed Studio routing contract', () => {
   it.each([
     ['agenthub-claude', 'agenthub-deepseek-v4-1-flash'],
     ['agenthub-codex', 'agenthub-deepseek-v4-1-flash'],
+    ['default', 'agenthub-deepseek-v4-1-flash'],
     ['agenthub-glm5-3', 'agenthub-glm-5-3'],
   ])('normalizes the legacy %s alias for display and drafts', (legacy, current) => {
     expect(normalizeStudioModelId(legacy)).toBe(current);
+  });
+  it('prefers a persisted conversation model over the Claude default sentinel', () => {
+    expect(resolveStudioConversationModel('claude', 'default', 'agenthub-kimi-k3')).toBe('agenthub-kimi-k3');
+  });
+  it('uses Flash when the runtime default sentinel has no persisted model', () => {
+    expect(resolveStudioConversationModel('codex', 'default')).toBe('agenthub-deepseek-v4-1-flash');
   });
   it.each([null, 'sonnet', 'deepseek-v4-flash', 'agenthub-claude', 'agenthub-codex'])(
     'uses Codex Flash for an incompatible or missing draft %s',

@@ -124,4 +124,12 @@ describe('Studio model selection', () => {
       'true'
     );
   });
+  it('shows the fallback label for the ACP default sentinel', async () => {
+    render(<StudioModelSelector models={models} value='default' onSelect={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Choose model: DeepSeek-V4.1-Flash' })).toBeInTheDocument();
+    expect(within(await open()).getByRole('button', { name: /DeepSeek-V4.1-Flash/ })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
 });

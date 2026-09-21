@@ -27,6 +27,8 @@ export function getStudioFallback(_backend: StudioBackend): StudioModelOption {
 const legacyModelIds: Record<string, string> = {
   'agenthub-claude': STUDIO_FALLBACK_MODEL.id,
   'agenthub-codex': STUDIO_FALLBACK_MODEL.id,
+  // Claude ACP uses `default` as a runtime sentinel for its provider default.
+  default: STUDIO_FALLBACK_MODEL.id,
   'agenthub-glm5-3': 'agenthub-glm-5-3',
   'deepseek-v4-flash': STUDIO_FALLBACK_MODEL.id,
   'glm-5.3': 'agenthub-glm-5-3',
@@ -37,6 +39,10 @@ const legacyModelIds: Record<string, string> = {
 export function normalizeStudioModelId(value?: string | null): string | null {
   if (!value) return null;
   return legacyModelIds[value.toLowerCase()] ?? value;
+}
+
+export function isStudioDefaultModelId(value?: string | null): boolean {
+  return value?.trim().toLowerCase() === 'default';
 }
 
 /** All confirmed KB models support both Messages and Responses. */
@@ -54,6 +60,18 @@ export function resolveStudioDraftModel(backend: StudioBackend, value?: string |
   return getStudioModels(backend).some((model) => model.id === normalized)
     ? normalized!
     : getStudioFallback(backend).id;
+}
+
+/** Resolve the runtime sentinel without discarding a model persisted on the conversation. */
+export function resolveStudioConversationModel(
+  backend: StudioBackend,
+  runtimeValue?: string | null,
+  persistedValue?: string | null
+): string | null {
+  if (isStudioDefaultModelId(runtimeValue)) {
+    return persistedValue ? resolveStudioDraftModel(backend, persistedValue) : getStudioFallback(backend).id;
+  }
+  return runtimeValue || persistedValue || null;
 }
 
 /** Always retain the fallback, including failed/empty future catalog responses. */
