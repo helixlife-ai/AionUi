@@ -3,7 +3,13 @@ import { Message } from '@arco-design/web-react';
 import { useTranslation } from 'react-i18next';
 import type { AcpDerivedOption } from '@/renderer/hooks/agent/useAcpConfigOptions';
 import StudioModelSelector from './index';
-import { getStudioModels, isStudioBackend, STUDIO_MODEL_RATES } from './catalog';
+import {
+  getStudioModels,
+  isStudioBackend,
+  normalizeStudioModelId,
+  resolveStudioConversationModel,
+  STUDIO_MODEL_RATES,
+} from './catalog';
 
 type Props = {
   conversationId: string;
@@ -24,15 +30,18 @@ function ConversationModelControl({ conversationId, model, initialModelId, disab
   const { t } = useTranslation();
   const [pendingValue, setPendingValue] = React.useState<string | null>(null);
   React.useEffect(() => {
-    if (pendingValue && model?.currentValue === pendingValue) setPendingValue(null);
+    if (pendingValue && normalizeStudioModelId(model?.currentValue) === normalizeStudioModelId(pendingValue)) {
+      setPendingValue(null);
+    }
   }, [model?.currentValue, pendingValue]);
   if (!isStudioBackend(backend)) return null;
   const models = getStudioModels(backend);
+  const selectedValue = pendingValue || resolveStudioConversationModel(backend, model?.currentValue, initialModelId);
   return (
     <StudioModelSelector
       backend={backend}
       scopeKey={conversationId}
-      value={pendingValue || model?.currentValue || initialModelId}
+      value={selectedValue}
       disabled={disabled}
       models={models}
       rates={STUDIO_MODEL_RATES}

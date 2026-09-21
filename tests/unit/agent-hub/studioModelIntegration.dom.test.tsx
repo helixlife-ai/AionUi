@@ -130,6 +130,33 @@ describe('Studio Web integration', () => {
     expect(setter).not.toHaveBeenCalled();
   });
 
+  it('shows the persisted model when Claude reports its default sentinel', () => {
+    render(
+      <StudioConversationModelSelector
+        backend='claude'
+        conversationId='default-persisted'
+        model={{ ...model, currentValue: 'default' }}
+        initialModelId='agenthub-kimi-k3'
+        disabled={false}
+        setModel={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: /studioModels.choose: Kimi-K3/ })).toBeInTheDocument();
+  });
+
+  it('shows Flash when Claude reports its default sentinel without a persisted model', () => {
+    render(
+      <StudioConversationModelSelector
+        backend='claude'
+        conversationId='default-fallback'
+        model={{ ...model, currentValue: 'default' }}
+        disabled={false}
+        setModel={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: /studioModels.choose: DeepSeek-V4.1-Flash/ })).toBeInTheDocument();
+  });
+
   it('uses the persisted conversation model when the runtime snapshot is empty', () => {
     render(
       <StudioConversationModelSelector
