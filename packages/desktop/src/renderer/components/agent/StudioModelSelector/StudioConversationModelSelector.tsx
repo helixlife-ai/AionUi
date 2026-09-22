@@ -3,13 +3,7 @@ import { Message } from '@arco-design/web-react';
 import { useTranslation } from 'react-i18next';
 import type { AcpDerivedOption } from '@/renderer/hooks/agent/useAcpConfigOptions';
 import StudioModelSelector from './index';
-import {
-  getStudioModels,
-  isStudioBackend,
-  normalizeStudioModelId,
-  resolveStudioConversationModel,
-  STUDIO_MODEL_RATES,
-} from './catalog';
+import { getStudioModels, isStudioBackend, resolveStudioConversationModel, STUDIO_MODEL_RATES } from './catalog';
 
 type Props = {
   conversationId: string;
@@ -30,7 +24,7 @@ function ConversationModelControl({ conversationId, model, initialModelId, disab
   const { t } = useTranslation();
   const [pendingValue, setPendingValue] = React.useState<string | null>(null);
   React.useEffect(() => {
-    if (pendingValue && normalizeStudioModelId(model?.currentValue) === normalizeStudioModelId(pendingValue)) {
+    if (pendingValue && model?.currentValue === pendingValue) {
       setPendingValue(null);
     }
   }, [model?.currentValue, pendingValue]);
