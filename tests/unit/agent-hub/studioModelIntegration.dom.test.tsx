@@ -47,7 +47,7 @@ describe('Studio Web integration', () => {
     fireEvent.click(screen.getByRole('button', { name: /studioModels.choose: DeepSeek/ }));
     const panel = await screen.findByRole('region');
     fireEvent.click(within(panel).getByRole('button', { name: /Kimi-K3/ }));
-    expect(setSelectedAcpModel).toHaveBeenCalledWith('agenthub-kimi-k3');
+    expect(setSelectedAcpModel).toHaveBeenCalledWith('agenthub-claude-kimi-k3');
     expect(Message.success).toHaveBeenCalledWith('agent.studioModels.selected');
   });
 
@@ -66,6 +66,39 @@ describe('Studio Web integration', () => {
       { value: 'opus', label: 'Opus' },
     ],
   };
+
+  it.each(
+    ['claude', 'codex'].flatMap((backend) =>
+      [
+        ['Qwen3.5-Plus', 'qwen3-5-plus'],
+        ['Qwen3.7-Plus', 'qwen3-7-plus'],
+        ['DeepSeek-V4.1-Flash', 'deepseek-v4-1-flash'],
+        ['GLM-5.3', 'glm-5-3'],
+        ['Kimi-K3', 'kimi-k3'],
+      ].map(([label, suffix]) => ({ backend, label, suffix }))
+    )
+  )('sends the $backend-specific ID for $label when switching a conversation', async ({ backend, label, suffix }) => {
+    const setter = vi.fn().mockResolvedValue(undefined);
+    render(
+      <StudioConversationModelSelector
+        backend={backend}
+        conversationId='routing'
+        model={{ ...model, currentValue: 'unknown' }}
+        disabled={false}
+        setModel={setter}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /studioModels.choose:/ }));
+    fireEvent.click(
+      within(await screen.findByRole('region')).getByRole('button', {
+        name: new RegExp(label.replaceAll('.', '\\.')),
+      })
+    );
+    await waitFor(() => expect(setter).toHaveBeenLastCalledWith('model', `agenthub-${backend}-${suffix}`));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /studioModels.choose:/ })).toHaveAttribute('aria-expanded', 'false')
+    );
+  });
 
   it('sends a switch only to the selected conversation callback', async () => {
     const setA = vi.fn().mockResolvedValue(undefined);
@@ -91,7 +124,7 @@ describe('Studio Web integration', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /studioModels.choose: DeepSeek/ })[0]);
     fireEvent.click(within(await screen.findByRole('region')).getByRole('button', { name: /Qwen3.7/ }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    await waitFor(() => expect(setA).toHaveBeenCalledWith('model', 'agenthub-qwen3-7-plus'));
+    await waitFor(() => expect(setA).toHaveBeenCalledWith('model', 'agenthub-claude-qwen3-7-plus'));
     expect(setB).not.toHaveBeenCalled();
   });
 
@@ -193,8 +226,8 @@ describe('Studio Web integration', () => {
   });
 
   it.each([
-    ['DeepSeek', 'agenthub-deepseek-v4-1-flash'],
-    ['GLM', 'agenthub-glm-5-3'],
+    ['DeepSeek', 'agenthub-codex-deepseek-v4-1-flash'],
+    ['GLM', 'agenthub-codex-glm-5-3'],
   ])('uses the confirmed Codex %s request ID even with an empty runtime catalog', async (label, id) => {
     const setter = vi.fn().mockResolvedValue(undefined);
     render(
@@ -230,7 +263,7 @@ describe('Studio Web integration', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /studioModels.choose: DeepSeek/ }));
     fireEvent.click(within(await screen.findByRole('region')).getByRole('button', { name: /Kimi/ }));
-    expect(setter).toHaveBeenCalledWith('model', 'agenthub-kimi-k3');
+    expect(setter).toHaveBeenCalledWith('model', 'agenthub-claude-kimi-k3');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(Message.info).not.toHaveBeenCalled();
     resolveSwitch();

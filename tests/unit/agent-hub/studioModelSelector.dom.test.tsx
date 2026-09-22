@@ -17,7 +17,7 @@ vi.mock('react-i18next', () => ({
 const models = [
   { id: 'qwen3.5-plus', label: 'Qwen3.5-Plus' },
   { id: 'qwen3.7-plus', label: 'Qwen3.7-Plus' },
-  { id: 'agenthub-deepseek-v4-1-flash', label: 'DeepSeek-V4.1-Flash' },
+  { id: 'agenthub-claude-deepseek-v4-1-flash', label: 'DeepSeek-V4.1-Flash' },
   { id: 'deepseek-v4-pro', label: 'DeepSeek-V4-Pro' },
   { id: 'glm-5.3', label: 'GLM-5.3' },
   { id: 'kimi-k3', label: 'Kimi-K3' },
@@ -25,7 +25,7 @@ const models = [
 const rates = {
   'qwen3.5-plus': 0.29,
   'qwen3.7-plus': 0.64,
-  'agenthub-deepseek-v4-1-flash': { min: 0.44, max: 0.89 },
+  'agenthub-claude-deepseek-v4-1-flash': { min: 0.44, max: 0.89 },
   'deepseek-v4-pro': { min: 1.33, max: 2.66 },
   'glm-5.3': 1.9,
   'kimi-k3': 4.22,
@@ -38,14 +38,19 @@ afterEach(cleanup);
 
 describe('Studio model selection', () => {
   it('uses a larger bold check that inherits the model accent color', async () => {
-    render(<StudioModelSelector models={models} value='agenthub-deepseek-v4-1-flash' onSelect={vi.fn()} />);
+    render(<StudioModelSelector models={models} value='agenthub-claude-deepseek-v4-1-flash' onSelect={vi.fn()} />);
     const selected = within(await open()).getByRole('button', { pressed: true });
     expect(selected.querySelector('svg')).toHaveAttribute('width', '18');
     expect(selected.querySelector('[stroke-width="4"]')).toHaveAttribute('stroke', 'currentColor');
   });
   it('shows the six-model design with descriptions and fixed-format rates', async () => {
     render(
-      <StudioModelSelector models={models} rates={rates} value='agenthub-deepseek-v4-1-flash' onSelect={vi.fn()} />
+      <StudioModelSelector
+        models={models}
+        rates={rates}
+        value='agenthub-claude-deepseek-v4-1-flash'
+        onSelect={vi.fn()}
+      />
     );
     const panel = await open();
     expect(within(panel).getAllByRole('button', { pressed: false })).toHaveLength(5);
@@ -66,7 +71,7 @@ describe('Studio model selection', () => {
     render(
       <StudioModelSelector
         models={models}
-        value='agenthub-deepseek-v4-1-flash'
+        value='agenthub-claude-deepseek-v4-1-flash'
         onSelect={vi.fn().mockRejectedValue(new Error('rejected'))}
       />
     );
@@ -76,7 +81,9 @@ describe('Studio model selection', () => {
     expect(within(panel).getByRole('button', { pressed: true })).toHaveTextContent('DeepSeek-V4.1-Flash');
   });
   it('does not allow a busy conversation to switch', () => {
-    render(<StudioModelSelector models={models} disabled value='agenthub-deepseek-v4-1-flash' onSelect={vi.fn()} />);
+    render(
+      <StudioModelSelector models={models} disabled value='agenthub-claude-deepseek-v4-1-flash' onSelect={vi.fn()} />
+    );
     expect(screen.getByRole('button', { name: /^Choose model:/ })).toBeDisabled();
   });
   it('closes on Escape without changing the selection', async () => {
@@ -91,7 +98,7 @@ describe('Studio model selection', () => {
     render(
       <StudioModelSelector
         models={models}
-        value='agenthub-deepseek-v4-1-flash'
+        value='agenthub-claude-deepseek-v4-1-flash'
         onSelect={vi.fn()}
         loadRates={loadRates}
       />
@@ -106,7 +113,12 @@ describe('Studio model selection', () => {
   });
   it('switching conversation scopes resets the popup and uses the other conversation model', async () => {
     const { rerender } = render(
-      <StudioModelSelector scopeKey='A' models={models} value='agenthub-deepseek-v4-1-flash' onSelect={vi.fn()} />
+      <StudioModelSelector
+        scopeKey='A'
+        models={models}
+        value='agenthub-claude-deepseek-v4-1-flash'
+        onSelect={vi.fn()}
+      />
     );
     await open();
     rerender(<StudioModelSelector scopeKey='B' models={models} value='kimi-k3' onSelect={vi.fn()} />);

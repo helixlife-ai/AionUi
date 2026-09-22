@@ -10,6 +10,13 @@ const deploymentConfig = JSON.parse(fs.readFileSync(path.resolve('aio_deploy/con
 };
 
 describe('Agent Hub deployment defaults', () => {
+  it('uses distinct Flash defaults for Claude and Codex', () => {
+    for (const tier of ['OPUS', 'SONNET', 'HAIKU']) {
+      expect(compose).toContain(`ANTHROPIC_DEFAULT_${tier}_MODEL=agenthub-claude-deepseek-v4-1-flash`);
+    }
+    expect(compose).toContain('CODEX_MODEL=${CODEX_MODEL:-agenthub-codex-deepseek-v4-1-flash}');
+    expect(compose).not.toContain('agenthub-deepseek-v4-1-flash');
+  });
   it('uses development endpoints when no environment override is provided', () => {
     expect(compose).toContain('ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-https://paas-model.jova.bio/api/v1/helix}');
     expect(compose).toContain('CODEX_BASE_URL=${CODEX_BASE_URL:-https://paas-model.jova.bio/api/v1/helix/v1}');
@@ -21,12 +28,12 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).not.toContain('studio-server.newidea.pro');
   });
 
-  it('uses the v0.2.18 release consistently', () => {
-    expect(deploymentConfig.version).toBe('v0.2.18');
+  it('uses the v0.2.19 release consistently', () => {
+    expect(deploymentConfig.version).toBe('v0.2.19');
     expect(deploymentConfig.desc).toBe(
-      'Studio 修复 Claude Code 与 Codex 模型切换\n修复历史会话显示与模型上报并适配 GLM-5.3'
+      'Studio 区分 Claude Code 与 Codex 专属模型 ID\n支持 KB 按 Agent 追踪模型请求，兼容历史会话模型显示'
     );
-    expect(compose).toContain('application/agent-hub:v0.2.18');
+    expect(compose).toContain('application/agent-hub:v0.2.19');
     expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.16');
   });
 
