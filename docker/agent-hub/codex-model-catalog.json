@@ -1,7 +1,7 @@
 {
   "models": [
     {
-      "slug": "agenthub-deepseek-v4-1-flash",
+      "slug": "agenthub-codex-deepseek-v4-1-flash",
       "prefer_websockets": true,
       "support_verbosity": true,
       "default_verbosity": "low",

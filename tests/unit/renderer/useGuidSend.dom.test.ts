@@ -79,11 +79,11 @@ describe('useGuidSend', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it.each([
-    ['claude', null, 'agenthub-deepseek-v4-1-flash'],
-    ['codex', null, 'agenthub-deepseek-v4-1-flash'],
-    ['codex', 'agenthub-glm-5-3', 'agenthub-glm-5-3'],
-    ['claude', 'agenthub-glm-5-3', 'agenthub-glm-5-3'],
-    ['codex', 'agenthub-kimi-k3', 'agenthub-kimi-k3'],
+    ['claude', null, 'agenthub-claude-deepseek-v4-1-flash'],
+    ['codex', null, 'agenthub-codex-deepseek-v4-1-flash'],
+    ['codex', 'agenthub-glm-5-3', 'agenthub-codex-glm-5-3'],
+    ['claude', 'agenthub-glm-5-3', 'agenthub-claude-glm-5-3'],
+    ['codex', 'agenthub-kimi-k3', 'agenthub-codex-kimi-k3'],
   ])('creates a Web %s conversation with the confirmed model override', async (backend, selection, expected) => {
     vi.stubGlobal('electronAPI', undefined);
     const deps = createDeps();

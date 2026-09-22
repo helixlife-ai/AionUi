@@ -18,9 +18,9 @@ export const STUDIO_FALLBACK_MODEL: StudioModelOption = {
   label: 'DeepSeek-V4.1-Flash',
 };
 
-/** Both protocols use the same confirmed KB Flash request ID. */
-export function getStudioFallback(_backend: StudioBackend): StudioModelOption {
-  return { ...STUDIO_FALLBACK_MODEL };
+/** KB distinguishes agent traffic through backend-specific request IDs. */
+export function getStudioFallback(backend: StudioBackend): StudioModelOption {
+  return { ...STUDIO_FALLBACK_MODEL, id: `agenthub-${backend}-deepseek-v4-1-flash` };
 }
 
 /** Legacy aliases remain valid in KB; new drafts use canonical IDs and Web displays the current label. */
@@ -36,9 +36,17 @@ const legacyModelIds: Record<string, string> = {
   'qwen3.7-plus': 'agenthub-qwen3-7-plus',
 };
 
-export function normalizeStudioModelId(value?: string | null): string | null {
+export function normalizeStudioModelId(value?: string | null, backend?: StudioBackend): string | null {
   if (!value) return null;
-  return legacyModelIds[value.toLowerCase()] ?? value;
+  const key = value
+    .trim()
+    .toLowerCase()
+    .replace(/^agenthub-(claude|codex)-/, 'agenthub-');
+  const normalized = legacyModelIds[key] ?? key;
+  const definition = modelDefinitions.find(
+    (model) => model.claude.replace('agenthub-claude-', 'agenthub-') === normalized
+  );
+  return definition ? (backend ? definition[backend] : normalized) : value;
 }
 
 export function isStudioDefaultModelId(value?: string | null): boolean {
@@ -56,7 +64,7 @@ export const STUDIO_MODEL_RATES: StudioModelRates = Object.fromEntries(
 
 /** New drafts default to Flash, independently of another session's CLI default. */
 export function resolveStudioDraftModel(backend: StudioBackend, value?: string | null): string {
-  const normalized = normalizeStudioModelId(value);
+  const normalized = normalizeStudioModelId(value, backend);
   return getStudioModels(backend).some((model) => model.id === normalized)
     ? normalized!
     : getStudioFallback(backend).id;
@@ -96,7 +104,8 @@ const descriptions = {
 
 /** Match only explicit model IDs; display labels and CLI aliases are not routing identities. */
 export function getStudioModelDescriptionKey(id: string) {
-  return descriptions[id.toLowerCase() as keyof typeof descriptions];
+  const key = id.toLowerCase().replace(/^agenthub-(claude|codex)-/, 'agenthub-');
+  return descriptions[key as keyof typeof descriptions];
 }
 
 /** Missing or invalid rates never become a zero-price promise. */

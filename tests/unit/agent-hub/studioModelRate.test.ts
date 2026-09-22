@@ -14,10 +14,10 @@ describe('Studio model metadata', () => {
   );
   it('deduplicates fallback with its confirmed request ID', () => {
     const models = withStudioFallback([
-      { id: 'agenthub-deepseek-v4-1-flash', label: 'Renamed' },
-      { id: 'agenthub-deepseek-v4-1-flash', label: 'duplicate' },
+      { id: 'agenthub-claude-deepseek-v4-1-flash', label: 'Renamed' },
+      { id: 'agenthub-claude-deepseek-v4-1-flash', label: 'duplicate' },
     ]);
-    expect(models).toEqual([{ id: 'agenthub-deepseek-v4-1-flash', label: 'DeepSeek-V4.1-Flash' }]);
+    expect(models).toEqual([{ id: 'agenthub-claude-deepseek-v4-1-flash', label: 'DeepSeek-V4.1-Flash' }]);
   });
   it.each([
     [1.9, '1.9×'],

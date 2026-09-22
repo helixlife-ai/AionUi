@@ -58,7 +58,7 @@ export default function StudioModelSelector({
   const effectiveRates = loadRates ? fetchedRates : rates;
   const catalog = withStudioFallback(models, backend);
   const uniqueModels = catalog.filter((model, index) => catalog.findIndex((item) => item.id === model.id) === index);
-  const normalizedValue = normalizeStudioModelId(value);
+  const normalizedValue = normalizeStudioModelId(value, backend);
   const label =
     uniqueModels.find((model) => model.id === normalizedValue)?.label ||
     currentLabel ||

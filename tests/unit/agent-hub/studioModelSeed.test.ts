@@ -72,7 +72,7 @@ describe('Studio deployment model catalogs', () => {
     const template = JSON.parse(fs.readFileSync('docker/agent-hub/codex-model-catalog.json', 'utf8')).models[0];
     expect(catalog.models[0]).toMatchObject({
       ...template,
-      slug: 'agenthub-qwen3-5-plus',
+      slug: 'agenthub-codex-qwen3-5-plus',
       display_name: 'Qwen3.5-Plus',
       priority: 0,
     });
@@ -81,7 +81,7 @@ describe('Studio deployment model catalogs', () => {
     const f = fixture();
     f.run();
     const catalog = JSON.parse(fs.readFileSync(f.codex, 'utf8'));
-    const glm = catalog.models.find((row: { slug: string }) => row.slug === 'agenthub-glm-5-3');
+    const glm = catalog.models.find((row: { slug: string }) => row.slug === 'agenthub-codex-glm-5-3');
 
     expect(glm.default_reasoning_level).toBe('high');
     expect(glm.supported_reasoning_levels.map((row: { effort: string }) => row.effort)).toEqual(['low', 'high', 'max']);
