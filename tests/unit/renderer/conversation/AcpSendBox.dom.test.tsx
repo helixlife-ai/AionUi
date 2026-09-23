@@ -15,6 +15,7 @@ import type { UseAcpMessageReturn } from '@/renderer/pages/conversation/platform
 
 const {
   sendMessageInvokeMock,
+  activeLeaseInvokeMock,
   addOrUpdateMessageMock,
   resetStateMock,
   emitterEmitMock,
@@ -30,6 +31,7 @@ const {
   mobileActionSheetEntries,
 } = vi.hoisted(() => ({
   sendMessageInvokeMock: vi.fn(),
+  activeLeaseInvokeMock: vi.fn(),
   addOrUpdateMessageMock: vi.fn(),
   resetStateMock: vi.fn(),
   emitterEmitMock: vi.fn(),
@@ -62,6 +64,9 @@ vi.mock('@/common', () => ({
       },
     },
     conversation: {
+      activeLease: {
+        invoke: activeLeaseInvokeMock,
+      },
       stop: {
         invoke: vi.fn().mockResolvedValue(undefined),
       },
@@ -318,6 +323,29 @@ describe('AcpSendBox', () => {
     await waitFor(() => {
       expect(resetStateMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('renews the conversation lease before sending a message', async () => {
+    sendMessageInvokeMock.mockResolvedValue({ turn_id: 'turn-1', runtime: null, msg_id: 'msg-1' });
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'send' }).click();
+    });
+
+    await waitFor(() => expect(sendMessageInvokeMock).toHaveBeenCalledTimes(1));
+    expect(activeLeaseInvokeMock).toHaveBeenCalledWith({ conversation_id: 'conv-1' });
+    expect(activeLeaseInvokeMock.mock.invocationCallOrder[0]).toBeLessThan(
+      sendMessageInvokeMock.mock.invocationCallOrder[0]
+    );
   });
 
   it('shows an idle send immediately in the conversation without queueing it', async () => {

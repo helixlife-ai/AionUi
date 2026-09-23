@@ -405,6 +405,11 @@ const AcpSendBox: React.FC<{
           return;
         }
 
+        // Visibility changes and switching between Claude/Codex can leave the
+        // conversation lease expired while the send box remains mounted. Renew
+        // it synchronously so the message endpoint does not reject the request
+        // with a transient 408.
+        await ipcBridge.conversation.activeLease.invoke({ conversation_id });
         markSendStarted();
         setAiProcessing(true);
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
