@@ -28,12 +28,12 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).not.toContain('studio-server.newidea.pro');
   });
 
-  it('uses the v0.2.19 release consistently', () => {
-    expect(deploymentConfig.version).toBe('v0.2.19');
+  it('uses the v0.2.20 release consistently', () => {
+    expect(deploymentConfig.version).toBe('v0.2.20');
     expect(deploymentConfig.desc).toBe(
-      'Studio 区分 Claude Code 与 Codex 专属模型 ID\n支持 KB 按 Agent 追踪模型请求，兼容历史会话模型显示'
+      'Studio 区分 Claude Code 与 Codex 专属模型 ID\n支持流式输出优化与发送超时恢复，兼容历史会话模型显示'
     );
-    expect(compose).toContain('application/agent-hub:v0.2.19');
+    expect(compose).toContain('application/agent-hub:v0.2.20');
     expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.16');
   });
 

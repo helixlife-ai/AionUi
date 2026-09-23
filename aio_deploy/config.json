@@ -1,5 +1,5 @@
 {
-  "version": "v0.2.19",
+  "version": "v0.2.20",
   "name": "AgentHub",
   "display_name": "Studio",
   "icon_url": "https://aio-resources.newidea.pro/data/AgentHub/icon.svg",
@@ -7,7 +7,7 @@
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": "Studio 区分 Claude Code 与 Codex 专属模型 ID\n支持 KB 按 Agent 追踪模型请求，兼容历史会话模型显示",
+  "desc": "Studio 区分 Claude Code 与 Codex 专属模型 ID\n支持流式输出优化与发送超时恢复，兼容历史会话模型显示",
   "startup": true,
   "force_update": true,
   "device_limit": [
