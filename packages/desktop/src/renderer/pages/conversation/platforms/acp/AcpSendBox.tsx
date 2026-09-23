@@ -78,6 +78,9 @@ import {
 } from './pendingAcpSend';
 
 const SEND_ACK_CONFIRMING_DELAY_MS = 30_000;
+// Keep the existing 30s confirming state for late acknowledgements, then
+// release a request that never receives an acknowledgement after one minute.
+const SEND_REQUEST_TIMEOUT_MS = 60_000;
 const RECOVERED_SEND_MATCH_WINDOW_MS = 5 * 60_000;
 
 const configErrorMessageKey = (error: unknown) => {
@@ -422,17 +425,26 @@ const AcpSendBox: React.FC<{
 
         markSendStarted();
         setAiProcessing(true);
-        const result = await ipcBridge.acpConversation.sendMessage.invoke({
-          input,
-          conversation_id,
-          files: sendFiles,
-          // `@@` references. Dropping this here is a silent failure: the agent
-          // simply never receives the session block.
-          sessions,
-        });
-        markSendAccepted(result.turn_id, result.runtime, result.msg_id);
-        if (options?.optimisticMessageId) {
-          acknowledgeOptimisticMessage(options.optimisticMessageId, result.msg_id);
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const request = ipcBridge.acpConversation.sendMessage.invoke({
+            input,
+            conversation_id,
+            files: sendFiles,
+            sessions,
+          });
+          const timeout = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => {
+              reject(new Error(t('conversation.agentError.codes.USER_LLM_PROVIDER_TIMEOUT.body')));
+            }, SEND_REQUEST_TIMEOUT_MS);
+          });
+          const result = await Promise.race([request, timeout]);
+          markSendAccepted(result.turn_id, result.runtime, result.msg_id);
+          if (options?.optimisticMessageId) {
+            acknowledgeOptimisticMessage(options.optimisticMessageId, result.msg_id);
+          }
+        } finally {
+          if (timeoutId !== undefined) clearTimeout(timeoutId);
         }
         emitter.emit('chat.history.refresh');
       } catch (error: unknown) {
