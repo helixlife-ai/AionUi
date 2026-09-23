@@ -546,6 +546,30 @@ describe('AcpSendBox', () => {
     vi.useRealTimers();
   });
 
+  it('releases a send that never receives an acknowledgement', async () => {
+    vi.useFakeTimers();
+    sendMessageInvokeMock.mockImplementation(() => new Promise(() => undefined));
+
+    render(
+      <AcpSendBox
+        conversation_id='conv-1'
+        backend='claude'
+        workspacePath='/tmp/workspace'
+        messageState={makeMessageState()}
+      />
+    );
+    await act(async () => {
+      screen.getByRole('button', { name: 'send' }).click();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+
+    expect(markSendFailedMock).toHaveBeenCalled();
+    expect(messageListState.current[0]?.status).toBe('error');
+    vi.useRealTimers();
+  });
+
   it('reconciles a timed-out message when the original acknowledgement arrives late', async () => {
     vi.useFakeTimers();
     let acceptSend: ((value: { turn_id: string; runtime: null; msg_id: string }) => void) | undefined;
