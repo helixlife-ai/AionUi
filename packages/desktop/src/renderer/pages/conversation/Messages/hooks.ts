@@ -51,6 +51,11 @@ const [useMessagePaginationState, MessagePaginationProvider, useUpdateMessagePag
 
 const beforeUpdateMessageListStack: Array<(list: TMessage[]) => TMessage[]> = [];
 
+// Coalesce bursts of stream events into a single paint. A zero-delay timer
+// caused fast ACP chunks to render as visibly separated blocks instead of a
+// continuous response, especially in the WebUI browser.
+const LIVE_MESSAGE_FLUSH_DELAY_MS = 32;
+
 // 消息索引缓存类型定义
 // Message index cache type definitions
 interface MessageIndex {
@@ -408,7 +413,7 @@ export const useMergeLiveMessage = () => {
       return newList;
     });
 
-    rafRef.current = setTimeout(flush);
+    rafRef.current = setTimeout(flush, LIVE_MESSAGE_FLUSH_DELAY_MS);
   }, []);
 
   useEffect(() => {
@@ -426,7 +431,7 @@ export const useMergeLiveMessage = () => {
       }
       pendingRef.current.push({ message, add });
       if (rafRef.current === null) {
-        rafRef.current = setTimeout(flush);
+        rafRef.current = setTimeout(flush, LIVE_MESSAGE_FLUSH_DELAY_MS);
       }
     },
     [flush]
