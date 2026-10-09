@@ -80,17 +80,17 @@ export function isAgentHubFeedbackHidden(): boolean {
 
 /** Default settings landing path when opening Settings from the sider / `#/settings`. */
 export function getAgentHubDefaultSettingsPath(): string {
-  return isAgentHubAgentsSettingsHidden() ? '/settings/skills' : '/settings/agent';
+  return isAgentHubAgentsSettingsHidden() ? '/settings/capabilities' : '/settings/agent';
 }
 
 /**
- * Agent Hub: channel types hidden from Settings → Channels.
- * Remove an id from the set (or return false) to restore Telegram / DingTalk.
+ * Studio channel allowlist. New upstream or extension channels stay hidden
+ * until explicitly enabled by the product configuration.
  */
-const HIDDEN_CHANNEL_TYPES = new Set(['telegram', 'dingtalk']);
+const VISIBLE_CHANNEL_TYPES = new Set(['lark', 'weixin']);
 
 export function isAgentHubChannelTypeHidden(channelType: string): boolean {
-  return HIDDEN_CHANNEL_TYPES.has(channelType);
+  return !VISIBLE_CHANNEL_TYPES.has(channelType);
 }
 
 /**
@@ -105,4 +105,19 @@ const HIDDEN_RUNTIME_KEYS = new Set(['aionrs', 'openclaw', 'openclaw-gateway']);
 export function isAgentHubRuntimeHidden(runtimeKey: string | null | undefined): boolean {
   const key = (runtimeKey || '').trim().toLowerCase();
   return HIDDEN_RUNTIME_KEYS.has(key);
+}
+
+/** Settings tabs hidden by the Agent Hub product configuration. */
+export function isAgentHubSettingsTabHidden(id: string): boolean {
+  return (
+    ['model', 'appearance', 'system', 'about'].includes(id) ||
+    (id === 'agent' && isAgentHubAgentsSettingsHidden()) ||
+    (id === 'tools' && isAgentHubToolsSettingsHidden()) ||
+    (id === 'pet' && isAgentHubPetSettingsHidden())
+  );
+}
+
+/** Studio keeps token usage visible but does not expose session pricing. */
+export function isAgentHubSessionCostHidden(): boolean {
+  return true;
 }

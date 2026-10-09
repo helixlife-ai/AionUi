@@ -5,8 +5,11 @@
  */
 
 import GuidPromptCarousel from '@/renderer/pages/guid/components/GuidPromptCarousel';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
+import { createInstance } from 'i18next';
+import { GUID_DEFAULT_PROMPT_CATEGORY_DEFS } from '@/renderer/pages/guid/utils/guidDefaultPromptKeys';
+import guid from '@/renderer/services/i18n/locales/zh-CN/guid.json';
 import { describe, expect, it, vi } from 'vitest';
 
 const categories = [
@@ -62,4 +65,42 @@ describe('GuidPromptCarousel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Prompt A' }));
     expect(onSelect).toHaveBeenCalledWith('Prompt A');
   });
+});
+
+it('exposes all sixteen configured Chinese prompts and selects their complete text', async () => {
+  const i18n = createInstance();
+  await i18n.init({ lng: 'zh-CN', resources: { 'zh-CN': { translation: { guid } } } });
+  const configured = GUID_DEFAULT_PROMPT_CATEGORY_DEFS.map((category) => ({
+    title: i18n.t(category.titleKey),
+    prompts: category.promptKeys.map((key) => i18n.t(key)),
+  }));
+  const onSelect = vi.fn();
+  render(<GuidPromptCarousel categories={configured} onSelect={onSelect} showIndicators />);
+  expect(new Set(configured.flatMap((category) => category.prompts)).size).toBe(16);
+  configured.forEach((category, index) => {
+    expect(category.prompts).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: `Category ${index + 1}` }));
+    category.prompts.forEach((prompt) => {
+      expect(prompt).not.toMatch(/^guid\./);
+      fireEvent.click(screen.getByRole('button', { name: prompt }));
+      expect(onSelect).toHaveBeenLastCalledWith(prompt);
+    });
+  });
+});
+
+it('waits six seconds between slides and pauses while hovered', () => {
+  vi.useFakeTimers();
+  const view = render(<GuidPromptCarousel categories={categories} onSelect={vi.fn()} />);
+  try {
+    act(() => vi.advanceTimersByTime(5999));
+    expect(screen.getByRole('button', { name: 'Prompt A1' })).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.getByRole('button', { name: 'Prompt B1' })).toBeInTheDocument();
+    fireEvent.mouseEnter(screen.getByTestId('guid-prompt-carousel'));
+    act(() => vi.advanceTimersByTime(12000));
+    expect(screen.getByRole('button', { name: 'Prompt B1' })).toBeInTheDocument();
+  } finally {
+    view.unmount();
+    vi.useRealTimers();
+  }
 });

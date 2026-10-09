@@ -1,3 +1,4 @@
+import { isAgentHubSettingsTabHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import classNames from 'classnames';
 import React from 'react';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
@@ -12,6 +13,7 @@ import {
   Cat,
   Communication,
   Earth,
+  Inbox,
   Info,
   Lightning,
   LinkCloud,
@@ -64,6 +66,7 @@ export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): 
       icon: <Toolkit theme='outline' size='16' />,
       path: 'tools',
     },
+    appearance: { id: 'appearance', label: t('settings.appearancePanel'), icon: <System />, path: 'appearance' },
     webui: {
       id: 'webui',
       label: t('settings.webui'),
@@ -72,11 +75,20 @@ export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): 
     },
     pet: { id: 'pet', label: t('pet.desktopPet'), icon: <Cat theme='outline' size='16' />, path: 'pet' },
     system: { id: 'system', label: t('settings.system'), icon: <System theme='outline' size='16' />, path: 'system' },
+    archived: {
+      id: 'archived',
+      label: t('settings.archived.navLabel'),
+      icon: <Inbox theme='outline' size='16' />,
+      path: 'archived',
+    },
     about: { id: 'about', label: t('settings.about'), icon: <Info theme='outline' size='16' />, path: 'about' },
   };
 
   return BUILTIN_TAB_IDS.filter(
-    (id) => !(id === 'agent' && isAgentHubAgentsSettingsHidden()) && !(id === 'pet' && isAgentHubPetSettingsHidden())
+    (id) =>
+      !isAgentHubSettingsTabHidden(id) &&
+      !(id === 'agent' && isAgentHubAgentsSettingsHidden()) &&
+      !(id === 'pet' && isAgentHubPetSettingsHidden())
   ).map((id) => builtinMap[id]);
 }
 

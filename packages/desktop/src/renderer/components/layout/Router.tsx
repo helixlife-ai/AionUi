@@ -1,3 +1,4 @@
+import { isAgentHubSettingsTabHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 /**
  * @license
  * Copyright 2025 AionUi (aionui.com)
@@ -7,6 +8,9 @@
 import React, { Suspense } from 'react';
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import AppLoader from '@renderer/components/layout/AppLoader';
+import DocumentTitle from '@renderer/components/layout/DocumentTitle';
+import { useCrossSessionRateLimitNotice } from '@/renderer/hooks/system/useCrossSessionRateLimitNotice';
+import { useAuth } from '@renderer/hooks/context/AuthContext';
 import { GuidPageSkeleton } from '@renderer/pages/guid/components/GuidSkeleton';
 import { ConversationPageSkeleton } from '@renderer/pages/conversation/components/ConversationSkeleton';
 import { TEAM_MODE_ENABLED } from '@/common/config/constants';
@@ -24,10 +28,12 @@ const AssistantSettings = React.lazy(() => import('@renderer/pages/settings/Assi
 const SkillsSettings = React.lazy(() => import('@renderer/pages/settings/SkillsSettings/SkillsHubSettings'));
 const SkillDetailPage = React.lazy(() => import('@renderer/pages/settings/SkillsSettings/SkillDetailPage'));
 const ToolsSettings = React.lazy(() => import('@renderer/pages/settings/ToolsSettings'));
+const AppearanceSettings = React.lazy(() => import('@renderer/pages/settings/AppearanceSettings'));
 const ModeSettings = React.lazy(() => import('@renderer/pages/settings/ModeSettings'));
 const SystemSettings = React.lazy(() => import('@renderer/pages/settings/SystemSettings'));
 const WebuiSettings = React.lazy(() => import('@renderer/pages/settings/WebuiSettings'));
 const PetSettings = React.lazy(() => import('@renderer/pages/settings/PetSettings'));
+const ArchivedSettings = React.lazy(() => import('@renderer/pages/settings/ArchivedSettings'));
 const ExtensionSettingsPage = React.lazy(() => import('@renderer/pages/settings/ExtensionSettingsPage'));
 const ComponentsShowcase = React.lazy(() => import('@renderer/pages/TestShowcase'));
 const ScheduledTasksPage = React.lazy(() => import('@renderer/pages/cron/ScheduledTasksPage'));
@@ -56,80 +62,108 @@ const CapabilitiesRedirect: React.FC = () => {
   return <Navigate to='/settings/skills' replace />;
 };
 
-// No login gate: the Hub is always authenticated (device SN is the sole identity,
-// see AuthContext). This wrapper only injects the shared layout.
-const ProtectedLayout: React.FC<{ layout: React.ReactElement }> = ({ layout }) => React.cloneElement(layout);
+const ProtectedLayout: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
+  const { user } = useAuth();
+  // Mounted once for every authenticated route: the loop warning has to reach
+  // the user even when they are looking at a THIRD conversation, which is the
+  // whole reason it is a broadcast rather than an in-conversation banner.
+  useCrossSessionRateLimitNotice(user?.id);
+
+  return React.cloneElement(layout);
+};
 
 const DEFAULT_SETTINGS_PATH = getAgentHubDefaultSettingsPath();
 const AGENTS_SETTINGS_HIDDEN = isAgentHubAgentsSettingsHidden();
 const TOOLS_SETTINGS_HIDDEN = isAgentHubToolsSettingsHidden();
 const PET_SETTINGS_HIDDEN = isAgentHubPetSettingsHidden();
 
-const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => (
-  <HashRouter>
-    <Routes>
-      <Route element={<ProtectedLayout layout={layout} />}>
-        <Route path='/' element={<Navigate to='/guid' replace />} />
-        <Route path='/guid' element={withRouteFallback(Guid, <GuidPageSkeleton />)} />
-        <Route path='/conversation/:id' element={withRouteFallback(Conversation, <ConversationPageSkeleton />)} />
-        <Route
-          path='/team/:id'
-          element={TEAM_MODE_ENABLED ? withRouteFallback(TeamIndex) : <Navigate to='/guid' replace />}
-        />
-        <Route path='/settings/model' element={withRouteFallback(ModeSettings)} />
-        <Route path='/assistants' element={withRouteFallback(AssistantSettings)} />
-        {/* Assistants moved out of Settings to a top-level entry; keep a redirect
-            so old deep links / back-nav still land on the new page. */}
-        <Route path='/settings/assistants' element={<Navigate to='/assistants' replace />} />
-        {AGENTS_SETTINGS_HIDDEN ? (
-          <>
-            <Route path='/settings/agent' element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
-            <Route path='/settings/agent/:id/repair' element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
-          </>
-        ) : (
-          <>
-            <Route path='/settings/agent' element={withRouteFallback(AgentSettings)} />
-            <Route path='/settings/agent/:id/repair' element={withRouteFallback(AgentRepairPage)} />
-          </>
-        )}
-        {/* Skills and Tools are top-level settings entries. */}
-        <Route path='/settings/skills' element={withRouteFallback(SkillsSettings)} />
-        <Route path='/settings/skills/import-history' element={withRouteFallback(SkillsSettings)} />
-        <Route path='/settings/skills/detail/:skillName' element={withRouteFallback(SkillDetailPage)} />
-        {TOOLS_SETTINGS_HIDDEN ? (
-          <Route path='/settings/tools' element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
-        ) : (
-          <Route path='/settings/tools' element={withRouteFallback(ToolsSettings)} />
-        )}
-        {/* Legacy routes — the previous combined "Capabilities" page is now two pages. */}
-        <Route path='/settings/capabilities' element={<CapabilitiesRedirect />} />{' '}
-        <Route
-          path='/settings/capabilities/skills/import-history'
-          element={<Navigate to='/settings/skills/import-history' replace />}
-        />
-        <Route path='/settings/skills-hub' element={<Navigate to='/settings/skills' replace />} />
-        {/* Agent Hub: Appearance removed — redirect legacy deep links. */}
-        <Route path='/settings/appearance' element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
-        <Route path='/settings/display' element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
-        <Route path='/settings/webui' element={withRouteFallback(WebuiSettings)} />
-        {PET_SETTINGS_HIDDEN ? (
-          <Route path='/settings/pet' element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
-        ) : (
-          <Route path='/settings/pet' element={withRouteFallback(PetSettings)} />
-        )}
-        <Route path='/settings/system' element={withRouteFallback(SystemSettings)} />
-        <Route path='/settings/about' element={withRouteFallback(SystemSettings)} />
-        <Route path='/settings/ext/:tabId' element={withRouteFallback(ExtensionSettingsPage)} />
-        <Route path='/settings' element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
-        <Route path='/test/components' element={withRouteFallback(ComponentsShowcase)} />
-        <Route path='/scheduled' element={withRouteFallback(ScheduledTasksPage)} />
-        <Route path='/scheduled/:job_id' element={withRouteFallback(TaskDetailPage)} />
-      </Route>
-      {/* Legacy /login route — no login flow anymore; redirect into the app. */}
-      <Route path='/login' element={<Navigate to='/guid' replace />} />
-      <Route path='*' element={<Navigate to='/guid' replace />} />
-    </Routes>
-  </HashRouter>
-);
+const PanelRoute: React.FC<{ layout: React.ReactElement }> = ({ layout }) => {
+  return (
+    <HashRouter>
+      <DocumentTitle />
+      <Routes>
+        <Route path='/login' element={<Navigate to='/guid' replace />} />
+        <Route element={<ProtectedLayout layout={layout} />}>
+          <Route index element={<Navigate to='/guid' replace />} />
+          <Route path='/guid' element={withRouteFallback(Guid, <GuidPageSkeleton />)} />
+          <Route path='/conversation/:id' element={withRouteFallback(Conversation, <ConversationPageSkeleton />)} />
+          <Route
+            path='/team/:id'
+            element={TEAM_MODE_ENABLED ? withRouteFallback(TeamIndex) : <Navigate to='/guid' replace />}
+          />
+          <Route path='/settings/model' element={withRouteFallback(ModeSettings)} />
+          <Route path='/assistants' element={withRouteFallback(AssistantSettings)} />
+          {/* Assistants moved out of Settings to a top-level entry; keep a redirect
+              so old deep links / back-nav still land on the new page. */}
+          <Route path='/settings/assistants' element={<Navigate to='/assistants' replace />} />
+          <Route
+            path='/settings/agent'
+            element={
+              AGENTS_SETTINGS_HIDDEN ? (
+                <Navigate to={DEFAULT_SETTINGS_PATH} replace />
+              ) : (
+                withRouteFallback(AgentSettings)
+              )
+            }
+          />
+          <Route
+            path='/settings/agent/:id/repair'
+            element={
+              AGENTS_SETTINGS_HIDDEN ? (
+                <Navigate to={DEFAULT_SETTINGS_PATH} replace />
+              ) : (
+                withRouteFallback(AgentRepairPage)
+              )
+            }
+          />
+          {/* Skills and Tools are top-level settings entries. */}
+          <Route path='/settings/skills' element={withRouteFallback(SkillsSettings)} />
+          <Route path='/settings/skills/import-history' element={withRouteFallback(SkillsSettings)} />
+          <Route path='/settings/skills/detail/:skillName' element={withRouteFallback(SkillDetailPage)} />
+          <Route
+            path='/settings/tools'
+            element={
+              TOOLS_SETTINGS_HIDDEN ? <Navigate to={DEFAULT_SETTINGS_PATH} replace /> : withRouteFallback(ToolsSettings)
+            }
+          />
+          {/* Legacy routes — the previous combined "Capabilities" page is now two pages. */}
+          <Route path='/settings/capabilities' element={<CapabilitiesRedirect />} />
+          <Route
+            path='/settings/capabilities/skills/import-history'
+            element={<Navigate to='/settings/skills/import-history' replace />}
+          />
+          <Route path='/settings/skills-hub' element={<Navigate to='/settings/skills' replace />} />
+          <Route
+            path='/settings/appearance'
+            element={
+              isAgentHubSettingsTabHidden('appearance') ? (
+                <Navigate to={DEFAULT_SETTINGS_PATH} replace />
+              ) : (
+                withRouteFallback(AppearanceSettings)
+              )
+            }
+          />
+          <Route path='/settings/display' element={<Navigate to='/settings/appearance' replace />} />
+          <Route path='/settings/webui' element={withRouteFallback(WebuiSettings)} />
+          <Route
+            path='/settings/pet'
+            element={
+              PET_SETTINGS_HIDDEN ? <Navigate to={DEFAULT_SETTINGS_PATH} replace /> : withRouteFallback(PetSettings)
+            }
+          />
+          <Route path='/settings/archived' element={withRouteFallback(ArchivedSettings)} />
+          <Route path='/settings/system' element={withRouteFallback(SystemSettings)} />
+          <Route path='/settings/about' element={withRouteFallback(SystemSettings)} />
+          <Route path='/settings/ext/:tabId' element={withRouteFallback(ExtensionSettingsPage)} />
+          <Route path='/settings' element={<Navigate to={DEFAULT_SETTINGS_PATH} replace />} />
+          <Route path='/test/components' element={withRouteFallback(ComponentsShowcase)} />
+          <Route path='/scheduled' element={withRouteFallback(ScheduledTasksPage)} />
+          <Route path='/scheduled/:job_id' element={withRouteFallback(TaskDetailPage)} />
+        </Route>
+        <Route path='*' element={<Navigate to='/guid' replace />} />
+      </Routes>
+    </HashRouter>
+  );
+};
 
 export default PanelRoute;

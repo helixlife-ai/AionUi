@@ -41,6 +41,8 @@ export function normalizeStudioModelId(value?: string | null, backend?: StudioBa
   const key = value
     .trim()
     .toLowerCase()
+    // Claude restores long-context models with a runtime suffix; match their configured display identity.
+    .replace(/\[1m\]$/, '')
     .replace(/^agenthub-(claude|codex)-/, 'agenthub-');
   const normalized = legacyModelIds[key] ?? key;
   const definition = modelDefinitions.find(
@@ -117,3 +119,14 @@ export function formatStudioModelRate(rate: StudioModelRate | null | undefined):
 
 const valid = (value: number) => Number.isFinite(value) && value >= 0;
 const format = (value: number) => String(Number(value.toFixed(2)));
+
+/** Resolve only confirmed Studio model limits; unknown models must remain unknown. */
+export function getStudioModelContextWindow(backend: string, modelId?: string | null): number {
+  if (backend !== 'codex' || !modelId) return 0;
+  const id = normalizeStudioModelId(modelId, 'codex');
+  const definition = modelDefinitions.find((model) => model.codex === id) as
+    | { contextWindow?: number | null }
+    | undefined;
+  const size = definition?.contextWindow;
+  return typeof size === 'number' && Number.isSafeInteger(size) && size > 0 ? size : 0;
+}

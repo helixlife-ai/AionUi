@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ChatFileRef } from '@/common/types/chatFile';
 import { httpRequest, isHttpAbortError } from '@/common/adapter/httpBridge';
 
 export type OfficeDocType = 'ppt' | 'word' | 'excel';
@@ -83,7 +84,7 @@ function combineSignals(signals: AbortSignal[]): AbortSignal {
  */
 export async function startOfficeWatchRequest(
   docType: OfficeDocType,
-  params: { file_path: string; workspace?: string },
+  params: { file_path?: string; workspace?: string; file?: ChatFileRef },
   options: { signal: AbortSignal; timeoutMs?: number }
 ): Promise<OfficeWatchStartResult> {
   const timeoutMs = options.timeoutMs ?? OFFICE_PREVIEW_START_TIMEOUT_MS;
@@ -115,7 +116,7 @@ export async function startOfficeWatchRequest(
  */
 export async function stopOfficeWatchRequest(
   docType: OfficeDocType,
-  params: { file_path: string },
+  params: { file_path?: string; file?: ChatFileRef },
   options?: { timeoutMs?: number }
 ): Promise<void> {
   const timeoutMs = options?.timeoutMs ?? OFFICE_PREVIEW_STOP_TIMEOUT_MS;

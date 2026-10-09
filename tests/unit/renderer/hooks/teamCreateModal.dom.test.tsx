@@ -490,3 +490,8 @@ function assistant(overrides: Partial<Assistant> & Pick<Assistant, 'id' | 'name'
     ...overrides,
   };
 }
+
+vi.mock('@/renderer/utils/hub/agentHubUiPolicy', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/renderer/utils/hub/agentHubUiPolicy')>()),
+  isAgentHubRuntimeHidden: () => false,
+}));

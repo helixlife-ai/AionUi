@@ -43,6 +43,7 @@ const Wrapper = (...HOCComponents: Array<React.FC<any> | HOCComponentAndProps>) 
   return <Props extends Record<string, any>>(Component: React.FC<Props>): React.FC<Props> => {
     // 为了修复类型错误，避免 reduce 过程中类型不一致，需显式断言类型
     // Prefer slice+reverse over toReversed for older WebKit (macOS 12); polyfill also covers this.
+    // eslint-disable-next-line unicorn/no-array-reverse -- Older appliance WebKit must work before polyfill initialization.
     return [...HOCComponents].reverse().reduce<React.FC<Props>>((Com, HOCComponent) => {
       if (Array.isArray(HOCComponent)) {
         // 断言类型，确保传递给 HOC 的是 React.FC<Props>

@@ -5,3 +5,8 @@ dist-server
 .github
 data
 *.log
+
+coverage
+dist-web-cli
+.agents
+resources/*.gif

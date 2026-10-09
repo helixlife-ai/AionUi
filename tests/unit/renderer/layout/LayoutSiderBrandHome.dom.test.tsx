@@ -228,3 +228,7 @@ describe('Layout sider brand Home button', () => {
     }
   });
 });
+
+vi.mock('@renderer/hooks/context/ConversationHistoryContext', () => ({
+  useConversationHistoryContext: () => ({ isListHydrated: true, isHistoryViewMounted: true }),
+}));

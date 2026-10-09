@@ -29,6 +29,7 @@ export const applyEs2023ArrayPolyfills = (): void => {
       configurable: true,
       writable: true,
       value: function toReversed<T>(this: readonly T[]): T[] {
+        // eslint-disable-next-line unicorn/no-array-reverse -- Implement the missing ES2023 method using ES5 primitives.
         return this.slice().reverse();
       },
     });
@@ -39,6 +40,7 @@ export const applyEs2023ArrayPolyfills = (): void => {
       configurable: true,
       writable: true,
       value: function toSorted<T>(this: readonly T[], compareFn?: CompareFn<T>): T[] {
+        // eslint-disable-next-line unicorn/no-array-sort -- Implement the missing ES2023 method using ES5 primitives.
         return this.slice().sort(compareFn);
       },
     });

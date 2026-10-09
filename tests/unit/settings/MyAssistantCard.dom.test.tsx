@@ -154,3 +154,11 @@ describe('MyAssistantCard', () => {
     expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 'card-1' }));
   });
 });
+
+it('shows the Studio Codex display name without changing the saved assistant', () => {
+  const assistant = makeAssistant({ name: 'Codex CLI' });
+  renderCard(assistant);
+  expect(screen.getByText('Codex')).toBeInTheDocument();
+  expect(screen.queryByText('Codex CLI')).not.toBeInTheDocument();
+  expect(assistant.name).toBe('Codex CLI');
+});

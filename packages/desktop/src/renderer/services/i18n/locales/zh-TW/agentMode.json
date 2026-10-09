@@ -17,5 +17,20 @@
   "permission": "權限",
   "switchMode": "授權模式",
   "switchSuccess": "模式切換成功",
-  "switchFailed": "模式切換失敗"
+  "switchPendingNextTurn": "將在下一輪生效",
+  "switchFailed": "模式切換失敗",
+  "descriptions": {
+    "claude": {
+      "default": "採用標準授權規則，在執行危險操作前請求確認。",
+      "acceptEdits": "自動批准檔案編輯操作。",
+      "plan": "僅制定計畫，不實際執行工具。",
+      "dontAsk": "不顯示授權請求；未預先批准的操作將被拒絕。",
+      "bypassPermissions": "略過所有權限檢查。"
+    },
+    "codex": {
+      "read-only": "Codex 可以讀取目前工作區的檔案；編輯檔案或存取網路需要授權。",
+      "auto": "Codex 可以讀寫目前工作區的檔案並執行命令；存取網路或編輯工作區外的檔案需要授權。",
+      "full-access": "Codex 可以編輯工作區外的檔案並存取網路，無需請求授權。請謹慎使用。"
+    }
+  }
 }

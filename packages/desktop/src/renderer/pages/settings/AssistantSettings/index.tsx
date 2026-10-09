@@ -17,6 +17,7 @@
  * overrides. The full-page editor still renders builtin skills and prompts as
  * read-only so users can inspect what's bundled.
  */
+import { resolveAssistantName } from '@/renderer/utils/model/assistantDisplay';
 import { Message } from '@arco-design/web-react';
 import { useAssistantEditor, useAssistantList } from '@/renderer/hooks/assistant';
 import { useManagedAgentRuntimeCatalog } from '@/renderer/hooks/agent/useManagedAgents';
@@ -80,7 +81,7 @@ const AssistantSettings: React.FC = () => {
 
           return {
             id: assistant.id,
-            label: assistant.name_i18n?.[localeKey] || assistant.name,
+            label: resolveAssistantName(assistant, localeKey),
             src,
           };
         })

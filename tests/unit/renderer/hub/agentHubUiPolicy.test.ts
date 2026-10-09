@@ -19,6 +19,8 @@ import {
   isAgentHubFeedbackHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { describe, expect, it } from 'vitest';
+import { applyProductBrand } from '@/renderer/utils/hub/productBrand';
+import zhCN from '@/renderer/services/i18n/locales/zh-CN';
 
 describe('agentHubUiPolicy', () => {
   it('enables backend readiness gating for Agent Hub cold start', () => {
@@ -33,9 +35,9 @@ describe('agentHubUiPolicy', () => {
     expect(isAgentHubPermissionSelectorHidden()).toBe(false);
   });
 
-  it('hides Agents settings tab in phase-1 and defaults settings landing to skills', () => {
+  it('hides Agents settings tab in phase-1 and defaults settings landing to capabilities', () => {
     expect(isAgentHubAgentsSettingsHidden()).toBe(true);
-    expect(getAgentHubDefaultSettingsPath()).toBe('/settings/skills');
+    expect(getAgentHubDefaultSettingsPath()).toBe('/settings/capabilities');
   });
 
   it('hides Tools settings tab temporarily in Agent Hub builds', () => {
@@ -58,9 +60,14 @@ describe('agentHubUiPolicy', () => {
     expect(isAgentHubFeedbackHidden()).toBe(true);
   });
 
-  it('hides Telegram and DingTalk channel configs in Agent Hub builds', () => {
-    expect(isAgentHubChannelTypeHidden('telegram')).toBe(true);
-    expect(isAgentHubChannelTypeHidden('dingtalk')).toBe(true);
+  it.each(['telegram', 'dingtalk', 'slack', 'discord', 'wecom', 'extension-channel', ''])(
+    'hides unsupported channel %s',
+    (channel) => {
+      expect(isAgentHubChannelTypeHidden(channel)).toBe(true);
+    }
+  );
+
+  it('keeps only Feishu and WeChat channel configs visible', () => {
     expect(isAgentHubChannelTypeHidden('lark')).toBe(false);
     expect(isAgentHubChannelTypeHidden('weixin')).toBe(false);
   });
@@ -71,5 +78,26 @@ describe('agentHubUiPolicy', () => {
     expect(isAgentHubRuntimeHidden('openclaw-gateway')).toBe(true);
     expect(isAgentHubRuntimeHidden('claude')).toBe(false);
     expect(isAgentHubRuntimeHidden('codex')).toBe(false);
+  });
+});
+
+describe('Studio translation resources', () => {
+  it('brands nested copy without changing keys or mutating upstream resources', () => {
+    const original = { AionUi: { copy: ['AionUi 官方内置的技能', '飞书/Lark'] }, empty: null };
+    expect(applyProductBrand(original, 'zh-CN')).toEqual({
+      AionUi: { copy: ['Studio 官方内置的技能', '飞书'] },
+      empty: null,
+    });
+    expect(original.AionUi.copy[0]).toBe('AionUi 官方内置的技能');
+  });
+  it('preserves URLs, code and interpolation identifiers', () => {
+    const text = 'AionUi https://github.com/iOfficeAI/AionUi `AionUi` {{AionUi}}';
+    expect(applyProductBrand(text, 'zh-CN')).toBe('Studio https://github.com/iOfficeAI/AionUi `AionUi` {{AionUi}}');
+  });
+  it('adapts actual Chinese skill and channel translations', () => {
+    const translated = applyProductBrand(zhCN, 'zh-CN');
+    expect(JSON.stringify(translated.settings)).toContain('Studio 官方内置的技能');
+    expect(translated.settings['channels.larkTitle']).toBe('飞书');
+    expect(translated.settings['webui.featureChannelsDesc']).toContain('飞书、微信');
   });
 });

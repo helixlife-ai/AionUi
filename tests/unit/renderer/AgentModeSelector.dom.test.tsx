@@ -7,6 +7,15 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
+import { createInstance } from 'i18next';
+import zhCN from '@/renderer/services/i18n/locales/zh-CN/agentMode.json';
+import enUS from '@/renderer/services/i18n/locales/en-US/agentMode.json';
+
+const tooltipI18n = createInstance();
+void tooltipI18n.init({
+  lng: 'zh-CN',
+  resources: { 'zh-CN': { translation: { agentMode: zhCN } }, 'en-US': { translation: { agentMode: enUS } } },
+});
 import AgentModeSelector from '@/renderer/components/agent/AgentModeSelector';
 
 const { useAcpConfigOptionsMock } = vi.hoisted(() => ({
@@ -69,6 +78,7 @@ vi.mock('@arco-design/web-react', () => {
     Message: {
       success: vi.fn(),
       error: vi.fn(),
+      info: vi.fn(),
     },
     Tooltip: ({ children, content }: { children?: React.ReactNode; content?: React.ReactNode }) => (
       <span data-tooltip-content={typeof content === 'string' ? content : undefined}>{children}</span>
@@ -79,13 +89,15 @@ vi.mock('@arco-design/web-react', () => {
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: { defaultValue?: string }) =>
-      key === 'agentMode.permission'
-        ? '权限'
-        : key === 'agentMode.default'
-          ? '默认'
-          : key === 'agentMode.bypassPermissions'
-            ? '全自动'
-            : (options?.defaultValue ?? key),
+      key.startsWith('agentMode.descriptions.')
+        ? tooltipI18n.t(key, options)
+        : key === 'agentMode.permission'
+          ? '权限'
+          : key === 'agentMode.default'
+            ? '默认'
+            : key === 'agentMode.bypassPermissions'
+              ? '全自动'
+              : (options?.defaultValue ?? key),
   }),
 }));
 
@@ -102,6 +114,7 @@ const runtimeMode = () => ({
 describe('AgentModeSelector', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    void tooltipI18n.changeLanguage('zh-CN');
     useAcpConfigOptionsMock.mockImplementation(() => ({
       setStatus: { state: 'idle' },
       isLoading: false,
@@ -140,6 +153,77 @@ describe('AgentModeSelector', () => {
 
     await waitFor(() => expect(screen.getByTestId('mode-selector')).toHaveAttribute('data-current-mode', 'default'));
     expect(screen.getByText('权限 · 默认')).toBeInTheDocument();
+  });
+
+  // A switch the backend accepted but has not applied yet (codex always, claude/agy
+  // mid-turn) must not move the pill onto the requested mode: the pill answers "what
+  // permission is governing right now", and showing the target would tell the user a
+  // tightening had landed when it had not. The target rides alongside instead, and the
+  // "权限 · " prefix is dropped to pay for the extra width (the shield icon already says
+  // it is the permission pill).
+  it('shows a pending target without moving the pill off the mode still in force', async () => {
+    useAcpConfigOptionsMock.mockImplementation(() => ({
+      setStatus: { state: 'idle' },
+      isLoading: false,
+      mode: runtimeMode(),
+      model: null,
+      thoughtLevel: null,
+      reload: vi.fn(),
+      setConfigOption: vi.fn(),
+      pendingValues: { mode: 'bypassPermissions' },
+    }));
+
+    render(
+      <AgentModeSelector
+        backend='claude'
+        conversation_id='conv-1'
+        compact
+        modeLabelFormatter={(mode) => (mode.value === 'default' ? '默认' : '全自动')}
+        compactLabelPrefix='权限'
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText('默认 → 全自动')).toBeInTheDocument());
+    expect(screen.getByTestId('mode-selector')).toHaveAttribute('data-current-mode', 'default');
+  });
+
+  // Picking a mode the backend defers must NOT be reported as a failure, and must not
+  // move the pill: the old code threw `config_not_observed` for anything that did not
+  // read back as the requested value, which is exactly what a deferred switch looks like.
+  it('treats a deferred switch as pending rather than an error', async () => {
+    const { Message } = (await import('@arco-design/web-react')) as unknown as {
+      Message: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn>; info: ReturnType<typeof vi.fn> };
+    };
+    // The backend answers with the mode still in force, not the one just requested.
+    const setConfigOption = vi.fn().mockResolvedValue([{ id: 'mode', current_value: 'default' }]);
+    useAcpConfigOptionsMock.mockImplementation(() => ({
+      setStatus: { state: 'idle' },
+      isLoading: false,
+      mode: runtimeMode(),
+      model: null,
+      thoughtLevel: null,
+      reload: vi.fn(),
+      setConfigOption,
+      pendingValues: {},
+    }));
+
+    render(
+      <AgentModeSelector
+        backend='claude'
+        conversation_id='conv-1'
+        compact
+        modeLabelFormatter={(mode) => (mode.value === 'default' ? '默认' : '全自动')}
+        compactLabelPrefix='权限'
+      />
+    );
+
+    fireEvent.click(screen.getByText('全自动'));
+
+    await waitFor(() => expect(setConfigOption).toHaveBeenCalledWith('mode', 'bypassPermissions'));
+    await waitFor(() => expect(Message.info).toHaveBeenCalled());
+    expect(Message.error).not.toHaveBeenCalled();
+    expect(Message.success).not.toHaveBeenCalled();
+    expect(screen.getByTestId('mode-selector')).toHaveAttribute('data-current-mode', 'default');
   });
 
   it('keeps compact mode selector hidden while runtime mode is initializing', () => {
@@ -258,13 +342,55 @@ describe('AgentModeSelector', () => {
     expect(screen.getByTestId('agent-mode-selector-codex')).toHaveTextContent('权限 · agent-full-access');
   });
 
-  it('shows runtime mode descriptions in option tooltips', () => {
+  it('localizes runtime mode descriptions in option tooltips', () => {
     render(<AgentModeSelector backend='claude' conversation_id='conv-1' />);
 
     expect(screen.queryByText('Run without permission prompts')).not.toBeInTheDocument();
     expect(screen.getByText('Bypass Permissions').closest('[data-tooltip-content]')).toHaveAttribute(
       'data-tooltip-content',
+      '跳过所有权限检查。'
+    );
+  });
+  it.each([
+    ...Object.entries(zhCN.descriptions.claude).map(([value, description]) => ({
+      backend: 'claude',
+      value,
+      description,
+    })),
+    ...Object.entries(zhCN.descriptions.codex).map(([value, description]) => ({
+      backend: 'codex',
+      value,
+      description,
+    })),
+  ])('translates $backend $value before a conversation starts', ({ backend, value, description }) => {
+    useAcpConfigOptionsMock.mockReturnValue({ mode: null, setStatus: { state: 'idle' } });
+    render(
+      <AgentModeSelector
+        backend={backend}
+        dynamicModes={[{ value, label: 'Test mode', description: 'Backend English description' }]}
+        onModeSelect={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Test mode').closest('[data-tooltip-content]')).toHaveAttribute(
+      'data-tooltip-content',
+      description
+    );
+  });
+
+  it('keeps unknown runtime descriptions instead of displaying a missing translation key', () => {
+    render(<AgentModeSelector backend='custom-agent' conversation_id='conv-1' />);
+    expect(screen.getByText('Bypass Permissions').closest('[data-tooltip-content]')).toHaveAttribute(
+      'data-tooltip-content',
       'Run without permission prompts'
+    );
+  });
+
+  it('uses English explanations after switching language', async () => {
+    await tooltipI18n.changeLanguage('en-US');
+    render(<AgentModeSelector backend='claude' conversation_id='conv-1' />);
+    expect(screen.getByText('Bypass Permissions').closest('[data-tooltip-content]')).toHaveAttribute(
+      'data-tooltip-content',
+      enUS.descriptions.claude.bypassPermissions
     );
   });
 });

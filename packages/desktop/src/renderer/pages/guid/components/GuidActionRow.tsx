@@ -30,8 +30,18 @@ import { isElectronDesktop } from '@/renderer/utils/platform';
 import { showFileAttachError, filterPathsWithinUploadLimit } from '@/renderer/utils/file/fileAttachErrors';
 import type { AcpModelInfo } from '../types';
 import { getAvailableModels } from '../utils/modelUtils';
-import { Button, Checkbox, Dropdown, Menu, Tooltip } from '@arco-design/web-react';
-import { ArrowUp, Brain, FolderUpload, Lightning, Plus, Shield, UploadOne } from '@icon-park/react';
+import { Button, Checkbox, Dropdown, Menu, Message, Tooltip } from '@arco-design/web-react';
+import {
+  ArrowUp,
+  Brain,
+  FolderOpen,
+  FolderUpload,
+  Lightning,
+  Paperclip,
+  Plus,
+  Shield,
+  UploadOne,
+} from '@icon-park/react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isAgentHubPermissionSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
@@ -126,7 +136,10 @@ const isFocusInsideSearchPopup = (input: HTMLInputElement | null): boolean => {
 type GuidActionRowProps = {
   // File handling
   files: string[];
+  /** Device uploads (browser input → managed dir): sent as `upload` refs. */
   onFilesUploaded: (paths: string[]) => void;
+  /** Backend-machine picker (native dialog / server-fs browse): sent as `local` refs. */
+  onFilesPicked: (paths: string[]) => void;
 
   // Model selector node (rendered by parent for the desktop layout)
   modelSelectorNode: React.ReactNode;
@@ -168,6 +181,7 @@ type GuidActionRowProps = {
 
 const GuidActionRow: React.FC<GuidActionRowProps> = ({
   files,
+  onFilesPicked,
   onFilesUploaded,
   modelSelectorNode,
   isGeminiMode,
@@ -325,10 +339,10 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
       .then(async (uploadedFiles) => {
         if (!uploadedFiles || uploadedFiles.length === 0) return;
         const withinLimit = await filterPathsWithinUploadLimit(uploadedFiles, t);
-        if (withinLimit.length > 0) onFilesUploaded(withinLimit);
+        if (withinLimit.length > 0) onFilesPicked(withinLimit);
       })
       .catch((error) => console.error('Failed to open file dialog:', error));
-  }, [onFilesUploaded, t]);
+  }, [onFilesPicked, t]);
 
   // Build the mobile action sheet entries: model / thought level / permission
   // (single-select), attach (action), skills / MCP (multi-select checkboxes).
@@ -424,15 +438,36 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
       });
     }
 
-    // Attach files (action row; no submenu).
-    entries.push({
-      key: 'attach',
-      icon: <FolderUpload theme='outline' size='16' />,
-      label: t('common.fileAttach.addFiles', { defaultValue: 'Add files' }),
-      variant: 'muted',
-      dividerBefore: true,
-      onClick: () => (isWebUI ? fileInputRef.current?.click() : openHostFilePicker()),
-    });
+    // Match the conversation send box: WebUI offers both the backend-machine
+    // picker and an upload from the phone/current browser device.
+    if (isWebUI) {
+      entries.push(
+        {
+          key: 'attach-host-files',
+          icon: <Paperclip theme='outline' size='16' />,
+          label: t('common.fileAttach.addFiles', { defaultValue: 'Add files' }),
+          variant: 'muted',
+          dividerBefore: true,
+          onClick: openHostFilePicker,
+        },
+        {
+          key: 'attach-my-device',
+          icon: <FolderOpen theme='outline' size='16' />,
+          label: t('common.fileAttach.myDevice', { defaultValue: 'Upload from device' }),
+          variant: 'muted',
+          onClick: () => fileInputRef.current?.click(),
+        }
+      );
+    } else {
+      entries.push({
+        key: 'attach',
+        icon: <FolderUpload theme='outline' size='16' />,
+        label: t('common.fileAttach.addFiles', { defaultValue: 'Add files' }),
+        variant: 'muted',
+        dividerBefore: true,
+        onClick: openHostFilePicker,
+      });
+    }
 
     // Skills (multi-select).
     if (allSkills.length > 0) {
@@ -538,7 +573,7 @@ const GuidActionRow: React.FC<GuidActionRowProps> = ({
               if (supported.length === 0) return;
               const withinLimit = await filterPathsWithinUploadLimit(supported, t);
               if (withinLimit.length > 0) {
-                onFilesUploaded(withinLimit);
+                onFilesPicked(withinLimit);
               }
             })
             .catch((error) => {

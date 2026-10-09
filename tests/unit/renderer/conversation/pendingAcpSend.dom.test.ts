@@ -18,7 +18,7 @@ const pendingSend: PendingAcpSend = {
   id: 'local-1',
   conversation_id: 'conv-1',
   input: 'Hello',
-  files: ['/tmp/file.txt'],
+  files: [{ kind: 'upload', path: '/tmp/file.txt' }],
   displayMessage: 'Hello',
   createdAt: 100,
   status: 'pending',
@@ -65,5 +65,17 @@ describe('pending ACP sends', () => {
     expect(readPendingAcpSends('conv-1')).toEqual([]);
     expect(warn).toHaveBeenCalledOnce();
     warn.mockRestore();
+  });
+});
+
+it('migrates pre-upgrade string attachments while preserving project and session references', () => {
+  const files = ['/tmp/legacy.txt', { kind: 'project', pe_id: 'pe-1', relative_path: 'report.pdf' }];
+  sessionStorage.setItem(
+    getPendingAcpSendStorageKey('conv-1'),
+    JSON.stringify([{ ...pendingSend, files, sessions: [{ id: 'conv-2' }] }])
+  );
+  expect(readPendingAcpSends('conv-1')[0]).toMatchObject({
+    files: [{ kind: 'upload', path: '/tmp/legacy.txt' }, files[1]],
+    sessions: [{ id: 'conv-2' }],
   });
 });

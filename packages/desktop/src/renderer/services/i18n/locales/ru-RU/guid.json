@@ -15,29 +15,40 @@
     "noProject": "Без проекта"
   },
   "defaultPromptCategories": {
-    "literature": {
-      "title": "🧬 Knowledge Retrieval & Literature (Zero Data)",
+    "research": {
+      "title": "🔍 Research and evidence",
       "items": {
-        "prompt1": "Help me query the main biological functions, chromosomal location, and common related diseases of the human gene [TP53].",
-        "prompt2": "Search for the latest research progress and core literature on [single-cell spatial transcriptomics in tumor microenvironment applications] from the past 3 years.",
-        "prompt3": "Query the clinical significance and corresponding targeted drugs of the [L858R] mutation in the EGFR gene in non-small cell lung cancer.",
-        "prompt4": "I want to study [drought resistance mechanisms in Arabidopsis thaliana]. Recommend 3 authoritative public databases or online analysis platforms."
+        "prompt1": "Summarize research over the past 3 years on [tumor-associated macrophages and resistance to immunotherapy], including major mechanisms, representative studies, and current controversies.",
+        "prompt2": "Explain the clinical significance of the EGFR [L858R] mutation in non-small cell lung cancer, including targeted therapies, treatment outcomes, and common resistance mechanisms.",
+        "prompt3": "Compare the strengths, limitations, and use cases of [single-cell RNA-seq, spatial transcriptomics, and single-cell multi-omics] for studying the tumor microenvironment.",
+        "prompt4": "I want to study [aging and mitochondrial dysfunction]. Identify key reviews, representative studies, and unresolved questions in this field."
       }
     },
-    "scripting": {
-      "title": "💻 Script Generation & Command Line (Zero Data)",
+    "idea": {
+      "title": "💡 Research directions and questions",
       "items": {
-        "prompt5": "Write a simple Python script to reverse complement all sequences in a multi-sequence FASTA file.",
-        "prompt6": "Use R's ggplot2 package to write sample code for drawing a standard volcano plot.",
-        "prompt7": "Write a Linux Shell script to batch decompress and rename all files with the .fq.gz suffix in a folder."
+        "prompt5": "Summarize the current state of research on [resistance to KRAS G12C-targeted therapy] and identify 3 questions worth investigating further.",
+        "prompt6": "I want to study [T cell exhaustion in liver cancer]. Propose specific, testable hypotheses and explain the evidence behind each one.",
+        "prompt7": "Identify potential research gaps concerning [obesity and the tumor immune microenvironment], and assess which directions merit further investigation.",
+        "prompt8": "I am interested in [drought resistance mechanisms in Arabidopsis]. Break this broad topic into feasible research questions."
       }
     },
-    "concepts": {
-      "title": "📊 Concepts & Workflow Design (Zero Data)",
+    "analysis": {
+      "title": "📊 Analysis plans and study design",
       "items": {
-        "prompt8": "Explain in plain language what [GSEA enrichment analysis] is, its core principles, and analytical purpose.",
-        "prompt9": "Generate text examples of a standard GFF3 gene annotation file and a VCF variant file, and briefly explain the meaning of each column.",
-        "prompt10": "What are the standard GATK pipeline steps from raw data to variant detection for [human whole exome sequencing (WES)] analysis?"
+        "prompt9": "I want to use TCGA data to study [whether TP53 mutations affect prognosis in lung adenocarcinoma]. Design an analysis plan covering data, methods, statistical tests, and figures.",
+        "prompt10": "Design a complete workflow to compare [transcriptomic differences between lung cancer and normal tissue], from public data acquisition and quality control to differential expression and pathway enrichment.",
+        "prompt11": "I want to study [T cell exhaustion in liver cancer] using public single-cell data. Plan the analysis, including cell annotation, key markers, differential expression, and functional validation.",
+        "prompt12": "If differential expression analysis finds many upregulated immune-related genes, what analyses should follow to identify the specific immune cells or pathways involved?"
+      }
+    },
+    "writing": {
+      "title": "✍️ Scientific writing and content",
+      "items": {
+        "prompt13": "Write a research background paragraph for a paper Introduction on [tumor-associated macrophages and resistance to immunotherapy], citing key supporting literature.",
+        "prompt14": "Create a review outline on [applications of single-cell spatial transcriptomics in cancer research], including sections and the key topics to discuss in each.",
+        "prompt15": "Assuming a study finds [significantly lower overall survival in patients with TP53 mutations], write a Results paragraph in the style of a medical paper.",
+        "prompt16": "Write a Discussion paragraph based on current research on [resistance to KRAS G12C-targeted therapy], covering possible mechanisms, limitations, and future directions."
       }
     }
   }

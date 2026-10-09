@@ -64,11 +64,16 @@ function buildClaudeLaunch(incoming, opts = {}) {
 
   const passthrough = [];
   let hadYolo = false;
+  let allowYolo = false;
   let modeValue = '';
 
   for (let i = 0; i < incoming.length; i += 1) {
     const arg = incoming[i];
-    if (arg === '--dangerously-skip-permissions' || arg === '--allow-dangerously-skip-permissions') {
+    if (arg === '--allow-dangerously-skip-permissions') {
+      allowYolo = true;
+      continue;
+    }
+    if (arg === '--dangerously-skip-permissions') {
       hadYolo = true;
       continue;
     }
@@ -82,7 +87,7 @@ function buildClaudeLaunch(incoming, opts = {}) {
     passthrough.push(arg);
   }
 
-  const wantsFullAuto = hadYolo || modeValue === 'bypassPermissions';
+  const wantsFullAuto = hadYolo || allowYolo || modeValue === 'bypassPermissions';
   const out = [];
   let env = { ...baseEnv };
 
@@ -100,6 +105,8 @@ function buildClaudeLaunch(incoming, opts = {}) {
     if (modeValue) out.push('--permission-mode', modeValue);
   }
 
+  // The allow flag only enables later mode switches; it must never force bypass.
+  if (allowYolo) out.push('--allow-dangerously-skip-permissions');
   out.push(...passthrough);
   env = configureClaudeTelemetry(env);
   return { argv: out, env };

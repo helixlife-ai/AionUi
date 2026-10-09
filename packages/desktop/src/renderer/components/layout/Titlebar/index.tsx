@@ -1,3 +1,5 @@
+import { PRODUCT_DISPLAY_NAME } from '@/renderer/utils/hub/productBrand';
+import { isAgentHubFeedbackHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import classNames from 'classnames';
 import { ArrowCircleLeft, ArrowLeft, ArrowRight, ExpandLeft, ExpandRight, Peoples, Search } from '@icon-park/react';
@@ -16,6 +18,8 @@ import { useNavigationHistory } from '@/renderer/hooks/context/NavigationHistory
 import { useFeedback } from '@/renderer/hooks/context/FeedbackContext';
 import { resolveFeedbackModule } from '@/renderer/services/feedback/resolveFeedbackModule';
 import { isElectronDesktop, isMacOS } from '@/renderer/utils/platform';
+import { IS_DISCONTINUED_BUILD } from '@/renderer/utils/discontinuedBuild';
+import MigrationInviteCapsule from './MigrationInviteCapsule';
 import './titlebar.css';
 
 interface TitlebarProps {
@@ -96,7 +100,7 @@ const SidebarIcon: React.FC<{ size?: number; strokeWidth?: number }> = ({ size =
 
 const Titlebar: React.FC<TitlebarProps> = ({ workspaceAvailable }) => {
   const { t } = useTranslation();
-  const appTitle = useMemo(() => 'AionUi', []);
+  const appTitle = useMemo(() => PRODUCT_DISPLAY_NAME, []);
   const [workspaceCollapsed, setWorkspaceCollapsed] = useState(true);
   const [mobileCenterTitle, setMobileCenterTitle] = useState(appTitle);
   const [mobileCenterOffset, setMobileCenterOffset] = useState(0);
@@ -131,8 +135,8 @@ const Titlebar: React.FC<TitlebarProps> = ({ workspaceAvailable }) => {
   const isMacRuntime = isDesktopRuntime && isMacOS();
   // Windows/Linux 显示自定义窗口按钮；macOS 在标题栏给工作区一个切换入口
   const showWindowControls = isDesktopRuntime && !isMacRuntime;
-  // WebUI 和 macOS 桌面都需要在标题栏放工作区开关
-  const showWorkspaceButton = workspaceAvailable && (!isDesktopRuntime || isMacRuntime);
+  // Keep the workspace entry in the titlebar on every platform.
+  const showWorkspaceButton = workspaceAvailable;
 
   const workspaceTooltip = workspaceCollapsed
     ? t('common.expandMore', { defaultValue: 'Expand workspace' })
@@ -407,15 +411,20 @@ const Titlebar: React.FC<TitlebarProps> = ({ workspaceAvailable }) => {
       </div>
       <div ref={toolbarRef} className='app-titlebar__toolbar'>
         {layout?.isMobile && <div id='app-titlebar-actions-slot' className='app-titlebar__actions-slot' />}
-        {/*<button*/}
-        {/*  type='button'*/}
-        {/*  className={classNames('app-titlebar__button', layout?.isMobile && 'app-titlebar__button--mobile')}*/}
-        {/*  onClick={() => void openFeedback({ autoScreenshot: true, module: resolveFeedbackModule(location.pathname) })}*/}
-        {/*  aria-label={feedbackTooltip}*/}
-        {/*  title={feedbackTooltip}*/}
-        {/*>*/}
-        {/*  <FeedbackIcon size={iconSize} strokeWidth={desktopIconStroke} />*/}
-        {/*</button>*/}
+        {IS_DISCONTINUED_BUILD && <MigrationInviteCapsule />}
+        {!isAgentHubFeedbackHidden() && (
+          <button
+            type='button'
+            className={classNames('app-titlebar__button', layout?.isMobile && 'app-titlebar__button--mobile')}
+            onClick={() =>
+              void openFeedback({ autoScreenshot: true, module: resolveFeedbackModule(location.pathname) })
+            }
+            aria-label={feedbackTooltip}
+            title={feedbackTooltip}
+          >
+            <FeedbackIcon size={iconSize} strokeWidth={desktopIconStroke} />
+          </button>
+        )}
         {showWorkspaceButton && (
           <button
             type='button'

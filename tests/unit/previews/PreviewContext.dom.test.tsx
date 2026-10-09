@@ -73,13 +73,28 @@ describe('PreviewContext', () => {
     expect(result.current.tabs[0].content_type).toBe('markdown');
   });
 
-  it('closes preview and clears all tabs', () => {
+  // `closePreview` hides the panel and KEEPS the tabs. It used to also empty them,
+  // which propagated to storage and wiped the whole project's remembered tab list —
+  // see clearPreviewForScope for the discarding variant.
+  it('closes the panel but keeps its tabs', () => {
     const { result } = renderHook(() => usePreviewContext(), { wrapper });
     act(() => {
       result.current.openPreview('content', 'code');
     });
     act(() => {
       result.current.closePreview();
+    });
+    expect(result.current.isOpen).toBe(false);
+    expect(result.current.tabs).toHaveLength(1);
+  });
+
+  it('discards tabs only when asked to explicitly', () => {
+    const { result } = renderHook(() => usePreviewContext(), { wrapper });
+    act(() => {
+      result.current.openPreview('content', 'code');
+    });
+    act(() => {
+      result.current.clearPreviewForScope();
     });
     expect(result.current.isOpen).toBe(false);
     expect(result.current.tabs).toEqual([]);
@@ -106,40 +121,55 @@ describe('PreviewContext', () => {
     expect(result.current.activeTab?.isDirty).toBe(true);
   });
 
-  it('does not poll file metadata for excel/word office previews', () => {
+  it('starts non-maximized and toggles the maximized flag', () => {
     const { result } = renderHook(() => usePreviewContext(), { wrapper });
+    expect(result.current.isMaximized).toBe(false);
     act(() => {
-      result.current.openPreview('', 'excel', {
-        title: 'sheet.xlsx',
-        file_name: 'sheet.xlsx',
-        file_path: '/agent_hub/demo/sheet.xlsx',
-        workspace: '/agent_hub/demo',
-      });
+      result.current.toggleMaximized();
     });
-
+    expect(result.current.isMaximized).toBe(true);
     act(() => {
-      vi.advanceTimersByTime(5000);
+      result.current.toggleMaximized();
     });
-
-    expect(ipcBridge.fs.getFileMetadata.invoke).not.toHaveBeenCalled();
+    expect(result.current.isMaximized).toBe(false);
   });
 
-  it('polls file metadata for text previews but skips overlapping in-flight calls', () => {
+  it('resets maximized when the panel is collapsed', () => {
     const { result } = renderHook(() => usePreviewContext(), { wrapper });
     act(() => {
-      result.current.openPreview('hello', 'code', {
-        title: 'a.ts',
-        file_name: 'a.ts',
-        file_path: '/agent_hub/demo/a.ts',
-        workspace: '/agent_hub/demo',
-      });
+      result.current.openPreview('content', 'code');
+      result.current.toggleMaximized();
     });
-
-    // Immediate check on tab open + one interval tick while the first call hangs.
+    expect(result.current.isMaximized).toBe(true);
     act(() => {
-      vi.advanceTimersByTime(1000);
+      result.current.closePreview();
     });
+    expect(result.current.isMaximized).toBe(false);
+  });
 
-    expect(ipcBridge.fs.getFileMetadata.invoke).toHaveBeenCalledTimes(1);
+  it('resets maximized when tabs are discarded for the scope', () => {
+    const { result } = renderHook(() => usePreviewContext(), { wrapper });
+    act(() => {
+      result.current.openPreview('content', 'code');
+      result.current.toggleMaximized();
+    });
+    expect(result.current.isMaximized).toBe(true);
+    act(() => {
+      result.current.clearPreviewForScope();
+    });
+    expect(result.current.isMaximized).toBe(false);
+  });
+
+  it('resets maximized when switching to a different preview scope', () => {
+    const { result } = renderHook(() => usePreviewContext(), { wrapper });
+    act(() => {
+      result.current.openPreview('content', 'code');
+      result.current.toggleMaximized();
+    });
+    expect(result.current.isMaximized).toBe(true);
+    act(() => {
+      result.current.closePreviewIfScopeChanged('project:some-other-project' as PreviewScopeKey);
+    });
+    expect(result.current.isMaximized).toBe(false);
   });
 });

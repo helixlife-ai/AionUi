@@ -17,5 +17,20 @@
   "permission": "권한",
   "switchMode": "권한 모드",
   "switchSuccess": "모드가 성공적으로 전환되었습니다",
-  "switchFailed": "모드 전환에 실패했습니다"
+  "switchPendingNextTurn": "다음 턴부터 적용됩니다",
+  "switchFailed": "모드 전환에 실패했습니다",
+  "descriptions": {
+    "claude": {
+      "default": "Standard behavior; asks for approval before dangerous operations.",
+      "acceptEdits": "Automatically accepts file edits.",
+      "plan": "Plans tasks without executing tools.",
+      "dontAsk": "Does not ask for permission; denies operations that are not pre-approved.",
+      "bypassPermissions": "Bypasses all permission checks."
+    },
+    "codex": {
+      "read-only": "Codex can read files in the current workspace. Editing files or accessing the internet requires approval.",
+      "auto": "Codex can read and edit workspace files and run commands. Accessing the internet or editing other files requires approval.",
+      "full-access": "Codex can edit files outside the workspace and access the internet without approval. Use with caution."
+    }
+  }
 }

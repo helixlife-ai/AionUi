@@ -28,12 +28,11 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).not.toContain('studio-server.newidea.pro');
   });
 
-  it('uses the v0.2.20 release consistently', () => {
-    expect(deploymentConfig.version).toBe('v0.2.20');
-    expect(deploymentConfig.desc).toBe(
-      'Studio 区分 Claude Code 与 Codex 专属模型 ID\n支持流式输出优化与发送超时恢复，兼容历史会话模型显示'
-    );
-    expect(compose).toContain('application/agent-hub:v0.2.20');
+  it('uses the v0.2.22 release consistently', () => {
+    expect(deploymentConfig.version).toBe('v0.2.22');
+    expect(deploymentConfig.desc.trim()).not.toBe('');
+    expect(deploymentConfig.desc).not.toMatch(/&#|<[^>]+>/);
+    expect(compose).toContain('application/agent-hub:v0.2.22');
     expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.16');
   });
 
@@ -55,5 +54,39 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).toContain('networks:\n      - web');
     expect(compose).toContain('name: web-net');
     expect(compose).toContain('external: true');
+  });
+});
+
+describe('AionCore v0.2.2 deployment compatibility', () => {
+  it('installs the backend-verified CLI releases and checks the binaries', () => {
+    expect(dockerfile).toContain('ARG CLAUDE_CODE_VERSION=2.1.236');
+    expect(dockerfile).toContain('ARG CODEX_VERSION=0.151.0');
+    expect(dockerfile).toContain('codex --version');
+    expect(dockerfile).not.toContain('RUN node /etc/agent-hub/models/pinClaude.js');
+  });
+  it('preserves native resume anchors across startup and idle periods', () => {
+    expect(compose).not.toContain('SET session_id=NULL');
+    expect(compose).not.toContain('clear-idle-acp-sessions.js');
+    expect(compose).toContain('AgentHub/claude-home:/root/.claude');
+    expect(compose).toContain('AgentHub/codex-home:/root/.codex');
+  });
+  it('ships the release-matched cross-session command skills', () => {
+    for (const name of ['conversation-create', 'session-message']) {
+      expect(fs.existsSync(path.resolve('docker/agent-hub/auto-inject', name, 'SKILL.md'))).toBe(true);
+    }
+  });
+});
+
+describe('Docker nested sandbox policy', () => {
+  it('keeps unlisted system calls denied instead of disabling seccomp', () => {
+    const profile = JSON.parse(fs.readFileSync(path.resolve('docker/agent-hub/deployment/codex-seccomp.json'), 'utf8'));
+    expect(profile.defaultAction).toBe('SCMP_ACT_ERRNO');
+    expect(profile.defaultErrnoRet).toBe(1);
+  });
+
+  it('does not grant privileged or SYS_ADMIN access for Codex sandbox support', () => {
+    const override = fs.readFileSync(path.resolve('docker/agent-hub/deployment/docker-compose-sandbox.yaml'), 'utf8');
+    expect(override).toContain('no-new-privileges:true');
+    expect(override).not.toMatch(/privileged:\s*true|SYS_ADMIN|seccomp[=:]unconfined/);
   });
 });

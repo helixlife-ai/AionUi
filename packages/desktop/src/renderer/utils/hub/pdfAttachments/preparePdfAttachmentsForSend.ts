@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ChatFileRef } from '@/common/types/chatFile';
 import { isPdfAttachmentPath, shouldExtractPdfAttachmentsForSend } from './pdfTextExtractionPolicy';
 
 type PdfToTextApiResponse = { success: true; txtPath: string } | { success: false; error?: string; code?: string };
@@ -38,28 +39,37 @@ async function extractPdfToTextViaHub(pdfPath: string): Promise<string | null> {
  * For Claude Code on Agent Hub WebUI, replace each PDF path with its extracted
  * `.pdf.txt` sibling. Failures keep the original PDF so send is not blocked.
  */
-export async function preparePdfAttachmentsForSend(
-  files: string[],
+export async function preparePdfAttachmentsForSend<T extends string | ChatFileRef>(
+  files: T[],
   options: { backend: string; extractPdfToText?: ExtractPdfToTextFn }
-): Promise<string[]> {
+): Promise<T[]> {
   if (!shouldExtractPdfAttachmentsForSend(options.backend)) {
     return files;
   }
-  if (!files.some(isPdfAttachmentPath)) {
+  const pathOf = (file: T) => (typeof file === 'string' ? file : file.kind === 'project' ? null : file.path);
+  if (
+    !files.some((file) => {
+      const path = pathOf(file);
+      return path !== null && isPdfAttachmentPath(path);
+    })
+  ) {
     return files;
   }
 
   const extract = options.extractPdfToText ?? extractPdfToTextViaHub;
 
   return Promise.all(
-    files.map(async (filePath) => {
-      if (!isPdfAttachmentPath(filePath)) return filePath;
+    files.map(async (file) => {
+      const filePath = pathOf(file);
+      if (filePath === null || !isPdfAttachmentPath(filePath)) return file;
       try {
         const txtPath = await extract(filePath);
-        return txtPath || filePath;
+        return txtPath
+          ? ((typeof file === 'string' ? txtPath : { ...(file as ChatFileRef), path: txtPath }) as T)
+          : file;
       } catch (error) {
         console.warn('[preparePdfAttachmentsForSend] extraction error, keeping PDF:', filePath, error);
-        return filePath;
+        return file;
       }
     })
   );

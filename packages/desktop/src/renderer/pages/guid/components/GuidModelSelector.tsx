@@ -1,3 +1,4 @@
+import { isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 /**
  * @license
  * Copyright 2025 AionUi (aionui.com)
@@ -24,7 +25,6 @@ import {
   type RuntimeSelectorModelGroup,
   RuntimeSelectorSubMenuTitle,
 } from '@/renderer/components/agent/runtimeSelectorOptions';
-import { isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import StudioModelSelector, { isStudioModelSelectorEnabled } from '@/renderer/components/agent/StudioModelSelector';
 import {
   getStudioModels,

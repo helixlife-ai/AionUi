@@ -1,6 +1,8 @@
+import { isAgentHubRuntimeHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import React from 'react';
 import { Robot } from '@icon-park/react';
 import { resolveAssistantAvatar } from '@renderer/utils/model/assistantAvatar';
+import ThemedLogo from '@/renderer/components/agent/ThemedLogo';
 import { resolveAssistantName } from '@renderer/utils/model/assistantDisplay';
 import { assistantRuntimeKey, type Assistant } from '@/common/types/agent/assistantTypes';
 
@@ -42,10 +44,7 @@ export function assistantFromId(
 
 /** Filter assistants to only those supported in team mode. */
 export function filterTeamSupportedAssistants(assistants: TeamAssistantOption[]): TeamAssistantOption[] {
-  // Aion CLI (backend "aionrs") is hidden from the team leader picker — it is
-  // the built-in assistant already trimmed from other UI entry points, and
-  // team mode expects an ACP/vendor backend.
-  return assistants.filter((assistant) => assistant.backend !== 'aionrs');
+  return assistants.filter((assistant) => !isAgentHubRuntimeHidden(assistant.backend));
 }
 
 type AssistantOptionLabelProps = {
@@ -69,7 +68,7 @@ export const AssistantOptionLabel: React.FC<AssistantOptionLabelProps> = ({
   const nameClass = muted ? 'text-t-tertiary' : 'text-t-primary';
   const avatarNode =
     avatar.kind === 'image' ? (
-      <img
+      <ThemedLogo
         src={avatar.value}
         alt={assistant.name}
         style={{ width: iconSize, height: iconSize, objectFit: 'contain' }}

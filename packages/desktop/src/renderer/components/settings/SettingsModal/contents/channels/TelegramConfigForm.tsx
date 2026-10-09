@@ -9,6 +9,7 @@ import { assistants, channel } from '@/common/adapter/ipcBridge';
 import { isAionrsAssistant, type Assistant } from '@/common/types/agent/assistantTypes';
 import { resolveLocaleKey } from '@/common/utils';
 import { resolveAssistantName } from '@/renderer/utils/model/assistantDisplay';
+import { formatDateTime } from '@/renderer/services/i18n/format';
 import GoogleModelSelector from '@/renderer/pages/conversation/platforms/gemini/GoogleModelSelector';
 import { isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import type { GoogleModelSelection } from '@/renderer/pages/conversation/platforms/gemini/useGoogleModelSelection';
@@ -291,13 +292,12 @@ const TelegramConfigForm: React.FC<TelegramConfigFormProps> = ({
 
   // Format timestamp
   const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString();
+    return formatDateTime(timestamp, i18n.language);
   };
 
   // Calculate remaining time
-  const getRemainingTime = (expiresAt: number) => {
-    const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000 / 60));
-    return `${remaining} min`;
+  const getRemainingMinutes = (expiresAt: number) => {
+    return Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000 / 60));
   };
 
   const showModelSelector = isAionrsAssistant(selectedAssistant);
@@ -473,7 +473,7 @@ const TelegramConfigForm: React.FC<TelegramConfigFormProps> = ({
             <p className='m-0'>
               <strong>1.</strong> {t('settings.assistant.step1', 'Open Telegram and search for your bot')}
               {pluginStatus.botUsername && (
-                <span className='ml-4px'>
+                <span className='ms-4px'>
                   <code className='bg-fill-2 px-6px py-2px rd-4px'>@{pluginStatus.botUsername}</code>
                 </span>
               )}
@@ -499,7 +499,7 @@ const TelegramConfigForm: React.FC<TelegramConfigFormProps> = ({
 
       {/* Pending Pairings - show when bot is enabled and no authorized users yet */}
       {pluginStatus?.enabled && authorizedUsers.length === 0 && (
-        <div className='bg-fill-1 rd-12px pt-16px pr-16px pb-16px pl-0'>
+        <div className='bg-fill-1 rd-12px pt-16px pe-16px pb-16px ps-0'>
           <SectionHeader
             title={t('settings.assistant.pendingPairings', 'Pending Pairing Requests')}
             action={
@@ -543,7 +543,7 @@ const TelegramConfigForm: React.FC<TelegramConfigFormProps> = ({
                       {t('settings.assistant.pairingCode', 'Code')}:{' '}
                       <code className='bg-fill-3 px-4px rd-2px'>{pairing.code}</code>
                       <span className='mx-8px'>|</span>
-                      {t('settings.assistant.expiresIn', 'Expires in')}: {getRemainingTime(pairing.expiresAt)}
+                      {t('settings.assistant.expiresInMinutes', { count: getRemainingMinutes(pairing.expiresAt) })}
                     </div>
                   </div>
                   <div className='flex items-center gap-8px'>
@@ -574,7 +574,7 @@ const TelegramConfigForm: React.FC<TelegramConfigFormProps> = ({
 
       {/* Authorized Users - show when there are authorized users */}
       {authorizedUsers.length > 0 && (
-        <div className='bg-fill-1 rd-12px pt-16px pr-16px pb-16px pl-0'>
+        <div className='bg-fill-1 rd-12px pt-16px pe-16px pb-16px ps-0'>
           <SectionHeader
             title={t('settings.assistant.authorizedUsers', 'Authorized Users')}
             action={

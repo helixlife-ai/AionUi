@@ -4,11 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { type ChatFileRef, isChatFileRef, uploadFileRef } from '@/common/types/chatFile';
+import type { SessionRef } from '@/common/adapter/ipcBridge';
+
 export type PendingAcpSend = {
   id: string;
   conversation_id: string;
   input: string;
-  files: string[];
+  files: ChatFileRef[];
+  sessions?: SessionRef[];
   displayMessage: string;
   createdAt: number;
   status: 'pending' | 'work' | 'error';
@@ -26,7 +30,7 @@ const isPendingAcpSend = (value: unknown, conversation_id: string): value is Pen
     item.conversation_id === conversation_id &&
     typeof item.input === 'string' &&
     Array.isArray(item.files) &&
-    item.files.every((file) => typeof file === 'string') &&
+    item.files.every((file) => typeof file === 'string' || isChatFileRef(file)) &&
     typeof item.displayMessage === 'string' &&
     typeof item.createdAt === 'number' &&
     (item.status === 'pending' || item.status === 'work' || item.status === 'error')
@@ -39,7 +43,14 @@ export const readPendingAcpSends = (conversation_id: string): PendingAcpSend[] =
     const raw = window.sessionStorage.getItem(getPendingAcpSendStorageKey(conversation_id));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? parsed.filter((item) => isPendingAcpSend(item, conversation_id)) : [];
+    return Array.isArray(parsed)
+      ? parsed
+          .filter((item) => isPendingAcpSend(item, conversation_id))
+          .map((item) => ({
+            ...item,
+            files: item.files.map((file) => (typeof file === 'string' ? uploadFileRef(file) : file)),
+          }))
+      : [];
   } catch (error) {
     console.warn('[pending-acp-send] Failed to read pending sends:', error);
     return [];

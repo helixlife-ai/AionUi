@@ -4,15 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { PRODUCT_DISPLAY_NAME } from '@/renderer/utils/hub/productBrand';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ipcBridge } from '@/common';
 import { configService } from '@/common/config/configService';
 import { isElectronDesktop } from '@/renderer/utils/platform';
+import { getSnapshotConversationName } from '@/renderer/pages/conversation/GroupedHistory/hooks/useConversationListSync';
 import {
   createBrowserNotificationController,
   shouldShowNotification,
+  truncateConversationName,
   type NotificationPermissionState,
 } from './browserNotificationCore';
 
@@ -48,13 +51,20 @@ export const useBrowserNotification = (): void => {
           settingEnabled: configService.get('system.notificationEnabled') !== false,
           documentHidden: document.hidden,
         }),
-      bodyFor: (kind) =>
-        kind === 'confirmation'
-          ? t('settings.browserNotification.bodyConfirmation')
-          : t('settings.browserNotification.bodyTurnCompleted'),
+      bodyFor: (kind, conversationId) => {
+        const name = conversationId ? getSnapshotConversationName(conversationId) : undefined;
+        if (kind === 'confirmation') {
+          return name
+            ? t('settings.browserNotification.bodyConfirmationNamed', { name: truncateConversationName(name) })
+            : t('settings.browserNotification.bodyConfirmation');
+        }
+        return name
+          ? t('settings.browserNotification.bodyTurnCompletedNamed', { name: truncateConversationName(name) })
+          : t('settings.browserNotification.bodyTurnCompleted');
+      },
       show: ({ body, conversationId }) => {
         try {
-          const notification = new Notification('AionUi', { body });
+          const notification = new Notification(PRODUCT_DISPLAY_NAME, { body });
           notification.onclick = () => {
             window.focus();
             if (conversationId) void navigate(`/conversation/${conversationId}`);

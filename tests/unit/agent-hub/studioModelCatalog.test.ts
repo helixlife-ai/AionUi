@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getStudioModels,
+  getStudioModelContextWindow,
   normalizeStudioModelId,
   resolveStudioConversationModel,
   resolveStudioDraftModel,
@@ -34,6 +35,18 @@ describe('confirmed Studio routing contract', () => {
   ])('normalizes the legacy %s alias for display and drafts', (legacy, current) => {
     expect(normalizeStudioModelId(legacy)).toBe(current);
   });
+  it.each(['qwen3-5-plus', 'qwen3-7-plus', 'deepseek-v4-1-flash', 'glm-5-3', 'kimi-k3'])(
+    'matches the restored long-context %s model without changing the runtime ID',
+    (model) => {
+      const runtimeId = `agenthub-claude-${model}[1m]`;
+      expect(normalizeStudioModelId(runtimeId, 'claude')).toBe(`agenthub-claude-${model}`);
+      expect(resolveStudioConversationModel('claude', runtimeId)).toBe(runtimeId);
+    }
+  );
+  it.each(['unknown-model[1m]', 'agenthub-claude-deepseek-v4-1-flash[other]'])(
+    'preserves unrecognized model identities: %s',
+    (model) => expect(normalizeStudioModelId(model, 'claude')).toBe(model)
+  );
   it('prefers a persisted conversation model over the Claude default sentinel', () => {
     expect(resolveStudioConversationModel('claude', 'default', 'agenthub-kimi-k3')).toBe('agenthub-claude-kimi-k3');
   });
@@ -66,4 +79,19 @@ describe('confirmed Studio routing contract', () => {
       expect(resolveStudioConversationModel('claude', id)).toBe(id);
     }
   );
+});
+
+describe('confirmed Studio context limits', () => {
+  it('uses the configured size for the current model and its legacy alias', () => {
+    expect(getStudioModelContextWindow('codex', 'agenthub-codex-qwen3-5-plus')).toBe(1000000);
+    expect(getStudioModelContextWindow('codex', 'qwen3.5-plus')).toBe(1000000);
+  });
+  it.each(['deepseek-v4-1-flash', 'glm-5-3', 'kimi-k3'])('uses the confirmed binary million limit for %s', (model) => {
+    expect(getStudioModelContextWindow('codex', `agenthub-codex-${model}`)).toBe(1048576);
+  });
+  it('never borrows a window from another model or runtime', () => {
+    expect(getStudioModelContextWindow('codex', 'unknown-model')).toBe(0);
+    expect(getStudioModelContextWindow('codex', undefined)).toBe(0);
+    expect(getStudioModelContextWindow('claude', 'agenthub-claude-qwen3-5-plus')).toBe(0);
+  });
 });

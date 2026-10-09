@@ -64,11 +64,9 @@ describe('officeWatchSession', () => {
             reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
             return;
           }
-          signal.addEventListener(
-            'abort',
-            () => reject(Object.assign(new Error('Aborted'), { name: 'AbortError' })),
-            { once: true }
-          );
+          signal.addEventListener('abort', () => reject(Object.assign(new Error('Aborted'), { name: 'AbortError' })), {
+            once: true,
+          });
         });
       })
     );
@@ -151,7 +149,7 @@ describe('officeWatchSession', () => {
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(fetchSpy.mock.calls[0][0]).toContain('/api/word-preview/start');
-    expect((fetchSpy.mock.calls[0][1]?.signal as AbortSignal).aborted).toBe(false);
+    expect((fetchSpy.mock.calls[0][1]?.signal as AbortSignal | undefined)?.aborted).toBe(false);
     setHttpRequestSignalProvider(null);
   });
 });

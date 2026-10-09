@@ -93,3 +93,9 @@ describe('MessageAgentStatus — FeedbackButton wiring', () => {
     expect(screen.getByText('acp.status.connected:Codex')).toBeInTheDocument();
   });
 });
+
+// Exercise upstream feedback behavior with the Agent Hub visibility switch disabled.
+vi.mock('@/renderer/utils/hub/agentHubUiPolicy', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/renderer/utils/hub/agentHubUiPolicy')>()),
+  isAgentHubFeedbackHidden: () => false,
+}));

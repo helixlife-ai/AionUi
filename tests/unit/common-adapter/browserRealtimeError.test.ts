@@ -149,7 +149,7 @@ describe('browser WebSocket realtime error handling', () => {
   it.each([
     { name: 'realtime.error', data: { code: 'REALTIME_AUTH_MISSING', message: 'Missing auth', recoverable: false } },
     { name: 'realtime.error', data: { code: 'REALTIME_AUTH_EXPIRED', message: 'Expired auth', recoverable: false } },
-  ])('treats $name auth payload as terminal and redirects to login', async (payload) => {
+  ])('stops reconnecting after $name auth errors without redirecting the SN-based Hub', async (payload) => {
     const { adapter, location, socket } = await loadBrowserAdapter();
     const emit = vi.fn();
     adapter.on({ emit });
@@ -161,12 +161,12 @@ describe('browser WebSocket realtime error handling', () => {
 
     socket.dispatchClose(1006);
     const socketCountAfterClose = FakeWebSocket.instances.length;
-    vi.advanceTimersByTime(8000);
+    await vi.advanceTimersByTimeAsync(8000);
 
     expect(FakeWebSocket.instances).toHaveLength(socketCountAfterClose);
 
-    vi.advanceTimersByTime(1000);
-    expect(location.hash).toBe('/login');
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(location.hash).toBe('');
   });
 
   it('emits non-auth realtime errors without closing or redirecting', async () => {

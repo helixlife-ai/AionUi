@@ -18,6 +18,10 @@ function codexModelCatalog(template) {
       .filter((model) => model.codex)
       .map((model, index) => {
         const reasoning = model.codexReasoning;
+        const contextWindow = model.contextWindow;
+        if (contextWindow != null && (!Number.isSafeInteger(contextWindow) || contextWindow <= 0)) {
+          throw new Error(`Invalid contextWindow for ${model.codex}`);
+        }
         const reasoningLevels = reasoning?.supported
           ? reasoning.supported.map((effort) => {
               const templateLevel = templateModel.supported_reasoning_levels?.find((level) => level.effort === effort);
@@ -36,6 +40,9 @@ function codexModelCatalog(template) {
                 default_reasoning_level: reasoning.default,
                 supported_reasoning_levels: reasoningLevels,
               }
+            : {}),
+          ...(contextWindow != null
+            ? { context_window: contextWindow, max_context_window: contextWindow, auto_compact_token_limit: null }
             : {}),
           slug: model.codex,
           display_name: model.label,

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   assistantToOption,
@@ -85,3 +85,8 @@ function assistant(id: string, team_selectable: boolean, team_block_reason?: str
     deletable: false,
   };
 }
+
+vi.mock('@/renderer/utils/hub/agentHubUiPolicy', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/renderer/utils/hub/agentHubUiPolicy')>()),
+  isAgentHubRuntimeHidden: () => false,
+}));

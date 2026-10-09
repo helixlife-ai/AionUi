@@ -5,20 +5,13 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import {
-  probeBackendReady,
-  shouldLoadHeavyCatalogs,
-  waitForBackendReady,
-} from '@/renderer/services/backendReadiness';
+import { probeBackendReady, shouldLoadHeavyCatalogs, waitForBackendReady } from '@/renderer/services/backendReadiness';
 
 describe('backendReadiness', () => {
   it('probeBackendReady returns true on HTTP 2xx', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
     await expect(probeBackendReady({ fetchImpl, timeoutMs: 500 })).resolves.toBe(true);
-    expect(fetchImpl).toHaveBeenCalledWith(
-      '/api/settings/client',
-      expect.objectContaining({ method: 'GET' })
-    );
+    expect(fetchImpl).toHaveBeenCalledWith('/api/settings/client', expect.objectContaining({ method: 'GET' }));
   });
 
   it('probeBackendReady returns false on HTTP errors and network failures', async () => {

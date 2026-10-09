@@ -13,5 +13,43 @@
     "specifyWorkspace": "Sélectionnez le dossier du projet",
     "searchPlaceholder": "Rechercher des projets…",
     "noProject": "Aucun projet"
+  },
+  "defaultPromptCategories": {
+    "research": {
+      "title": "🔍 Research and evidence",
+      "items": {
+        "prompt1": "Summarize research over the past 3 years on [tumor-associated macrophages and resistance to immunotherapy], including major mechanisms, representative studies, and current controversies.",
+        "prompt2": "Explain the clinical significance of the EGFR [L858R] mutation in non-small cell lung cancer, including targeted therapies, treatment outcomes, and common resistance mechanisms.",
+        "prompt3": "Compare the strengths, limitations, and use cases of [single-cell RNA-seq, spatial transcriptomics, and single-cell multi-omics] for studying the tumor microenvironment.",
+        "prompt4": "I want to study [aging and mitochondrial dysfunction]. Identify key reviews, representative studies, and unresolved questions in this field."
+      }
+    },
+    "idea": {
+      "title": "💡 Research directions and questions",
+      "items": {
+        "prompt5": "Summarize the current state of research on [resistance to KRAS G12C-targeted therapy] and identify 3 questions worth investigating further.",
+        "prompt6": "I want to study [T cell exhaustion in liver cancer]. Propose specific, testable hypotheses and explain the evidence behind each one.",
+        "prompt7": "Identify potential research gaps concerning [obesity and the tumor immune microenvironment], and assess which directions merit further investigation.",
+        "prompt8": "I am interested in [drought resistance mechanisms in Arabidopsis]. Break this broad topic into feasible research questions."
+      }
+    },
+    "analysis": {
+      "title": "📊 Analysis plans and study design",
+      "items": {
+        "prompt9": "I want to use TCGA data to study [whether TP53 mutations affect prognosis in lung adenocarcinoma]. Design an analysis plan covering data, methods, statistical tests, and figures.",
+        "prompt10": "Design a complete workflow to compare [transcriptomic differences between lung cancer and normal tissue], from public data acquisition and quality control to differential expression and pathway enrichment.",
+        "prompt11": "I want to study [T cell exhaustion in liver cancer] using public single-cell data. Plan the analysis, including cell annotation, key markers, differential expression, and functional validation.",
+        "prompt12": "If differential expression analysis finds many upregulated immune-related genes, what analyses should follow to identify the specific immune cells or pathways involved?"
+      }
+    },
+    "writing": {
+      "title": "✍️ Scientific writing and content",
+      "items": {
+        "prompt13": "Write a research background paragraph for a paper Introduction on [tumor-associated macrophages and resistance to immunotherapy], citing key supporting literature.",
+        "prompt14": "Create a review outline on [applications of single-cell spatial transcriptomics in cancer research], including sections and the key topics to discuss in each.",
+        "prompt15": "Assuming a study finds [significantly lower overall survival in patients with TP53 mutations], write a Results paragraph in the style of a medical paper.",
+        "prompt16": "Write a Discussion paragraph based on current research on [resistance to KRAS G12C-targeted therapy], covering possible mechanisms, limitations, and future directions."
+      }
+    }
   }
 }
