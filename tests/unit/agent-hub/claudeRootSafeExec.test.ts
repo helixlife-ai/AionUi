@@ -41,6 +41,16 @@ describe('claude-root-safe-exec buildClaudeLaunch', () => {
     expect(argv).toEqual(['--permission-mode', 'acceptEdits']);
   });
 
+  it.each([true, false])('preserves opt-in permission switching without forcing bypass (root=%s)', (isRoot) => {
+    const { argv } = buildClaudeLaunch(
+      ['--permission-mode', 'default', '--allow-dangerously-skip-permissions', '--print'],
+      { isRoot, env: {} }
+    );
+    expect(argv).toContain('--allow-dangerously-skip-permissions');
+    expect(argv).not.toContain('--dangerously-skip-permissions');
+    expect(argv).toContain('default');
+  });
+
   it('passes YOLO through unchanged when not root', () => {
     const { argv, env } = buildClaudeLaunch(['--dangerously-skip-permissions', 'x'], {
       isRoot: false,

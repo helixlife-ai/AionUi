@@ -11,7 +11,9 @@
 # ---- Official skills -------------------------------------------------------
 # Docker expands local tar archives during ADD, so neither this stage nor the
 # runtime image needs xz-utils. Keep the archive out of the final image layer.
-FROM node:22-trixie-slim AS official-skills
+ARG NODE_BUILDER_IMAGE=node:22.23.1-trixie@sha256:3145536027ca5268e24654f7efebf1dbdd684cda3708324e6c53f4ad61af8710
+ARG NODE_RUNTIME_IMAGE=node:22.23.1-trixie-slim@sha256:e6d9a389d34ff9678438af985c9913fbd1eb6ed36e80fea56644f4b4f6dd70ba
+FROM ${NODE_RUNTIME_IMAGE} AS official-skills
 WORKDIR /opt/agent-hub/builtin-skills-hub
 
 ADD docker/agent-hub/official-skills.tar.xz ./
@@ -29,19 +31,21 @@ RUN set -eu; \
       official_count=$((official_count + 1)); \
     done; \
     test "$official_count" -eq 92; \
-    test "$(find auto-inject -mindepth 2 -maxdepth 2 -type f -name SKILL.md | wc -l)" -eq 4; \
+    test "$(find auto-inject -mindepth 2 -maxdepth 2 -type f -name SKILL.md | wc -l)" -eq 6; \
     test -z "$(find . -type l -print -quit)"
 
 # ---- Builder ---------------------------------------------------------------
 # 固定 Node 22.23.1 与镜像 digest，避免可变标签漂移到 ARM64 上会触发
 # SIGILL 的 Node 22.23.2 构件。trixie 的 glibc 2.41 也满足 aioncore 要求。
-FROM node:22.23.1-trixie@sha256:3145536027ca5268e24654f7efebf1dbdd684cda3708324e6c53f4ad61af8710 AS builder
+FROM ${NODE_BUILDER_IMAGE} AS builder
 WORKDIR /app
 
-RUN npm install -g bun
+ARG BUN_VERSION=1.3.14
+RUN npm install -g bun@${BUN_VERSION}
 
 # CI=true 使 postinstall.js 跳过 `electron-builder install-app-deps` 纯 renderer 构建不需要 Electron 原生模块重建。
 ENV CI=true
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
 ENV NODE_OPTIONS=--max-old-space-size=8192
 # 降级 renderer JS 以兼容 macOS 12 / Safari 15 WebKit（不支持 `static { }` 块）。
 ENV AIONUI_RENDERER_TARGET=safari15
@@ -59,12 +63,13 @@ RUN bun install --frozen-lockfile
 
 COPY . .
 
-# 存在预置的 linux-arm64 aioncore bundle 时优先使用（macOS Docker 偶尔装不上
-# codex 的 optionalDeps）。先复制到一边，prepareAioncore 会清空目标目录再拷入。
+# Optional offline backend input must match the pinned release. Copy it aside
+# before prepareAioncore clears its output directory. CLI packages remain image-owned.
 ARG AIONUI_USE_SEEDED_AIONCORE_BUNDLE=0
 RUN if [ "$AIONUI_USE_SEEDED_AIONCORE_BUNDLE" = "1" ] \
       && [ -x /app/resources/bundled-aioncore/linux-arm64/aioncore ] \
       && [ -d /app/resources/bundled-aioncore/linux-arm64/managed-resources ]; then \
+      node -e 'const expected=require("./package.json").aioncoreVersion; const manifest=require("./resources/bundled-aioncore/linux-arm64/manifest.json"); if(manifest.version!==expected) throw new Error("Seeded AionCore version mismatch: "+manifest.version+" != "+expected)' && \
       mkdir -p /opt && \
       cp -a /app/resources/bundled-aioncore/linux-arm64 /opt/aioncore-linux-arm64-bundle && \
       echo "Seeded aioncore bundle at /opt/aioncore-linux-arm64-bundle"; \
@@ -87,14 +92,15 @@ RUN mkdir -p /out && tar -xzf dist-web-cli/aionui-web-*-linux-arm64.tar.gz -C /o
 # ---- Runtime ---------------------------------------------------------------
 # 运行时与构建阶段使用同一 Node 补丁版本，并固定多架构镜像 digest。
 # Node 仍是必需依赖：Codex 等 ACP CLI 通过 node shebang 启动。
-FROM node:22.23.1-trixie-slim@sha256:e6d9a389d34ff9678438af985c9913fbd1eb6ed36e80fea56644f4b4f6dd70ba AS runtime
+FROM ${NODE_RUNTIME_IMAGE} AS runtime
 WORKDIR /app
 
 # libicu76 与 ca-certificates：officecli 预览与 HTTPS 调用。
 # python3/pip + poppler-utils：Agent Hub 技能运行时依赖，一体机网络不可靠故构建期打入。
+# Use the sandbox helper bundled with the pinned Codex release.
 # officecli 同理（运行时自动安装常失败），放 /usr/local/bin 便于 aioncore PATH 查找。
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      libicu76 ca-certificates bubblewrap bash curl \
+      libicu76 ca-certificates bash curl \
       python3 python3-pip poppler-utils \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && python3 --version \
@@ -117,11 +123,14 @@ RUN mkdir -p /root/.config/pip \
 # 全局安装 Claude Code + Codex，使 aioncore 启动时能在 PATH 上自动探测到
 # 若不锁版本，每次重建都会使该层失效，即任何应用更新都会强迫用户重拉 600MB。
 # 升级 CLI 时显式修改这些 ARG。
-ARG CLAUDE_CODE_VERSION=2.1.242
-ARG CODEX_VERSION=0.146.0
+# Pin the exact CLI versions verified by AionCore v0.2.2.
+ARG CLAUDE_CODE_VERSION=2.1.236
+ARG CODEX_VERSION=0.151.0
 RUN npm install -g --unsafe-perm \
       @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
       @openai/codex@${CODEX_VERSION} \
+    && claude --version | grep -F "${CLAUDE_CODE_VERSION}" \
+    && codex --version | grep -F "${CODEX_VERSION}" \
     && npm cache clean --force
 
 # 禁止Claude Code 自更新
@@ -141,9 +150,8 @@ COPY packages/desktop/src/renderer/components/agent/StudioModelSelector/models.j
 COPY docker/agent-hub/js/ /etc/agent-hub/js/
 COPY docker/agent-hub/otel/ /etc/agent-hub/otel/
 
-# auto-inject 系统技能（cron/officecli/skill-creator/aionui-config，vendor 自
-# aioncore v0.1.53）与 92 个官方技能在构建阶段组成只读技能目录。
-# 升级 aioncore 时同步刷新（见 docs/agent-hub-builtin-skills-replacement.md）。
+# auto-inject skills are vendored from AionCore v0.2.2, including the new
+# conversation-create and session-message tools. Keep them aligned with the backend.
 COPY --from=official-skills /opt/agent-hub/builtin-skills-hub/ /etc/agent-hub/builtin-skills-hub/
 
 # ARM64 Node 运行时回归检查：v0.2.12 曾在 Dirent 遍历和两个周期任务中
@@ -157,8 +165,6 @@ RUN test "$(node --version)" = "v22.23.1" \
     && rm -rf /tmp/agent-hub-smoke
 
 COPY --from=builder /out/aionui-web/bundled-aioncore /app/aionui-web/bundled-aioncore
-RUN node /etc/agent-hub/models/pinClaude.js /app/aionui-web/bundled-aioncore \
-      /usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe
 COPY --chmod=755 --from=builder /out/aionui-web/aionui-web /app/aionui-web/aionui-web
 COPY --from=builder /out/aionui-web/package.json /app/aionui-web/package.json
 COPY --from=builder /out/aionui-web/static /app/aionui-web/static

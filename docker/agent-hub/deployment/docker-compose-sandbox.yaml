@@ -1,0 +1,6 @@
+# Paths resolve relative to the first compose file: aio_deploy/docker-compose.yaml.
+services:
+  agent-hub:
+    security_opt:
+      - seccomp=../docker/agent-hub/deployment/codex-seccomp.json
+      - no-new-privileges:true

@@ -1,5 +1,5 @@
 {
-  "version": "v0.2.20",
+  "version": "v0.2.22",
   "name": "AgentHub",
   "display_name": "Studio",
   "icon_url": "https://aio-resources.newidea.pro/data/AgentHub/icon.svg",
@@ -7,7 +7,7 @@
   "suffix": ":25808/#/guid",
   "main_app": true,
   "order": 0,
-  "desc": "Studio 区分 Claude Code 与 Codex 专属模型 ID\n支持流式输出优化与发送超时恢复，兼容历史会话模型显示",
+  "desc": "项目文件管理：支持文件搜索、@ 补全定位等功能\n预览与编辑：按项目保存标签，支持文本编辑、变更提醒和覆盖保护，优化文档下载与 Markdown 图片\n会话协作：支持会话分叉、@@ 引用其他会话，以及运行中发送消息\n执行交互：新增结构化问答卡、实时终端输出与单独停止\nTeam 模式：新增成员消息和任务看板，支持唤醒、切换模型及重启，修复状态与 MCP 问题\n会话管理：支持归档恢复、标为未读、消息搜索导航和计划清单展示\n内容展示：优化音频附件与语音输入，支持公式、Mermaid 缩放平移及 WaveDrom",
   "startup": true,
   "force_update": true,
   "device_limit": [
