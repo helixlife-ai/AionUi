@@ -120,7 +120,6 @@ describe('shouldPreserveConversationListOnRefreshFailure', () => {
   });
 });
 
-
 describe('shouldRetryConversationListRefreshFailure', () => {
   it('retries aborted list refreshes', () => {
     expect(shouldRetryConversationListRefreshFailure({ error: { name: 'AbortError' }, retryCount: 0 })).toBe(true);

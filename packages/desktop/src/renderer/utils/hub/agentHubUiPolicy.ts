@@ -106,3 +106,13 @@ export function isAgentHubRuntimeHidden(runtimeKey: string | null | undefined): 
   const key = (runtimeKey || '').trim().toLowerCase();
   return HIDDEN_RUNTIME_KEYS.has(key);
 }
+
+/** Settings tabs hidden by the Agent Hub product configuration. */
+export function isAgentHubSettingsTabHidden(id: string): boolean {
+  return (
+    ['model', 'appearance', 'system', 'about'].includes(id) ||
+    (id === 'agent' && isAgentHubAgentsSettingsHidden()) ||
+    (id === 'tools' && isAgentHubToolsSettingsHidden()) ||
+    (id === 'pet' && isAgentHubPetSettingsHidden())
+  );
+}

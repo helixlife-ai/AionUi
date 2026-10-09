@@ -1,3 +1,4 @@
+import { upsertPendingAcpSend } from '@/renderer/pages/conversation/platforms/acp/pendingAcpSend';
 /**
  * @license
  * Copyright 2025 AionUi (aionui.com)
@@ -301,7 +302,16 @@ describe('MessageText attachment paths', () => {
     expect(content).toHaveTextContent(longPath);
   });
 
-  it('shows progress for a pending user message', () => {
+  it('shows progress for a locally pending user message', () => {
+    upsertPendingAcpSend({
+      id: 'msg-marker',
+      conversation_id: 'conv-1',
+      input: 'Hello',
+      files: [],
+      displayMessage: 'Hello',
+      createdAt: Date.now(),
+      status: 'pending',
+    });
     renderMessageText('Hello', { position: 'right', status: 'pending' });
 
     expect(screen.getByTestId('loading-icon')).toBeInTheDocument();

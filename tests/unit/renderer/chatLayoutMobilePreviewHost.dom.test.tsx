@@ -20,7 +20,7 @@ vi.mock('@/renderer/hooks/context/LayoutContext', () => ({
   useLayoutContext: () => ({ isMobile: mockIsMobile }),
 }));
 
-vi.mock('@/renderer/pages/conversation/Preview', () => ({
+vi.mock('@/renderer/pages/conversation/Preview/context', () => ({
   usePreviewContext: () => ({ isOpen: true }),
   PreviewPanel: () => <div data-testid='preview-panel'>preview</div>,
 }));
@@ -92,23 +92,27 @@ describe('ChatLayout mobile preview host fallback', () => {
     mockIsMobile = false;
   });
 
-  it('renders the preview overlay on mobile even for hoisted (project) conversations', () => {
+  it('renders the preview overlay on mobile even for hoisted (project) conversations', async () => {
     mockIsMobile = true;
     renderChatLayout(true);
     // The regression target: preview must render inside ChatLayout on mobile.
-    expect(screen.getByTestId('preview-panel')).toBeInTheDocument();
+    expect(await screen.findByTestId('preview-panel')).toBeInTheDocument();
   });
 
-  it('yields the preview to the Layout host on desktop for hoisted conversations (no double render)', () => {
+  it('yields the preview to the Layout host on desktop for hoisted conversations (no double render)', async () => {
     mockIsMobile = false;
     renderChatLayout(true);
     // Desktop hoisted: ChatLayout must NOT render the preview — the host owns it.
     expect(screen.queryByTestId('preview-panel')).not.toBeInTheDocument();
   });
 
-  it('renders the preview locally on desktop for non-hoisted conversations', () => {
+  it('renders the preview locally on desktop for non-hoisted conversations', async () => {
     mockIsMobile = false;
     renderChatLayout(false);
-    expect(screen.getByTestId('preview-panel')).toBeInTheDocument();
+    expect(await screen.findByTestId('preview-panel')).toBeInTheDocument();
   });
 });
+
+vi.mock('@/renderer/pages/conversation/Preview/components/PreviewPanel/PreviewPanel', () => ({
+  default: () => <div data-testid='preview-panel'>preview</div>,
+}));

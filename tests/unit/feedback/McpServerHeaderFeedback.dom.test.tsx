@@ -87,3 +87,9 @@ describe('McpServerHeader — FeedbackButton wiring', () => {
     });
   });
 });
+
+// Exercise upstream feedback behavior with the Agent Hub visibility switch disabled.
+vi.mock('@/renderer/utils/hub/agentHubUiPolicy', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/renderer/utils/hub/agentHubUiPolicy')>()),
+  isAgentHubFeedbackHidden: () => false,
+}));

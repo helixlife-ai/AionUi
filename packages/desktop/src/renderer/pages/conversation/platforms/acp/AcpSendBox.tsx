@@ -142,7 +142,16 @@ const AcpSendBox: React.FC<{
   messageState: UseAcpMessageReturn;
   teamSendMessage?: (payload: { input: string; files: ChatFileRef[] }) => Promise<void>;
   teamRuntime?: TeamSendBoxRuntime;
-}> = ({ conversation_id, backend, initialModelId, session_mode, agent_name, messageState, teamSendMessage, teamRuntime }) => {
+}> = ({
+  conversation_id,
+  backend,
+  initialModelId,
+  session_mode,
+  agent_name,
+  messageState,
+  teamSendMessage,
+  teamRuntime,
+}) => {
   const {
     aiProcessing,
     setAiProcessing,
@@ -331,6 +340,9 @@ const AcpSendBox: React.FC<{
   const acknowledgeOptimisticMessage = useCallback(
     (messageId: string, backendMessageId: string) => {
       updateMessageListRef.current((list) => {
+        const serverMessage = list.find(
+          (message) => message.msg_id === backendMessageId && message.msg_id !== messageId
+        );
         const next = list.filter(
           (message) => message.msg_id !== backendMessageId || message.msg_id === messageId || message.id === messageId
         );
@@ -338,9 +350,10 @@ const AcpSendBox: React.FC<{
         if (optimisticIndex === -1) return list;
         next[optimisticIndex] = {
           ...next[optimisticIndex],
+          ...serverMessage,
           id: backendMessageId,
           msg_id: backendMessageId,
-          status: 'finish',
+          status: serverMessage?.status ?? 'finish',
         };
         return next;
       });
@@ -427,19 +440,25 @@ const AcpSendBox: React.FC<{
         // conversation lease expired while the send box remains mounted. Renew
         // it synchronously so the message endpoint does not reject the request
         // with a transient 408.
-        await ipcBridge.conversation.activeLease.invoke({ conversation_id });
-        markSendStarted();
-        setAiProcessing(true);
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        let expired = false;
         try {
-          const request = ipcBridge.acpConversation.sendMessage.invoke({
-            input,
-            conversation_id,
-            files: sendFiles,
-            sessions,
-          });
+          const request = (async () => {
+            await ipcBridge.conversation.activeLease.invoke({ conversation_id });
+            // A late lease response must not send after the user was offered retry.
+            if (expired) throw new Error(t('conversation.agentError.codes.USER_LLM_PROVIDER_TIMEOUT.body'));
+            markSendStarted();
+            setAiProcessing(true);
+            return ipcBridge.acpConversation.sendMessage.invoke({
+              input,
+              conversation_id,
+              files: sendFiles,
+              sessions,
+            });
+          })();
           const timeout = new Promise<never>((_, reject) => {
             timeoutId = setTimeout(() => {
+              expired = true;
               reject(new Error(t('conversation.agentError.codes.USER_LLM_PROVIDER_TIMEOUT.body')));
             }, SEND_REQUEST_TIMEOUT_MS);
           });
@@ -632,19 +651,21 @@ Please check your local CLI tool authentication status`,
   const [selectedSessions, setSelectedSessions] = useState<SessionRef[]>([]);
   const { enabled: crossSessionEnabled } = useCrossSessionMessageEnabled();
 
-    clearFiles();
-    emitter.emit('acp.selected.file.clear');
-
-    if (
-      shouldEnqueueConversationCommand({
-        enabled: true,
-        isBusy: isBusy || activeOptimisticSendIdsRef.current.size > 0,
-        hasPendingCommands,
-      })
-    ) {
-      enqueue({ input: message, files: allFiles });
-      return;
+  const onSendHandler = async (message: string): Promise<void | false> => {
+    if (!supportsMidturnDelivery && (isBusy || activeOptimisticSendIdsRef.current.size > 0)) {
+      Message.warning(
+        t('conversation.commandQueue.midturnBlocked', {
+          defaultValue:
+            'This agent is still working, so the message can’t be sent directly. Save it to Draft box and send it later.',
+        })
+      );
+      return false;
     }
+    const allFiles = collectChatFileRefs(uploadFile, atPath);
+    const sessions = selectedSessions.length > 0 ? selectedSessions : undefined;
+    clearFiles();
+    setSelectedSessions([]);
+    emitter.emit('acp.selected.file.clear');
 
     if (!teamSendMessage) {
       const id = uuid();
@@ -653,7 +674,8 @@ Please check your local CLI tool authentication status`,
         conversation_id,
         input: message,
         files: allFiles,
-        displayMessage: buildDisplayMessage(message, allFiles, workspacePath || ''),
+        displayMessage: message,
+        sessions,
         createdAt: Date.now(),
         status: 'pending',
       };
@@ -675,7 +697,7 @@ Please check your local CLI tool authentication status`,
       return;
     }
 
-    await executeCommand({ input: message, files: allFiles });
+    await executeCommand({ input: message, files: allFiles, sessions });
   };
 
   const [interrupting, setInterrupting] = useState(false);
@@ -723,6 +745,7 @@ Please check your local CLI tool authentication status`,
     (item: ConversationCommandQueueItem) => {
       remove(item.id);
       setContent(item.input);
+      setSelectedSessions(item.sessions ?? []);
       // Restore upload refs → uploadFile paths, project refs → atPath items.
       const { uploadFiles, atPath: restoredAtPath } = splitChatFileRefs(item.files);
       setUploadFile(uploadFiles);

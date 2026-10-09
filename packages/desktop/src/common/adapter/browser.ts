@@ -191,7 +191,7 @@ if (win.electronAPI) {
         // the sole identity), so we no longer redirect to /login — just stop
         // reconnecting and surface the error to the realtime layer.
         if (isRealtimeAuthTerminalError(payload)) {
-          console.warn('[WebSocket] Authentication expired, attempting silent refresh');
+          console.warn('[WebSocket] Authentication expired; stopping reconnect in Agent Hub');
 
           // 续期期间暂停自动重连，避免拿着失效 Cookie 空转（#4124 的重连风暴）
           // Pause auto-reconnect while refreshing so the dead cookie can't loop

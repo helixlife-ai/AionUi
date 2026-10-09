@@ -136,6 +136,7 @@ describe('SkillsHubSettings', () => {
     mocks.importSkills.mockRejectedValue(
       Object.assign(new Error('wrapped import failure'), {
         name: 'BackendHttpError',
+        backendMessage: '',
         status: 400,
         code: 'SKILL_IMPORT_FILE_TOO_LARGE',
       })

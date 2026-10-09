@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { findPendingAcpSend } from '@/renderer/pages/conversation/platforms/acp/pendingAcpSend';
 import type { IMessageText } from '@/common/chat/chatLib';
 import { parseFileMarker, resolveMessageFilePath } from './fileMarker';
 import SessionMentionAction from './SessionMentionAction';
@@ -126,7 +127,9 @@ const MessageText: React.FC<{
   const { t } = useTranslation();
   const [showCopyAlert, setShowCopyAlert] = useState(false);
   const isUserMessage = message.position === 'right';
-  const isPendingUserMessage = isUserMessage && message.status === 'pending';
+  const isLocalSend = Boolean(findPendingAcpSend(message.conversation_id, message.msg_id || message.id));
+  const isPendingUserMessage = isUserMessage && message.status === 'pending' && isLocalSend;
+  const isPendingDelivery = isUserMessage && message.status === 'pending' && !isLocalSend;
   const isConfirmingUserMessage = isUserMessage && message.status === 'work';
   const isFailedUserMessage = isUserMessage && message.status === 'error';
   const isTeammateMessage = message.position === 'left' && message.content.teammateMessage === true;
@@ -344,6 +347,11 @@ const MessageText: React.FC<{
             </div>
           )}
         </div>
+        {isPendingDelivery && (
+          <div className='text-12px text-t-secondary mt-4px select-none' data-testid='message-status-badge'>
+            {t('messages.delivery.pending', { defaultValue: 'Unread' })}
+          </div>
+        )}
         {(isPendingUserMessage || isConfirmingUserMessage || isFailedUserMessage) && (
           <div className='min-h-24px flex items-center gap-6px mt-4px text-12px text-t-secondary'>
             {isPendingUserMessage || isConfirmingUserMessage ? (

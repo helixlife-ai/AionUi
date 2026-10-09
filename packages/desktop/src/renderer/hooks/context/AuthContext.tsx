@@ -56,7 +56,7 @@ interface IdentityResponse {
  * the SN as `window.__AIONUI_SERIAL_NUMBER__`, otherwise the SN stays null and
  * the default identity is used.
  */
-async function fetchIdentity(): Promise<{ sn: string | null; fsRoot: string | null }> {
+export async function fetchIdentity(): Promise<{ sn: string | null; fsRoot: string | null }> {
   if (isDesktopRuntime) {
     return {
       sn: (window as { __AIONUI_SERIAL_NUMBER__?: string | null }).__AIONUI_SERIAL_NUMBER__ ?? null,

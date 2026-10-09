@@ -203,7 +203,8 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
         // pill must keep naming the permission actually governing) and say so; the
         // pending marker is already driven by `pendingValues`. When the agent applies it,
         // an `acp_config_option` frame updates the snapshot and clears the marker.
-        const landed = applied?.find((option) => option.id === runtimeMode?.id)?.current_value === normalizeCodexSessionMode(mode);
+        const landed =
+          applied?.find((option) => option.id === runtimeMode?.id)?.current_value === normalizeCodexSessionMode(mode);
         if (!landed) {
           Message.info(t('agentMode.switchPendingNextTurn', { defaultValue: 'Takes effect on the next turn' }));
           return;

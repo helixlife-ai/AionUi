@@ -1,3 +1,4 @@
+import { isAgentHubSettingsTabHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import classNames from 'classnames';
 import React from 'react';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
@@ -65,6 +66,7 @@ export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): 
       icon: <Toolkit theme='outline' size='16' />,
       path: 'tools',
     },
+    appearance: { id: 'appearance', label: t('settings.appearancePanel'), icon: <System />, path: 'appearance' },
     webui: {
       id: 'webui',
       label: t('settings.webui'),
@@ -83,7 +85,10 @@ export function getBuiltinSettingsNavItems(isDesktop: boolean, t: TranslateFn): 
   };
 
   return BUILTIN_TAB_IDS.filter(
-    (id) => !(id === 'agent' && isAgentHubAgentsSettingsHidden()) && !(id === 'pet' && isAgentHubPetSettingsHidden())
+    (id) =>
+      !isAgentHubSettingsTabHidden(id) &&
+      !(id === 'agent' && isAgentHubAgentsSettingsHidden()) &&
+      !(id === 'pet' && isAgentHubPetSettingsHidden())
   ).map((id) => builtinMap[id]);
 }
 

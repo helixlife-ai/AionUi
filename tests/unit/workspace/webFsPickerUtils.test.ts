@@ -1,3 +1,4 @@
+import { clampPickerPath } from '@/renderer/components/workspace/webFsPickerUtils';
 /**
  * @vitest-environment node
  */
@@ -122,5 +123,15 @@ describe('matchesFilters', () => {
 
   it('requires a dot separator so suffix lookalikes do not match', () => {
     expect(matchesFilters('notzip', [{ name: 'Archives', extensions: ['zip'] }])).toBe(false);
+  });
+});
+
+describe('appliance picker root', () => {
+  it.each(['/etc', '/agent_hub-other', '/agent_hub/../etc', '/', ''])('clamps %s to the appliance root', (path) => {
+    expect(clampPickerPath(path, '/agent_hub')).toBe('/agent_hub');
+  });
+  it('allows child directories and leaves desktop paths unchanged', () => {
+    expect(clampPickerPath('/agent_hub/projects/./demo', '/agent_hub/')).toBe('/agent_hub/projects/demo');
+    expect(clampPickerPath('C:\\Work', null)).toBe('C:\\Work');
   });
 });

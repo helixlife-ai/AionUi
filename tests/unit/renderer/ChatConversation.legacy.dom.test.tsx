@@ -185,3 +185,8 @@ describe('ChatConversation legacy runtime rendering', () => {
     );
   });
 });
+
+vi.mock('@/renderer/utils/hub/agentHubUiPolicy', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/renderer/utils/hub/agentHubUiPolicy')>()),
+  isAgentHubModelSelectorHidden: () => false,
+}));

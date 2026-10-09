@@ -43,7 +43,14 @@ export const readPendingAcpSends = (conversation_id: string): PendingAcpSend[] =
     const raw = window.sessionStorage.getItem(getPendingAcpSendStorageKey(conversation_id));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? parsed.filter((item) => isPendingAcpSend(item, conversation_id)).map((item) => ({ ...item, files: item.files.map((file) => typeof file === 'string' ? uploadFileRef(file) : file) })) : [];
+    return Array.isArray(parsed)
+      ? parsed
+          .filter((item) => isPendingAcpSend(item, conversation_id))
+          .map((item) => ({
+            ...item,
+            files: item.files.map((file) => (typeof file === 'string' ? uploadFileRef(file) : file)),
+          }))
+      : [];
   } catch (error) {
     console.warn('[pending-acp-send] Failed to read pending sends:', error);
     return [];

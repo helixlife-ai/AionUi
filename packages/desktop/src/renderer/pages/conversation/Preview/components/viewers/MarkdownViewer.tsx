@@ -338,7 +338,7 @@ const MarkdownPreview: React.FC<MarkdownPreviewProps> = ({
           );
         }
         return (
-          <a href={href} target='_blank' rel='noreferrer' {...props}>
+          <a href={href} target='_blank' rel='noreferrer' {...props} onClick={handleExternalLinkClick}>
             {children}
           </a>
         );

@@ -152,7 +152,7 @@ const detail = (entries: ProjectEntryDto[]): ProjectDetailDto => ({
   name: 'Proj',
   explorer: { workspace_pe_id: entries[0]?.pe_id ?? '', entries },
 });
-const backendErr = (code: string) => ({ name: 'BackendHttpError', status: 409, code });
+const backendErr = (code: string) => ({ name: 'BackendHttpError', backendMessage: '', status: 409, code });
 
 const renderIt = () =>
   render(

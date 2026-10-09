@@ -1,10 +1,11 @@
+import { ipcBridge } from '@/common';
 /**
  * @license
  * Copyright 2025 AionUi (aionui.com)
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -35,4 +36,17 @@ describe('WebFsPicker responsive dialog', () => {
     expect(modal?.style.width).toBe('calc(100vw - 32px)');
     expect(modal?.style.maxWidth).toBe('640px');
   });
+});
+
+it('confines remembered and manually entered paths to the appliance root', async () => {
+  localStorage.setItem('aionui:web-fs-picker:last-dir', '/etc');
+  render(<WebFsPicker options={{ properties: ['openDirectory'] }} fsRoot='/agent_hub' onDone={vi.fn()} />);
+  await waitFor(() =>
+    expect(ipcBridge.fs.getFilesByDir.invoke).toHaveBeenLastCalledWith({ dir: '/agent_hub', root: '/agent_hub' })
+  );
+  expect(screen.getByRole('button', { name: 'Up' })).toBeDisabled();
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '/agent_hub/../../etc' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Go' }));
+  await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('/agent_hub'));
+  localStorage.clear();
 });

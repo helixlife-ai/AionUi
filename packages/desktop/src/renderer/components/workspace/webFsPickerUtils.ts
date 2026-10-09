@@ -59,3 +59,21 @@ export const matchesFilters = (name: string, filters: NonNullable<ShowOpenOption
   const lower = name.toLowerCase();
   return exts.some((ext) => lower.endsWith(`.${ext.toLowerCase()}`));
 };
+
+/** Keep appliance browsing inside the configured root, including typed/remembered paths. */
+export const clampPickerPath = (path: string, root?: string | null): string => {
+  if (!root) return path;
+  const normalize = (value: string): string => {
+    const segments: string[] = [];
+    for (const part of value.split('/')) {
+      if (part === '..') segments.pop();
+      else if (part && part !== '.') segments.push(part);
+    }
+    return '/' + segments.join('/');
+  };
+  const normalizedRoot = normalize(root);
+  const normalizedPath = normalize(path);
+  return normalizedRoot === '/' || normalizedPath === normalizedRoot || normalizedPath.startsWith(normalizedRoot + '/')
+    ? normalizedPath
+    : normalizedRoot;
+};

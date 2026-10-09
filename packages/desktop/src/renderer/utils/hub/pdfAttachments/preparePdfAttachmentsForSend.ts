@@ -46,8 +46,13 @@ export async function preparePdfAttachmentsForSend<T extends string | ChatFileRe
   if (!shouldExtractPdfAttachmentsForSend(options.backend)) {
     return files;
   }
-  const pathOf = (file: T) => typeof file === 'string' ? file : file.kind === 'project' ? null : file.path;
-  if (!files.some((file) => { const path = pathOf(file); return path !== null && isPdfAttachmentPath(path); })) {
+  const pathOf = (file: T) => (typeof file === 'string' ? file : file.kind === 'project' ? null : file.path);
+  if (
+    !files.some((file) => {
+      const path = pathOf(file);
+      return path !== null && isPdfAttachmentPath(path);
+    })
+  ) {
     return files;
   }
 
@@ -59,7 +64,9 @@ export async function preparePdfAttachmentsForSend<T extends string | ChatFileRe
       if (filePath === null || !isPdfAttachmentPath(filePath)) return file;
       try {
         const txtPath = await extract(filePath);
-        return txtPath ? (typeof file === 'string' ? txtPath : { ...file, path: txtPath }) as T : file;
+        return txtPath
+          ? ((typeof file === 'string' ? txtPath : { ...(file as ChatFileRef), path: txtPath }) as T)
+          : file;
       } catch (error) {
         console.warn('[preparePdfAttachmentsForSend] extraction error, keeping PDF:', filePath, error);
         return file;

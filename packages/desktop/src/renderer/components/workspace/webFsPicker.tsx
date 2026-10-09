@@ -14,6 +14,7 @@
  * resolves with absolute server paths, matching the native dialog's contract.
  */
 
+import { fetchIdentity } from '@/renderer/hooks/context/AuthContext';
 import { ipcBridge } from '@/common';
 import type { ShowOpenHandler, ShowOpenOptions } from '@/common/adapter/ipcBridge';
 import { Button, Input, Modal, Spin } from '@arco-design/web-react';
@@ -21,16 +22,17 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client';
 import { useTranslation } from 'react-i18next';
 import type { PickerEntry as Entry } from './webFsPickerUtils';
-import { matchesFilters, normalizeEntry, parentOf, sortEntries } from './webFsPickerUtils';
+import { clampPickerPath, matchesFilters, normalizeEntry, parentOf, sortEntries } from './webFsPickerUtils';
 
 const LAST_DIR_KEY = 'aionui:web-fs-picker:last-dir';
 
 type PickerProps = {
   options: ShowOpenOptions;
+  fsRoot?: string | null;
   onDone: (paths: string[] | undefined) => void;
 };
 
-export const WebFsPicker: React.FC<PickerProps> = ({ options, onDone }) => {
+export const WebFsPicker: React.FC<PickerProps> = ({ options, onDone, fsRoot }) => {
   const { t } = useTranslation();
   const properties = options?.properties ?? [];
   const wantsDirectory = properties.includes('openDirectory');
@@ -61,7 +63,8 @@ export const WebFsPicker: React.FC<PickerProps> = ({ options, onDone }) => {
   );
 
   const load = useCallback(
-    async (dir: string) => {
+    async (requestedDir: string) => {
+      const dir = clampPickerPath(requestedDir, fsRoot);
       setLoading(true);
       setError('');
       try {
@@ -83,7 +86,7 @@ export const WebFsPicker: React.FC<PickerProps> = ({ options, onDone }) => {
         setLoading(false);
       }
     },
-    [t]
+    [t, fsRoot]
   );
 
   // Resolve the starting directory: explicit defaultPath, then the last visited
@@ -100,11 +103,12 @@ export const WebFsPicker: React.FC<PickerProps> = ({ options, onDone }) => {
       }
       try {
         const info = await ipcBridge.application.systemInfo.invoke();
+        if (fsRoot) return fsRoot;
         if (info?.workDir) return info.workDir;
       } catch {
         /* ignore */
       }
-      return '/';
+      return fsRoot || '/';
     };
     void resolveStart().then((dir) => {
       if (!cancelled) void load(dir);
@@ -178,7 +182,10 @@ export const WebFsPicker: React.FC<PickerProps> = ({ options, onDone }) => {
       }
     >
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <Button onClick={() => void load(parentOf(currentDir))} disabled={loading || currentDir === '/'}>
+        <Button
+          onClick={() => void load(parentOf(currentDir))}
+          disabled={loading || currentDir === '/' || currentDir === fsRoot}
+        >
           {t('fileSelection.webFsPicker.up', { defaultValue: 'Up' })}
         </Button>
         <Input
@@ -243,8 +250,9 @@ export const WebFsPicker: React.FC<PickerProps> = ({ options, onDone }) => {
  * Imperative entry point: mounts the picker on a detached node so it works from
  * plain callbacks (the native dialog it replaces was callable the same way).
  */
-export const showWebFsPicker: ShowOpenHandler = (options) =>
-  new Promise<string[] | undefined>((resolve) => {
+export const showWebFsPicker: ShowOpenHandler = async (options) => {
+  const { fsRoot } = await fetchIdentity();
+  return new Promise<string[] | undefined>((resolve) => {
     const host = document.createElement('div');
     document.body.appendChild(host);
     const root = createRoot(host);
@@ -253,7 +261,8 @@ export const showWebFsPicker: ShowOpenHandler = (options) =>
       host.remove();
       resolve(paths);
     };
-    root.render(<WebFsPicker options={options} onDone={done} />);
+    root.render(<WebFsPicker options={options} onDone={done} fsRoot={fsRoot} />);
   });
+};
 
 export default showWebFsPicker;

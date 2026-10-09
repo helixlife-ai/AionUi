@@ -230,10 +230,7 @@ describe('useConversationCommandQueue mode & send-now', () => {
       onExecute,
     });
 
-    act(() => {
-      result.current.toggleMode();
-    });
-    await waitFor(() => expect(result.current.mode).toBe('manual'));
+    expect(result.current.mode).toBe('manual');
 
     act(() => {
       result.current.enqueue({ input: 'only once', files: [] });

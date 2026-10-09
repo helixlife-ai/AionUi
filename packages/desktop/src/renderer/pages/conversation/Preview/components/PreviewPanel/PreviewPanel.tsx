@@ -661,7 +661,8 @@ const PreviewPanel: React.FC = () => {
   );
 
   const showOpenInSystemButton =
-    isElectronDesktop() && canOpenInSystem(Boolean(metadata?.file_path), metadata?.fileRef) &&
+    isElectronDesktop() &&
+    canOpenInSystem(Boolean(metadata?.file_path), metadata?.fileRef) &&
     shouldOfferOpenInSystem(content_type, Boolean(metadata?.oversized), FILE_TYPES_WITH_BUILTIN_OPEN);
 
   // 下载文件到本地 / Download file to local system

@@ -34,9 +34,7 @@ type UseCustomAgentsLoaderResult = {
  * as a user-facing candidate source, so this hook intentionally exposes only
  * the assistant list shared with settings/conversation flows.
  */
-export const useCustomAgentsLoader = (
-  options: UseCustomAgentsLoaderOptions = {}
-): UseCustomAgentsLoaderResult => {
+export const useCustomAgentsLoader = (options: UseCustomAgentsLoaderOptions = {}): UseCustomAgentsLoaderResult => {
   const enabled = options.enabled !== false;
   // Preset assistants share their own cache so settings / guid / conversation
   // all see the same list without duplicate HTTP calls.

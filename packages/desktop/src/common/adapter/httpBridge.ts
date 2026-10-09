@@ -190,9 +190,7 @@ export function setHttpRequestSignalProvider(provider: HttpRequestSignalProvider
  * Switching xlsx/docx files must cancel the previous start without aborting
  * the whole conversation.
  */
-export function setOfficePreviewRequestSignalProvider(
-  provider: HttpRequestSignalProvider | null | undefined
-): void {
+export function setOfficePreviewRequestSignalProvider(provider: HttpRequestSignalProvider | null | undefined): void {
   officePreviewSignalProvider = provider ?? undefined;
 }
 

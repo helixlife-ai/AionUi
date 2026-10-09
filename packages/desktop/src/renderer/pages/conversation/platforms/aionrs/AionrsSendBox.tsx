@@ -1,4 +1,7 @@
-import { isAgentHubPermissionSelectorHidden, isAgentHubModelSelectorHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
+import {
+  isAgentHubPermissionSelectorHidden,
+  isAgentHubModelSelectorHidden,
+} from '@/renderer/utils/hub/agentHubUiPolicy';
 /**
  * @license
  * Copyright 2025 AionUi (aionui.com)
@@ -812,21 +815,23 @@ const AionrsSendBox: React.FC<{
         }
         rightTools={
           <div className='flex items-center gap-8px min-w-0'>
-            {!isAgentHubPermissionSelectorHidden() && <AgentModeSelector
-              backend='aionrs'
-              conversation_id={conversation_id}
-              compact
-              initialMode={session_mode}
-              dynamicModes={dynamicModes}
-              compactLeadingIcon={<Shield theme='outline' size='14' fill={iconColors.secondary} />}
-              modeLabelFormatter={(mode) => t(`agentMode.${mode.value}`, { defaultValue: mode.label })}
-              compactLabelPrefix={t('agentMode.permission')}
-              hideCompactLabelPrefixOnMobile
-              onModeChanged={propagateMode}
-              beforeRuntimeSync={prepareRuntimeConfig}
-              beforeRuntimeSet={teamPermission?.warmupSession}
-              configOptionsPort={teamPermission?.configOptionsPort}
-            />}
+            {!isAgentHubPermissionSelectorHidden() && (
+              <AgentModeSelector
+                backend='aionrs'
+                conversation_id={conversation_id}
+                compact
+                initialMode={session_mode}
+                dynamicModes={dynamicModes}
+                compactLeadingIcon={<Shield theme='outline' size='14' fill={iconColors.secondary} />}
+                modeLabelFormatter={(mode) => t(`agentMode.${mode.value}`, { defaultValue: mode.label })}
+                compactLabelPrefix={t('agentMode.permission')}
+                hideCompactLabelPrefixOnMobile
+                onModeChanged={propagateMode}
+                beforeRuntimeSync={prepareRuntimeConfig}
+                beforeRuntimeSet={teamPermission?.warmupSession}
+                configOptionsPort={teamPermission?.configOptionsPort}
+              />
+            )}
           </div>
         }
         prefix={

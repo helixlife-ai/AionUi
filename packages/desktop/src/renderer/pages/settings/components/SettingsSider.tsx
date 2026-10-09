@@ -1,3 +1,4 @@
+import { isAgentHubSettingsTabHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import FlexFullContainer from '@/renderer/components/layout/FlexFullContainer';
 import { isElectronDesktop, resolveExtensionAssetUrl } from '@/renderer/utils/platform';
 import { type IExtensionSettingsTab } from '@/common/adapter/ipcBridge';
@@ -31,15 +32,15 @@ import {
 /** Builtin settings tab IDs in display order (must match router paths). */
 export const BUILTIN_TAB_IDS = [
   'agent',
-  // 'model',
+  'model',
   'skills',
   'tools',
   'appearance',
   'webui',
   'pet',
   'archived',
-  // 'system',
-  // 'about',
+  'system',
+  'about',
 ] as const;
 
 /**
@@ -61,8 +62,8 @@ export const LEGACY_ANCHOR_REMAP: Record<string, string> = {
  * When Agents is hidden (phase-1), AI Core header anchors on capabilities instead.
  */
 const GROUP_HEADER_BEFORE: Record<string, string> = {
-  agent: 'settings.groupAiCore',
-  appearance: 'settings.groupApp',
+  [isAgentHubAgentsSettingsHidden() ? 'skills' : 'agent']: 'settings.groupAiCore',
+  webui: 'settings.groupApp',
   archived: 'settings.archived.title',
   about: 'settings.groupAbout',
 };
@@ -110,6 +111,7 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
         icon: <Toolkit />,
         path: 'tools',
       },
+      appearance: { id: 'appearance', label: t('settings.appearancePanel'), icon: <System />, path: 'appearance' },
       webui: {
         id: 'webui',
         label: t('settings.webui'),
@@ -131,6 +133,7 @@ const SettingsSider: React.FC<{ collapsed?: boolean; tooltipEnabled?: boolean }>
     // and Agent Hub policy-gated tabs (Agents / Tools / Pet).
     const result: SiderItem[] = BUILTIN_TAB_IDS.filter(
       (id) =>
+        !isAgentHubSettingsTabHidden(id) &&
         (isDesktop || id !== 'pet') &&
         !(id === 'agent' && isAgentHubAgentsSettingsHidden()) &&
         !(id === 'tools' && isAgentHubToolsSettingsHidden()) &&

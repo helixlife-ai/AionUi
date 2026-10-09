@@ -698,30 +698,30 @@ const GuidPage: React.FC = () => {
                 onSelectAssistant={handleSelectAssistant}
               />
 
-          <GuidInputCard
-            focusRequestKey={navState?.focusPrefill && navState.prefillPrompt ? location.key : undefined}
-            input={guidInput.input}
-            onInputChange={handleInputChange}
-            onKeyDown={handleInputKeyDown}
-            onPaste={guidInput.onPaste}
-            onFocus={guidInput.handleTextareaFocus}
-            onBlur={guidInput.handleTextareaBlur}
-            placeholder={typewriterPlaceholder || t('conversation.welcome.placeholder')}
-            isInputActive={guidInput.isInputFocused}
-            isFileDragging={guidInput.isFileDragging}
-            activeBorderColor={activeBorderColor}
-            inactiveBorderColor={inactiveBorderColor}
-            activeShadow={activeShadow}
-            dragHandlers={guidInput.dragHandlers}
-            files={displayFilePaths}
-            onRemoveFile={guidInput.handleRemoveFile}
-            actionRow={actionRowNode}
-            slashCommandMenu={slashCommandMenuNode}
-            workspaceDir={guidInput.dir}
-            onSelectWorkspace={(dir) => guidInput.setDir(dir)}
-            onClearWorkspace={() => guidInput.setDir('')}
-            onAddWorkspaceFiles={guidInput.handleFilesUploaded}
-          />
+              <GuidInputCard
+                focusRequestKey={navState?.focusPrefill && navState.prefillPrompt ? location.key : undefined}
+                input={guidInput.input}
+                onInputChange={handleInputChange}
+                onKeyDown={handleInputKeyDown}
+                onPaste={guidInput.onPaste}
+                onFocus={guidInput.handleTextareaFocus}
+                onBlur={guidInput.handleTextareaBlur}
+                placeholder={typewriterPlaceholder || t('conversation.welcome.placeholder')}
+                isInputActive={guidInput.isInputFocused}
+                isFileDragging={guidInput.isFileDragging}
+                activeBorderColor={activeBorderColor}
+                inactiveBorderColor={inactiveBorderColor}
+                activeShadow={activeShadow}
+                dragHandlers={guidInput.dragHandlers}
+                files={displayFilePaths}
+                onRemoveFile={guidInput.handleRemoveFile}
+                actionRow={actionRowNode}
+                slashCommandMenu={slashCommandMenuNode}
+                workspaceDir={guidInput.dir}
+                onSelectWorkspace={(dir) => guidInput.setDir(dir)}
+                onClearWorkspace={() => guidInput.setDir('')}
+                onAddWorkspaceFiles={guidInput.handleFilesUploaded}
+              />
 
               {selectedAssistantPromptCategories.length > 0 ? (
                 <div className='mt-18px w-full animate-fade-in'>

@@ -94,3 +94,9 @@ describe('InlineAgentEditor managed runtime feedback', () => {
     expect(screen.getByText(/CLI exited before ACP initialize completed/i)).toBeInTheDocument();
   });
 });
+
+// Exercise upstream feedback behavior with the Agent Hub visibility switch disabled.
+vi.mock('@/renderer/utils/hub/agentHubUiPolicy', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/renderer/utils/hub/agentHubUiPolicy')>()),
+  isAgentHubFeedbackHidden: () => false,
+}));
