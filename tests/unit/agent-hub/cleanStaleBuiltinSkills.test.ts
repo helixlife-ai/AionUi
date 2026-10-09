@@ -91,3 +91,51 @@ describe('clean-stale-builtin-skills', () => {
     expect(fs.existsSync(path.join(dataDir, 'builtin-skills'))).toBe(true);
   });
 });
+
+describe('toB device skill hub', () => {
+  const assembler = path.resolve('docker/agent-hub/skills/buildBuiltinSkillsHub.cjs');
+
+  function assemble(dataDir: string): void {
+    execFileSync(process.execPath, [assembler], {
+      env: {
+        ...process.env,
+        AIONUI_DATA_DIR: dataDir,
+        HELIXLIFE_SKILLS_SRC: path.join(dataDir, 'source'),
+        AUTO_INJECT_SRC: path.join(dataDir, 'system'),
+      },
+    });
+  }
+
+  it('links device skills and keeps custom skills through cleanup and restart', () => {
+    const dataDir = makeDataDir();
+    const hubDir = path.join(dataDir, 'builtin-skills-hub');
+    for (const dir of ['source/device-skill', 'system/session-message', 'skills/custom']) {
+      fs.mkdirSync(path.join(dataDir, dir), { recursive: true });
+      fs.writeFileSync(path.join(dataDir, dir, 'SKILL.md'), `---\nname: ${path.basename(dir)}\n---\n`);
+    }
+    insertSkill(dataDir, 'device', 'device-skill', 'builtin');
+    insertSkill(dataDir, 'custom', 'custom', 'custom');
+    assemble(dataDir);
+    assemble(dataDir);
+    execFileSync(process.execPath, ['--experimental-sqlite', SCRIPT], {
+      env: { ...process.env, AIONUI_DATA_DIR: dataDir, AIONUI_BUILTIN_SKILLS_PATH: hubDir },
+    });
+    expect(fs.readlinkSync(path.join(hubDir, 'device-skill'))).toBe(path.join(dataDir, 'source/device-skill'));
+    expect(skillNames(dataDir, 'builtin')).toEqual(['device-skill']);
+    expect(skillNames(dataDir, 'custom')).toEqual(['custom']);
+  });
+
+  it('preserves links during a missing mount and prunes only owned links when the source returns', () => {
+    const dataDir = makeDataDir();
+    const hubDir = path.join(dataDir, 'builtin-skills-hub');
+    fs.mkdirSync(hubDir);
+    fs.symlinkSync(path.join(dataDir, 'source/removed'), path.join(hubDir, 'removed'));
+    fs.symlinkSync(path.join(dataDir, 'source-other/keep'), path.join(hubDir, 'unrelated'));
+    fs.mkdirSync(path.join(hubDir, 'local'));
+    assemble(dataDir);
+    expect(fs.lstatSync(path.join(hubDir, 'removed')).isSymbolicLink()).toBe(true);
+    fs.mkdirSync(path.join(dataDir, 'source'));
+    assemble(dataDir);
+    expect(fs.readdirSync(hubDir).sort()).toEqual(['local', 'unrelated']);
+  });
+});

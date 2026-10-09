@@ -1,7 +1,7 @@
 name: agent-hub
 services:
   agent-hub:
-    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.23
+    image: helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.23-toB
     container_name: agent-hub
     user: '0'
     # 资源倾斜：在启动阶段给予默认应用大部分资源
@@ -18,6 +18,8 @@ services:
       - ${APP_STORAGE_DIR:-/var/helix/app_storage}/AgentHub/codex-home:/root/.codex
       - ${APP_STORAGE_DIR:-/var/helix/app_storage}/AgentHub/tmp-aionui:/tmp/aionui
       - ${APP_STORAGE_DIR:-/var/helix/app_storage}/documents/data/agent_hub:/agent_hub
+      # Preserve the pre-skills92 read-only OpenClaw skill source.
+      - ${APP_STORAGE_DIR:-/var/helix/app_storage}/documents/data/openclaw:/opt/openclaw-ws:ro
     # Runtime helper locks must stay on Linux storage, not a host bind mount.
     tmpfs:
       - /root/.codex/tmp:mode=0700
@@ -48,8 +50,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
       - OTEL_EXPORTER_OTLP_PROTOCOL=${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
       - HAPPY_SERVER_URL=${HAPPY_SERVER_URL:-https://studio-server.jova.bio}
-      # 官方技能已在镜像构建阶段展开；/data/skills 仍是用户的“我的技能”。
-      - AIONUI_BUILTIN_SKILLS_PATH=/etc/agent-hub/builtin-skills-hub
+      # toB reuses device skills; the curated toC corpus is not shipped.
+      - AIONUI_BUILTIN_SKILLS_PATH=/data/builtin-skills-hub
       # skill 依赖落到数据卷，容器更新重建不丢，空目录时无副作用。
       - PYTHONPATH=/data/python-deps
     entrypoint: ['/bin/sh', '-c']
@@ -132,6 +134,15 @@ services:
             done
           ) &
         fi
+        # Assemble before catalog sync, then refresh links for OpenClaw updates.
+        node /etc/agent-hub/skills/buildBuiltinSkillsHub.cjs || exit 1
+        (
+          while true; do
+            sleep 60
+            node /etc/agent-hub/skills/buildBuiltinSkillsHub.cjs \
+              || echo "[agent-hub] warn: periodic skill hub rebuild failed"
+          done
+        ) &
         # Codex uses its bundled Bubblewrap; runtime package installation is unnecessary.
         # 后台启动 aionui-web,等 DB 迁移完成后导入 Studio 历史;wait 保持容器生命周期并转发信号。
         /app/aionui-web/aionui-web start &

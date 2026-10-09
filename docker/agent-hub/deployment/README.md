@@ -1,4 +1,4 @@
-# Agent Hub v0.2.22 — upstream 2.2.2 integration
+# Agent Hub v0.2.23-toB — upstream 2.2.2 integration
 
 This deployment pairs AionUi **2.2.2** with AionCore **v0.2.2**. The image tag in
 `docker-compose.yaml` and the appliance version in `config.json` must advance
@@ -26,7 +26,9 @@ later mode switch without forcing the current session into full-auto mode.
 
 The six `auto-inject` skills are vendored from the same Core release. They include
 `conversation-create` and `session-message`, which the previous four-skill image
-would omit. The curated 92-skill corpus remains unchanged.
+would omit. The toC curated 92-skill corpus is excluded. Device-owned OpenClaw skills are
+linked read-only as in the pre-skills92 release; see [toB device skills](../skills/README.md).
+This deployment targets only HLX-AIO-1AE and HLX-AIO-1BE.
 
 ## Existing-device upgrade
 
@@ -132,3 +134,32 @@ The deployment pins Claude **2.1.236** and Codex **0.151.0**, matching AionCore
 These checks do not establish all-model coverage or resolve the two TAPD UI
 experience defects. Real-appliance regression and its seccomp profile delivery
 remain release prerequisites. Test SN values and local credentials are not stored here.
+
+## toB v0.2.23-toB validation
+
+This branch targets only `HLX-AIO-1AE` and `HLX-AIO-1BE`. Both deployment files
+use `v0.2.23-toB`; the toC archive and its Docker build stage are removed.
+The release notes retain the four user-facing feature summaries from v0.2.23.
+
+Local ARM64 build used cached `node:22-trixie` and `node:22-trixie-slim` after
+Docker Hub authentication timed out. Both binaries report Node `v22.23.1`:
+
+- Builder image ID: `sha256:79a67fc841705056e14c6d0500a06e7de9c94ce5c01f8ba8697fd5792301374b`
+- Runtime image ID: `sha256:4228fca437e45714a3ebd1d4ecd1dcc583cf79f5a940aa025e286b472d93b67c`
+
+The production Dockerfile retains its pinned digest defaults. The image is
+available locally as `agent-hub:v0.2.23-toB` and
+`helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.23-toB`; it has not been
+published. Reproduce the protocol smoke with:
+
+```sh
+node docker/agent-hub/smoke/run.mjs agent-hub:v0.2.23-toB
+```
+
+The smoke mounts a read-only OpenClaw fixture and verifies backend discovery,
+absence of the toC corpus, six system skills, native CLI versions, sandbox
+execution, streaming and conversation continuation after container replacement
+against a simulated gateway. Unit tests also cover
+missing-source preservation, owned-link pruning and preservation of custom skills.
+Full tests: 5,336 passed, 5 skipped; lint, TypeScript, Compose and formatting passed.
+Real 1AE/1BE appliance validation remains necessary before distribution.

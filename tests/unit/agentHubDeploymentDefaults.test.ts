@@ -28,19 +28,26 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).not.toContain('studio-server.newidea.pro');
   });
 
-  it('uses the v0.2.22 release consistently', () => {
-    expect(deploymentConfig.version).toBe('v0.2.22');
+  it('uses the v0.2.23-toB release consistently', () => {
+    expect(deploymentConfig.version).toBe('v0.2.23-toB');
     expect(deploymentConfig.desc.trim()).not.toBe('');
     expect(deploymentConfig.desc).not.toMatch(/&#|<[^>]+>/);
-    expect(compose).toContain('application/agent-hub:v0.2.22');
+    expect(compose).toContain('application/agent-hub:v0.2.23-toB');
     expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.16');
   });
 
-  it('does not invoke the removed runtime skill assembler while building the image', () => {
-    expect(dockerfile).not.toContain('build-builtin-skills-hub.js');
-    expect(dockerfile).toContain(
-      'COPY --from=official-skills /opt/agent-hub/builtin-skills-hub/ /etc/agent-hub/builtin-skills-hub/'
-    );
+  it('excludes the toC skill archive and retains the device skill source', () => {
+    expect(fs.existsSync(path.resolve('docker/agent-hub/official-skills.tar.xz'))).toBe(false);
+    expect(dockerfile).not.toContain('official-skills.tar.xz');
+    expect(compose).toContain('openclaw:/opt/openclaw-ws:ro');
+  });
+
+  it('targets only the two toB device models', () => {
+    const config = JSON.parse(fs.readFileSync(path.resolve('aio_deploy/config.json'), 'utf8'));
+    expect(config.device_limit[1].value.map((item: { value: string }) => item.value)).toEqual([
+      'HLX-AIO-1AE',
+      'HLX-AIO-1BE',
+    ]);
   });
 
   it('enables trace export to the appliance Collector by default', () => {

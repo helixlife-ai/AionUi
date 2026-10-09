@@ -8,32 +8,9 @@
 #   - bundled-aioncore/linux-arm64/aioncore
 #   - static/         (renderer SPA)
 
-# ---- Official skills -------------------------------------------------------
-# Docker expands local tar archives during ADD, so neither this stage nor the
-# runtime image needs xz-utils. Keep the archive out of the final image layer.
+# ---- Base images -----------------------------------------------------------
 ARG NODE_BUILDER_IMAGE=node:22.23.1-trixie@sha256:3145536027ca5268e24654f7efebf1dbdd684cda3708324e6c53f4ad61af8710
 ARG NODE_RUNTIME_IMAGE=node:22.23.1-trixie-slim@sha256:e6d9a389d34ff9678438af985c9913fbd1eb6ed36e80fea56644f4b4f6dd70ba
-FROM ${NODE_RUNTIME_IMAGE} AS official-skills
-WORKDIR /opt/agent-hub/builtin-skills-hub
-
-ADD docker/agent-hub/official-skills.tar.xz ./
-COPY docker/agent-hub/auto-inject/ ./auto-inject/
-
-RUN set -eu; \
-    official_count=0; \
-    for skill_dir in */; do \
-      skill_name="${skill_dir%/}"; \
-      if [ "$skill_name" = "auto-inject" ]; then continue; fi; \
-      if [ ! -f "${skill_dir}SKILL.md" ]; then \
-        echo "Missing SKILL.md in official skill: $skill_name" >&2; \
-        exit 1; \
-      fi; \
-      official_count=$((official_count + 1)); \
-    done; \
-    test "$official_count" -eq 92; \
-    test "$(find auto-inject -mindepth 2 -maxdepth 2 -type f -name SKILL.md | wc -l)" -eq 6; \
-    test -z "$(find . -type l -print -quit)"
-
 # ---- Builder ---------------------------------------------------------------
 # 固定 Node 22.23.1 与镜像 digest，避免可变标签漂移到 ARM64 上会触发
 # SIGILL 的 Node 22.23.2 构件。trixie 的 glibc 2.41 也满足 aioncore 要求。
@@ -152,7 +129,8 @@ COPY docker/agent-hub/otel/ /etc/agent-hub/otel/
 
 # auto-inject skills are vendored from AionCore v0.2.2, including the new
 # conversation-create and session-message tools. Keep them aligned with the backend.
-COPY --from=official-skills /opt/agent-hub/builtin-skills-hub/ /etc/agent-hub/builtin-skills-hub/
+COPY docker/agent-hub/auto-inject/ /etc/agent-hub/auto-inject/
+COPY docker/agent-hub/skills/ /etc/agent-hub/skills/
 
 # ARM64 Node 运行时回归检查：v0.2.12 曾在 Dirent 遍历和两个周期任务中
 # 触发 SIGILL（退出码 132）。让问题在构建阶段失败，而不是发布后才暴露。
@@ -172,7 +150,7 @@ COPY --from=builder /out/aionui-web/static /app/aionui-web/static
 ENV AIONUI_PORT=25808
 ENV AIONUI_DATA_DIR=/data
 ENV AIONUI_ALLOW_REMOTE=1
-ENV AIONUI_BUILTIN_SKILLS_PATH=/etc/agent-hub/builtin-skills-hub
+ENV AIONUI_BUILTIN_SKILLS_PATH=/data/builtin-skills-hub
 VOLUME ["/data"]
 EXPOSE 25808
 

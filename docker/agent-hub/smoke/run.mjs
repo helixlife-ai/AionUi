@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
-const image = process.argv[2] || 'agent-hub:upstream-2.2.2-verified';
+const image = process.argv[2] || 'agent-hub:v0.2.23-toB';
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-hub-image-smoke-'));
 const name = `agent-hub-smoke-${Date.now()}`;
 const docker = (...args) =>
@@ -40,6 +40,13 @@ const environment = {
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
 };
 for (const volume of service.volumes) fs.mkdirSync(volume.source, { recursive: true });
+// Exercise the pre-skills92 device-owned skill source.
+const deviceSkill = path.join(directory, 'documents/data/openclaw/helixlife-skills/tob-fixture');
+fs.mkdirSync(deviceSkill, { recursive: true });
+fs.writeFileSync(
+  path.join(deviceSkill, 'SKILL.md'),
+  '---\nname: tob-fixture\ndescription: Local deployment fixture\n---\nRead-only fixture.\n'
+);
 // Python scientific packages have a separate startup installer; keep protocol smoke isolated.
 fs.mkdirSync(path.join(directory, 'AgentHub/python-deps'), { recursive: true });
 fs.writeFileSync(path.join(directory, 'AgentHub/python-deps/.deps-v1'), 'smoke fixture\n');
@@ -66,7 +73,10 @@ const start = () => {
     '--workdir',
     service.working_dir,
     ...Object.entries(environment).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
-    ...service.volumes.flatMap(({ source, target }) => ['-v', `${source}:${target}`]),
+    ...service.volumes.flatMap(({ source, target, read_only }) => [
+      '-v',
+      `${source}:${target}${read_only ? ':ro' : ''}`,
+    ]),
     '-v',
     `${path.resolve('docker/agent-hub/smoke')}:/smoke:ro`,
     '--entrypoint',
@@ -144,6 +154,29 @@ try {
   start();
   await ready();
   assert((await fetch(base)).ok, 'Static WebUI should be served');
+  docker(
+    'exec',
+    name,
+    'sh',
+    '-c',
+    'test ! -e /etc/agent-hub/builtin-skills-hub && test ! -e /etc/agent-hub/official-skills.tar.xz && test -L /data/builtin-skills-hub/tob-fixture && test -r /data/builtin-skills-hub/tob-fixture/SKILL.md && test "$(find /etc/agent-hub/auto-inject -name SKILL.md | wc -l)" -eq 6'
+  );
+  const builtin = JSON.parse(
+    docker(
+      'exec',
+      name,
+      'node',
+      '--experimental-sqlite',
+      '-e',
+      `const {DatabaseSync}=require('node:sqlite'); const db=new DatabaseSync('/data/aionui-backend.db'); console.log(JSON.stringify(db.prepare("SELECT name FROM skills WHERE source='builtin'").all())); db.close();`
+    )
+  );
+  assert(
+    builtin.some((skill) => skill.name === 'tob-fixture'),
+    'Device skill must be registered in the backend'
+  );
+  assert(builtin.length <= 7, 'The curated toC corpus must not appear in the backend catalog');
+  console.log('PASS: toB device skill discovered; six system skills retained; toC corpus absent');
   const versionInfo = docker(
     'exec',
     name,

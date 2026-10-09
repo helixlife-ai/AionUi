@@ -1,5 +1,5 @@
 {
-  "version": "v0.2.23",
+  "version": "v0.2.23-toB",
   "name": "AgentHub",
   "display_name": "Studio",
   "icon_url": "https://aio-resources.newidea.pro/data/AgentHub/icon.svg",
@@ -23,12 +23,12 @@
         {
           "key": "device_model",
           "operator": "==",
-          "value": "HLX-AIO-1P"
+          "value": "HLX-AIO-1AE"
         },
         {
           "key": "device_model",
           "operator": "==",
-          "value": "HLX-AIO-1B"
+          "value": "HLX-AIO-1BE"
         }
       ]
     }
