@@ -32,3 +32,9 @@ Real sends through each agent's input box were sampled at 16 ms intervals, recor
 | Codex after          |                   113 |             25 characters |              6 characters |           47 ms |
 
 A finish event can precede the last 32 ms message-merge flush. The hook retains a short completion grace period so that the trailing chunk also drains within 120 ms instead of appearing all at once. Regression tests cover this event ordering as well as frequent input, history, replacement text, explicit stop, hidden tabs, reduced motion, grapheme boundaries and unmount cleanup.
+
+## Thinking and tool output
+
+The same bounded reveal now covers expanded thinking text, expanded tool-summary text output, standalone ACP tool text, and delegated terminal output. Thinking/terminal tail-follow tracks the displayed text instead of jumping to the latest raw buffer. Collapsed details and historical results render immediately; no artificial streaming is invented for a tool that reports only a completed result. Tool arguments, titles, diffs, approval controls and execution status remain synchronous. Thinking completion/collapse, tool failure/cancellation and terminal errors/stop requests flush text immediately.
+
+A real Codex read-only Python run (30 Fibonacci rows, flushed every 200 ms) completed normally during follow-up verification. In that run the persisted `tool_call.content.output` already began at row 2; the UI matched that stored output. This pre-renderer first-row omission remains unresolved and must not be attributed to, or considered fixed by, the presentation animation.

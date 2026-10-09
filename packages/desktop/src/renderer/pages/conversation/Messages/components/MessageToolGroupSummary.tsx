@@ -11,6 +11,7 @@ import { normalizeToolMessages, hasRunningToolMessages } from '@/common/chat/nor
 import LocalImageView from '@/renderer/components/media/LocalImageView';
 import { downloadFileFromPath } from '@/renderer/utils/file/download';
 import './MessageToolGroupSummary.css';
+import { useStreamingText } from '../acp/StreamingText/useStreamingText';
 
 const statusToBadge = (status: NormalizedToolStatus): BadgeProps['status'] => {
   switch (status) {
@@ -35,6 +36,12 @@ const ToolItemDetail: React.FC<{ item: NormalizedToolCall }> = ({ item }) => {
   const [loadingFull, setLoadingFull] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const displayItem = fullItem ?? item;
+  const displayedOutput = useStreamingText(
+    displayItem.output || '',
+    expanded && item.status === 'running',
+    false,
+    !expanded || item.status === 'error' || item.status === 'canceled'
+  );
   const hasDetail = displayItem.input || displayItem.output || item.truncated || item.imagePath;
   const [messageApi, messageContext] = Message.useMessage();
   const handleDownloadImage = useCallback(
@@ -111,7 +118,7 @@ const ToolItemDetail: React.FC<{ item: NormalizedToolCall }> = ({ item }) => {
           {displayItem.output && (
             <div className='tool-detail-section'>
               <div className='tool-detail-label'>Output</div>
-              <pre className='tool-detail-content'>{displayItem.output}</pre>
+              <pre className='tool-detail-content'>{displayedOutput}</pre>
             </div>
           )}
         </div>

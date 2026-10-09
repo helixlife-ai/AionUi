@@ -10,6 +10,7 @@ import { Brain, Right } from '@icon-park/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './MessageThinking.module.css';
+import { useStreamingText } from '../acp/StreamingText/useStreamingText';
 
 const MessageThinking: React.FC<{ message: IMessageThinking }> = ({ message }) => {
   const { t } = useTranslation();
@@ -39,6 +40,12 @@ const MessageThinking: React.FC<{ message: IMessageThinking }> = ({ message }) =
   const duration = message.content.duration ?? (message.content as { duration_ms?: number }).duration_ms;
   const isDone = status === 'done';
   const [expanded, setExpanded] = useState(!isDone);
+  const displayedText = useStreamingText(
+    text,
+    !isDone && expanded,
+    !isDone && Boolean(message.created_at && Math.abs(Date.now() - message.created_at) < 1500),
+    isDone || !expanded
+  );
   const [elapsedTime, setElapsedTime] = useState(() => {
     const initialStartedAt = message.created_at ?? Date.now();
     return isDone ? 0 : Math.max(0, Math.floor((Date.now() - initialStartedAt) / 1000));
@@ -71,7 +78,7 @@ const MessageThinking: React.FC<{ message: IMessageThinking }> = ({ message }) =
     if (!isDone && expanded && bodyRef.current) {
       bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
     }
-  }, [text, isDone, expanded]);
+  }, [displayedText, isDone, expanded]);
 
   const summaryText = isDone
     ? `${t('conversation.thinking.complete', { defaultValue: 'Thought complete' })} · ${formatDuration(duration || 0)}`
@@ -87,7 +94,7 @@ const MessageThinking: React.FC<{ message: IMessageThinking }> = ({ message }) =
         </span>
       </div>
       <div ref={bodyRef} className={`${styles.body} ${!expanded ? styles.collapsed : ''}`}>
-        {text}
+        {displayedText}
       </div>
     </div>
   );
