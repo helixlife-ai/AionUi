@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { resolveAssistantName } from '@/renderer/utils/model/assistantDisplay';
 import type { AssistantListItem } from '../types';
 import { resolveAssistantSourceTag } from '../assistantUtils';
 import AssistantAvatar from '../AssistantAvatar';
@@ -63,7 +64,7 @@ const EnabledAssistantRow: React.FC<EnabledAssistantRowProps> = ({
     id: assistant.id,
     disabled: !draggable,
   });
-  const name = assistant.name_i18n?.[localeKey] || assistant.name;
+  const name = resolveAssistantName(assistant, localeKey);
   const sourceTag = resolveAssistantSourceTag(assistant.source);
   const sourceLabel =
     sourceTag === 'builtin'

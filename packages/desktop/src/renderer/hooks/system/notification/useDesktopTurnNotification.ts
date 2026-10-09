@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { PRODUCT_DISPLAY_NAME } from '@/renderer/utils/hub/productBrand';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ipcBridge } from '@/common';
@@ -53,7 +54,7 @@ export const useDesktopTurnNotification = (): void => {
         // Both turn-completed and confirmation (permission / question) kinds
         // fire a native notification. The main process still gates on the
         // setting and skips when the window is focused.
-        void ipcBridge.notification.show.invoke({ title: 'AionUi', body, conversation_id: conversationId });
+        void ipcBridge.notification.show.invoke({ title: PRODUCT_DISPLAY_NAME, body, conversation_id: conversationId });
       },
     });
 

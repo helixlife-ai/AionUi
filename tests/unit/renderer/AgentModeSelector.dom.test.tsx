@@ -7,6 +7,15 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
+import { createInstance } from 'i18next';
+import zhCN from '@/renderer/services/i18n/locales/zh-CN/agentMode.json';
+import enUS from '@/renderer/services/i18n/locales/en-US/agentMode.json';
+
+const tooltipI18n = createInstance();
+void tooltipI18n.init({
+  lng: 'zh-CN',
+  resources: { 'zh-CN': { translation: { agentMode: zhCN } }, 'en-US': { translation: { agentMode: enUS } } },
+});
 import AgentModeSelector from '@/renderer/components/agent/AgentModeSelector';
 
 const { useAcpConfigOptionsMock } = vi.hoisted(() => ({
@@ -80,13 +89,15 @@ vi.mock('@arco-design/web-react', () => {
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: { defaultValue?: string }) =>
-      key === 'agentMode.permission'
-        ? '权限'
-        : key === 'agentMode.default'
-          ? '默认'
-          : key === 'agentMode.bypassPermissions'
-            ? '全自动'
-            : (options?.defaultValue ?? key),
+      key.startsWith('agentMode.descriptions.')
+        ? tooltipI18n.t(key, options)
+        : key === 'agentMode.permission'
+          ? '权限'
+          : key === 'agentMode.default'
+            ? '默认'
+            : key === 'agentMode.bypassPermissions'
+              ? '全自动'
+              : (options?.defaultValue ?? key),
   }),
 }));
 
@@ -103,6 +114,7 @@ const runtimeMode = () => ({
 describe('AgentModeSelector', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    void tooltipI18n.changeLanguage('zh-CN');
     useAcpConfigOptionsMock.mockImplementation(() => ({
       setStatus: { state: 'idle' },
       isLoading: false,
@@ -330,13 +342,55 @@ describe('AgentModeSelector', () => {
     expect(screen.getByTestId('agent-mode-selector-codex')).toHaveTextContent('权限 · agent-full-access');
   });
 
-  it('shows runtime mode descriptions in option tooltips', () => {
+  it('localizes runtime mode descriptions in option tooltips', () => {
     render(<AgentModeSelector backend='claude' conversation_id='conv-1' />);
 
     expect(screen.queryByText('Run without permission prompts')).not.toBeInTheDocument();
     expect(screen.getByText('Bypass Permissions').closest('[data-tooltip-content]')).toHaveAttribute(
       'data-tooltip-content',
+      '跳过所有权限检查。'
+    );
+  });
+  it.each([
+    ...Object.entries(zhCN.descriptions.claude).map(([value, description]) => ({
+      backend: 'claude',
+      value,
+      description,
+    })),
+    ...Object.entries(zhCN.descriptions.codex).map(([value, description]) => ({
+      backend: 'codex',
+      value,
+      description,
+    })),
+  ])('translates $backend $value before a conversation starts', ({ backend, value, description }) => {
+    useAcpConfigOptionsMock.mockReturnValue({ mode: null, setStatus: { state: 'idle' } });
+    render(
+      <AgentModeSelector
+        backend={backend}
+        dynamicModes={[{ value, label: 'Test mode', description: 'Backend English description' }]}
+        onModeSelect={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Test mode').closest('[data-tooltip-content]')).toHaveAttribute(
+      'data-tooltip-content',
+      description
+    );
+  });
+
+  it('keeps unknown runtime descriptions instead of displaying a missing translation key', () => {
+    render(<AgentModeSelector backend='custom-agent' conversation_id='conv-1' />);
+    expect(screen.getByText('Bypass Permissions').closest('[data-tooltip-content]')).toHaveAttribute(
+      'data-tooltip-content',
       'Run without permission prompts'
+    );
+  });
+
+  it('uses English explanations after switching language', async () => {
+    await tooltipI18n.changeLanguage('en-US');
+    render(<AgentModeSelector backend='claude' conversation_id='conv-1' />);
+    expect(screen.getByText('Bypass Permissions').closest('[data-tooltip-content]')).toHaveAttribute(
+      'data-tooltip-content',
+      enUS.descriptions.claude.bypassPermissions
     );
   });
 });

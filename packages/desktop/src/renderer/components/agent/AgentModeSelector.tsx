@@ -260,7 +260,12 @@ const AgentModeSelector: React.FC<AgentModeSelectorProps> = ({
                 {current_mode === mode.value ? '✓' : pendingMode === mode.value ? '⏱' : ''}
               </span>
               {mode.description ? (
-                <Tooltip content={mode.description} position='right'>
+                <Tooltip
+                  content={t(`agentMode.descriptions.${backend}.${normalizeCodexSessionMode(mode.value)}`, {
+                    defaultValue: mode.description,
+                  })}
+                  position='right'
+                >
                   <span className='min-w-0 truncate'>{getDisplayModeLabel(mode)}</span>
                 </Tooltip>
               ) : (

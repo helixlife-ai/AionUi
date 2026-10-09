@@ -1,3 +1,4 @@
+import { applyAgentHubAssistantDisplayNameOverride } from '@/renderer/utils/hub/assistantDisplayNameOverride';
 import { ipcBridge } from '@/common';
 import type { IConversationMcpStatus } from '@/common/config/storage';
 import { isBackendHttpError } from '@/common/adapter/httpBridge';
@@ -1072,7 +1073,7 @@ Please check your local CLI tool authentication status`,
             : undefined
         }
         placeholder={t('acp.sendbox.placeholder', {
-          backend: agent_name || backend,
+          backend: applyAgentHubAssistantDisplayNameOverride(agent_name || backend),
           defaultValue: `Send message to {{backend}}...`,
         })}
         onStop={effectiveHandleStop}

@@ -18,5 +18,19 @@
   "switchMode": "حالت مجوز",
   "switchSuccess": "حالت با موفقیت جابه‌جا شد",
   "switchPendingNextTurn": "از نوبت بعدی اعمال می‌شود",
-  "switchFailed": "جابه‌جایی حالت ناموفق بود"
+  "switchFailed": "جابه‌جایی حالت ناموفق بود",
+  "descriptions": {
+    "claude": {
+      "default": "Standard behavior; asks for approval before dangerous operations.",
+      "acceptEdits": "Automatically accepts file edits.",
+      "plan": "Plans tasks without executing tools.",
+      "dontAsk": "Does not ask for permission; denies operations that are not pre-approved.",
+      "bypassPermissions": "Bypasses all permission checks."
+    },
+    "codex": {
+      "read-only": "Codex can read files in the current workspace. Editing files or accessing the internet requires approval.",
+      "auto": "Codex can read and edit workspace files and run commands. Accessing the internet or editing other files requires approval.",
+      "full-access": "Codex can edit files outside the workspace and access the internet without approval. Use with caution."
+    }
+  }
 }

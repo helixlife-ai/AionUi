@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { isAgentHubSessionCostHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { Popover } from '@arco-design/web-react';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -121,7 +122,7 @@ const ContextUsageIndicator: React.FC<ContextUsageIndicatorProps> = ({
 
   const details = (
     <>
-      {tokenUsage.cost && (
+      {!isAgentHubSessionCostHidden() && tokenUsage.cost && (
         <div className='text-12px text-t-secondary mt-4px'>
           {t('conversation.contextUsage.sessionCost', 'Session cost')} ≈ {formatCostAmount(tokenUsage.cost, locale)}
         </div>

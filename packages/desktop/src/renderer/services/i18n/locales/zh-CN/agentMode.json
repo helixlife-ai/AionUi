@@ -18,5 +18,19 @@
   "switchMode": "授权模式",
   "switchSuccess": "模式切换成功",
   "switchPendingNextTurn": "将在下一轮生效",
-  "switchFailed": "模式切换失败"
+  "switchFailed": "模式切换失败",
+  "descriptions": {
+    "claude": {
+      "default": "采用标准授权规则，在执行危险操作前请求确认。",
+      "acceptEdits": "自动批准文件编辑操作。",
+      "plan": "仅制定计划，不实际执行工具。",
+      "dontAsk": "不弹出授权请求；未预先批准的操作将被拒绝。",
+      "bypassPermissions": "跳过所有权限检查。"
+    },
+    "codex": {
+      "read-only": "Codex 可以读取当前工作区的文件；编辑文件或访问网络需要授权。",
+      "auto": "Codex 可以读写当前工作区的文件并运行命令；访问网络或编辑工作区外的文件需要授权。",
+      "full-access": "Codex 可以编辑工作区外的文件并访问网络，无需请求授权。请谨慎使用。"
+    }
+  }
 }

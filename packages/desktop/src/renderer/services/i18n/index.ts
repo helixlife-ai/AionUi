@@ -13,6 +13,7 @@ import {
   type SupportedLanguage,
 } from '@/common/config/i18n';
 import { applyDocumentDirection } from './direction';
+import { applyProductBrand } from '@/renderer/utils/hub/productBrand';
 
 // Static imports for all locales to ensure packaged app can always switch language.
 import enUS from './locales/en-US/index';
@@ -51,6 +52,10 @@ const localeData: LocaleData = {
   'fr-FR': frFR,
   'fa-IR': faIR,
 };
+
+for (const language of Object.keys(localeData)) {
+  localeData[language] = applyProductBrand(localeData[language], language);
+}
 
 const fallbackLocale = localeData[DEFAULT_LANGUAGE] ?? {};
 

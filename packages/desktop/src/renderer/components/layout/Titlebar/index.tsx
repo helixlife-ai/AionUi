@@ -1,3 +1,4 @@
+import { PRODUCT_DISPLAY_NAME } from '@/renderer/utils/hub/productBrand';
 import { isAgentHubFeedbackHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import classNames from 'classnames';
@@ -99,7 +100,7 @@ const SidebarIcon: React.FC<{ size?: number; strokeWidth?: number }> = ({ size =
 
 const Titlebar: React.FC<TitlebarProps> = ({ workspaceAvailable }) => {
   const { t } = useTranslation();
-  const appTitle = useMemo(() => 'AionUi', []);
+  const appTitle = useMemo(() => PRODUCT_DISPLAY_NAME, []);
   const [workspaceCollapsed, setWorkspaceCollapsed] = useState(true);
   const [mobileCenterTitle, setMobileCenterTitle] = useState(appTitle);
   const [mobileCenterOffset, setMobileCenterOffset] = useState(0);

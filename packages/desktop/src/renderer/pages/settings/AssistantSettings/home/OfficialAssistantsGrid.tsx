@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { resolveAssistantName } from '@/renderer/utils/model/assistantDisplay';
 import type { AssistantListItem } from '../types';
 import { type AssistantEnabledFilter, filterByEnabled } from '../assistantUtils';
 import AssistantAvatar from '../AssistantAvatar';
@@ -144,7 +145,7 @@ const OfficialAssistantsGrid: React.FC<OfficialAssistantsGridProps> = ({
                 </span>
               </div>
               <div className={`mt-12px truncate text-14px font-600 text-t-primary ${enabled ? '' : 'opacity-70'}`}>
-                {assistant.name_i18n?.[localeKey] || assistant.name}
+                {resolveAssistantName(assistant, localeKey)}
               </div>
               <div
                 className={`mt-6px line-clamp-2 text-12px leading-[1.5] text-t-secondary ${enabled ? '' : 'opacity-55'}`}

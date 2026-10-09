@@ -84,13 +84,13 @@ export function getAgentHubDefaultSettingsPath(): string {
 }
 
 /**
- * Agent Hub: channel types hidden from Settings → Channels.
- * Remove an id from the set (or return false) to restore Telegram / DingTalk.
+ * Studio channel allowlist. New upstream or extension channels stay hidden
+ * until explicitly enabled by the product configuration.
  */
-const HIDDEN_CHANNEL_TYPES = new Set(['telegram', 'dingtalk']);
+const VISIBLE_CHANNEL_TYPES = new Set(['lark', 'weixin']);
 
 export function isAgentHubChannelTypeHidden(channelType: string): boolean {
-  return HIDDEN_CHANNEL_TYPES.has(channelType);
+  return !VISIBLE_CHANNEL_TYPES.has(channelType);
 }
 
 /**
@@ -115,4 +115,9 @@ export function isAgentHubSettingsTabHidden(id: string): boolean {
     (id === 'tools' && isAgentHubToolsSettingsHidden()) ||
     (id === 'pet' && isAgentHubPetSettingsHidden())
   );
+}
+
+/** Studio keeps token usage visible but does not expose session pricing. */
+export function isAgentHubSessionCostHidden(): boolean {
+  return true;
 }

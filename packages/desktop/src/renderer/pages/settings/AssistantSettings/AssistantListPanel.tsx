@@ -2,6 +2,7 @@
  * AssistantListPanel — Renders the collapsible list of assistants
  * with avatar, name, enabled switch, and persistent row actions.
  */
+import { resolveAssistantName } from '@/renderer/utils/model/assistantDisplay';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { useLayoutContext } from '@/renderer/hooks/context/LayoutContext';
 import TalkToButlerButton from '@/renderer/components/base/TalkToButlerButton';
@@ -146,7 +147,7 @@ const SortableAssistantCard: React.FC<SortableAssistantCardProps> = ({
         <AssistantAvatar assistant={assistant} size={28} />
         <div className='min-w-0 flex-1'>
           <div className='flex min-w-0 items-center gap-8px font-medium text-t-primary'>
-            <span className='truncate'>{assistant.name_i18n?.[localeKey] || assistant.name}</span>
+            <span className='truncate'>{resolveAssistantName(assistant, localeKey)}</span>
             {/* F2-05: when the assistant's underlying agent is not online, flag it
                 with a warning icon + hover reason. The assistant is NOT disabled
                 or removed — it stays listed and toggleable. */}

@@ -26,7 +26,7 @@ const ChannelHeader: React.FC<ChannelHeaderProps> = ({ channel, onToggleEnabled 
   const { t } = useTranslation();
   const channelLogoMap: Record<string, { src: string; alt: string }> = {
     telegram: { src: ChannelTelegramLogo, alt: 'Telegram' },
-    lark: { src: ChannelLarkLogo, alt: 'Lark' },
+    lark: { src: ChannelLarkLogo, alt: channel.title },
     dingtalk: { src: ChannelDingTalkLogo, alt: 'DingTalk' },
     slack: { src: ChannelSlackLogo, alt: 'Slack' },
     discord: { src: ChannelDiscordLogo, alt: 'Discord' },

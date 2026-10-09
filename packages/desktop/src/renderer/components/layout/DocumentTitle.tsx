@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { PRODUCT_DISPLAY_NAME } from '@/renderer/utils/hub/productBrand';
 import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +19,7 @@ import { useTranslation } from 'react-i18next';
  * navigation and language switches.
  */
 export function titleForPath(pathname: string, t: (key: string) => string): string {
-  return pathname.startsWith('/login') ? t('login.pageTitle') : 'AionUi';
+  return pathname.startsWith('/login') ? t('login.pageTitle') : PRODUCT_DISPLAY_NAME;
 }
 
 const DocumentTitle: React.FC = () => {

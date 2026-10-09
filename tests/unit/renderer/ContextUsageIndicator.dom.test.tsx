@@ -77,7 +77,7 @@ describe('ContextUsageIndicator', () => {
     expect(container.querySelector('.context-usage-indicator')).toBeNull();
   });
 
-  it('shows session cost and per-turn breakdown when the agent reported them', () => {
+  it('hides reported session cost while preserving the token breakdown', () => {
     const { getByTestId } = render(
       <ContextUsageIndicator
         tokenUsage={{
@@ -95,8 +95,8 @@ describe('ContextUsageIndicator', () => {
     );
 
     const popover = getByTestId('popover-content').textContent ?? '';
-    expect(popover).toContain('Session cost');
-    expect(popover).toContain('$0.42');
+    expect(popover).not.toContain('Session cost');
+    expect(popover).not.toContain('$0.42');
     expect(popover).toContain('Input 14.1K');
     expect(popover).toContain('Output 30');
     expect(popover).toContain('Cache read 14.1K');
@@ -120,7 +120,7 @@ describe('ContextUsageIndicator', () => {
     const popover = getByTestId('popover-content').textContent ?? '';
     // German writes the decimal separator as a comma and puts the currency
     // symbol last — for every number in the popover, not just the cost.
-    expect(popover).toContain('0,42\u00a0$');
+    expect(popover).not.toContain('0,42\u00a0$');
     expect(popover).toContain('1,4\u00a0%');
     expect(popover).toContain('14,1K');
     expect(popover).toContain('Input 14,1K');
