@@ -17,6 +17,7 @@ import { createTwoFilesPatch } from 'diff';
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import MarkdownView from '@renderer/components/Markdown';
+import ToolOutput from './StreamingText/ToolOutput';
 
 const StatusTag: React.FC<{ status: string }> = ({ status }) => {
   const getTagProps = () => {
@@ -63,7 +64,10 @@ const DiffContentView: React.FC<{ old_text: string; new_text: string; path: stri
   );
 };
 
-const ContentView: React.FC<{ content: IMessageAcpToolCall['content']['update']['content'][0] }> = ({ content }) => {
+const ContentView: React.FC<{ content: IMessageAcpToolCall['content']['update']['content'][0]; status?: string }> = ({
+  content,
+  status,
+}) => {
   if (content.type === 'diff') {
     return (
       <DiffContentView old_text={content.old_text || ''} new_text={content.new_text || ''} path={content.path || ''} />
@@ -76,7 +80,7 @@ const ContentView: React.FC<{ content: IMessageAcpToolCall['content']['update'][
       <div className='mt-3'>
         <div className='bg-1 p-3 rounded border overflow-hidden'>
           <div className='overflow-x-auto break-words'>
-            <MarkdownView>{content.content.text}</MarkdownView>
+            <ToolOutput text={content.content.text} status={status} />
           </div>
         </div>
       </div>
@@ -178,7 +182,7 @@ const MessageAcpToolCall: React.FC<{ message: IMessageAcpToolCall }> = ({ messag
           {diffContent && diffContent.length > 0 && (
             <div>
               {diffContent.map((item, index) => (
-                <ContentView key={index} content={item} />
+                <ContentView key={index} content={item} status={status} />
               ))}
             </div>
           )}

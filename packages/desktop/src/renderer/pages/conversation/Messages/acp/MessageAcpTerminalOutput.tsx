@@ -9,6 +9,7 @@ import type { IMessageAcpTerminalOutput } from '@/common/chat/chatLib';
 import { Button, Card, Tag } from '@arco-design/web-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useStreamingText } from './StreamingText/useStreamingText';
 
 /**
  * Live card for a client-hosted terminal (ACP terminal/*): the delegated
@@ -23,6 +24,12 @@ const MessageAcpTerminalOutput: React.FC<{ message: IMessageAcpTerminalOutput }>
   const [killing, setKilling] = useState(false);
 
   const running = !content?.exit_status;
+  const displayedOutput = useStreamingText(
+    content?.output || '',
+    running,
+    false,
+    killing || Boolean(content?.exit_status?.signaled) || Boolean(content?.exit_status?.exit_code)
+  );
 
   // Tail-follow the output while the command runs.
   useEffect(() => {
@@ -30,7 +37,7 @@ const MessageAcpTerminalOutput: React.FC<{ message: IMessageAcpTerminalOutput }>
     if (el && running) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [content?.output, running]);
+  }, [displayedOutput, running]);
 
   const handleStop = useCallback(async () => {
     if (!conversation_id || !content?.terminal_id) return;
@@ -92,7 +99,7 @@ const MessageAcpTerminalOutput: React.FC<{ message: IMessageAcpTerminalOutput }>
           {content.truncated
             ? `…${t('conversation.terminal.truncated', { defaultValue: '(earlier output truncated)' })}\n`
             : ''}
-          {content.output || ''}
+          {displayedOutput}
         </pre>
       )}
     </Card>

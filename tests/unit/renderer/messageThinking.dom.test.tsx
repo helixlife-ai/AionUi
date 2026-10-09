@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IMessageThinking } from '@/common/chat/chatLib';
 import MessageThinking from '@/renderer/pages/conversation/Messages/components/MessageThinking';
@@ -54,5 +54,37 @@ describe('MessageThinking', () => {
     render(<MessageThinking message={createThinkingMessage(createdAt)} />);
 
     expect(screen.getByText('Thinking... · 7s')).toBeInTheDocument();
+  });
+  it('paces thinking text while keeping completion and its full text immediate', () => {
+    vi.spyOn(performance, 'now').mockImplementation(() => Date.now());
+    vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => setTimeout(() => fn(Date.now()), 16));
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
+    const message = createThinkingMessage(Date.now() - 5000);
+    const { container, rerender, unmount } = render(<MessageThinking message={message} />);
+    const full = 'analyzing' + '思考'.repeat(100);
+    rerender(<MessageThinking message={{ ...message, content: { content: full, status: 'thinking' } }} />);
+    act(() => vi.advanceTimersByTime(48));
+    expect(container.textContent).not.toContain(full);
+    expect(container.textContent).toContain('analyzing思考');
+    rerender(<MessageThinking message={{ ...message, content: { content: full, status: 'done' } }} />);
+    expect(screen.getByText(/Thought complete/)).toBeInTheDocument();
+    expect(container.textContent).toContain(full);
+    unmount();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+  it('animates the first burst of a newly created thinking message', () => {
+    vi.spyOn(performance, 'now').mockImplementation(() => Date.now());
+    vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => setTimeout(() => fn(Date.now()), 16));
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
+    const message = createThinkingMessage(Date.now());
+    message.content.content = '思考'.repeat(150);
+    const { container, unmount } = render(<MessageThinking message={message} />);
+    expect(container.textContent).not.toContain(message.content.content);
+    act(() => vi.advanceTimersByTime(816));
+    expect(container.textContent).toContain(message.content.content);
+    unmount();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 });

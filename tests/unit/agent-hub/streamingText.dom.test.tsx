@@ -1,4 +1,7 @@
-import { act, cleanup, renderHook } from '@testing-library/react';
+import React from 'react';
+import MessageAcpTerminalOutput from '@/renderer/pages/conversation/Messages/acp/MessageAcpTerminalOutput';
+import type { IMessageAcpTerminalOutput } from '@/common/chat/chatLib';
+import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   revealBoundary,
@@ -109,5 +112,31 @@ describe('Studio streaming text presentation', () => {
     expect(revealBoundary('👨‍👩‍👧‍👦中文', 0, 1)).toBe('👨‍👩‍👧‍👦'.length);
     expect(revealBoundary('e\u0301中文', 0, 1)).toBe(2);
     expect(revealBoundary('', 0, 1)).toBe(0);
+  });
+});
+
+describe('streaming terminal output', () => {
+  it('paces output while exposing exit errors and full output immediately', () => {
+    const message: IMessageAcpTerminalOutput = {
+      id: 'terminal',
+      msg_id: 'terminal',
+      conversation_id: 'test',
+      type: 'acp_terminal_output',
+      position: 'left',
+      content: { terminal_id: 'terminal', command: 'printf test', output: 'start', truncated: false },
+    };
+    const { rerender } = render(<MessageAcpTerminalOutput message={message} />);
+    const full = 'start' + 'terminal output'.repeat(100);
+    rerender(<MessageAcpTerminalOutput message={{ ...message, content: { ...message.content, output: full } }} />);
+    advance(48);
+    expect(screen.getByTestId('terminal-card-output').textContent?.length).toBeLessThan(full.length);
+    expect(screen.getByTestId('terminal-card-stop')).toBeEnabled();
+    rerender(
+      <MessageAcpTerminalOutput
+        message={{ ...message, content: { ...message.content, output: full, exit_status: { exit_code: 1 } } }}
+      />
+    );
+    expect(screen.getByTestId('terminal-card-output')).toHaveTextContent(full);
+    expect(screen.queryByTestId('terminal-card-stop')).not.toBeInTheDocument();
   });
 });

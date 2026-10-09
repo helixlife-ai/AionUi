@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ipcBridge } from '@/common';
 import type { TMessage } from '@/common/chat/chatLib';
@@ -74,5 +74,40 @@ describe('MessageToolGroupSummary', () => {
       });
     });
     expect(await screen.findByText('full output')).toBeInTheDocument();
+  });
+  it('smooths live output without delaying an error result', () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, 'now').mockImplementation(() => Date.now());
+    vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => setTimeout(() => fn(Date.now()), 16));
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
+    const message = (text: string, status = 'in_progress') =>
+      ({
+        id: 'stream-message',
+        conversation_id: 'stream-conversation',
+        type: 'acp_tool_call',
+        content: {
+          update: {
+            session_update: 'tool_call',
+            tool_call_id: 'stream-tool',
+            title: 'Stream probe',
+            kind: 'execute',
+            status,
+            content: [{ type: 'content', content: { type: 'text', text } }],
+          },
+        },
+      }) as unknown as ToolMessage;
+    const { container, rerender, unmount } = render(<MessageToolGroupSummary messages={[message('start')]} />);
+    fireEvent.click(screen.getByText('Stream probe'));
+    const full = 'start' + 'output'.repeat(80);
+    rerender(<MessageToolGroupSummary messages={[message(full)]} />);
+    act(() => vi.advanceTimersByTime(48));
+    expect(container.textContent).not.toContain(full);
+    expect(container.textContent).toContain('startoutput');
+    rerender(<MessageToolGroupSummary messages={[message(full, 'failed')]} />);
+    expect(container.textContent).toContain(full);
+    unmount();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 });
