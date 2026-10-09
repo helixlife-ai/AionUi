@@ -37,6 +37,20 @@ const open = async () => {
 afterEach(cleanup);
 
 describe('Studio model selection', () => {
+  it('keeps the friendly label and selection after restoring a long-context model', async () => {
+    const onSelect = vi.fn();
+    const { rerender } = render(
+      <StudioModelSelector models={models} value='agenthub-claude-deepseek-v4-1-flash' onSelect={onSelect} />
+    );
+    rerender(
+      <StudioModelSelector models={models} value='agenthub-claude-deepseek-v4-1-flash[1m]' onSelect={onSelect} />
+    );
+    expect(screen.getByRole('button', { name: 'Choose model: DeepSeek-V4.1-Flash' })).toBeInTheDocument();
+    const selected = within(await open()).getByRole('button', { pressed: true });
+    expect(selected).toHaveTextContent('DeepSeek-V4.1-Flash');
+    fireEvent.click(selected);
+    expect(onSelect).not.toHaveBeenCalled();
+  });
   it('uses a larger bold check that inherits the model accent color', async () => {
     render(<StudioModelSelector models={models} value='agenthub-claude-deepseek-v4-1-flash' onSelect={vi.fn()} />);
     const selected = within(await open()).getByRole('button', { pressed: true });

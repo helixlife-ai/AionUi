@@ -1,3 +1,7 @@
+import {
+  getStudioModelContextWindow,
+  resolveStudioConversationModel,
+} from '@/renderer/components/agent/StudioModelSelector/catalog';
 import { applyAgentHubAssistantDisplayNameOverride } from '@/renderer/utils/hub/assistantDisplayNameOverride';
 import { ipcBridge } from '@/common';
 import type { IConversationMcpStatus } from '@/common/config/storage';
@@ -1183,7 +1187,20 @@ Please check your local CLI tool authentication status`,
                 {t('team.interruptAndSend')}
               </Button>
             )}
-            {tokenUsage ? <ContextUsageIndicator tokenUsage={tokenUsage} context_limit={context_limit} /> : undefined}
+            {tokenUsage ? (
+              <ContextUsageIndicator
+                tokenUsage={tokenUsage}
+                context_limit={
+                  context_limit ||
+                  getStudioModelContextWindow(
+                    backend,
+                    backend === 'codex'
+                      ? resolveStudioConversationModel('codex', runtimeConfig.model?.currentValue, initialModelId)
+                      : undefined
+                  )
+                }
+              />
+            ) : undefined}
           </>
         }
         onAddToDraft={handleAddToQueue}

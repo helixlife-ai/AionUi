@@ -29,8 +29,24 @@
 3. Compose 启动时运行 `docker/agent-hub/models/seed.js`：合并 Claude 模型目录，保留其他设置；基于现有完整模板生成 Codex 五模型目录。重新部署时需要同步更新模型环境变量；尤其应检查外部 `CODEX_MODEL` 覆盖值，默认 Flash 也必须使用对应 Agent 前缀。
 4. Node 脚本只在容器启动时执行，不参与请求转发，不在用户切换时重写配置。认证及 Base URL 继续沿用部署环境。
 
-必须同时更新镜像与 Compose；旧运行时未配置目录时，前端展示模型不代表 AionCore 一定允许切换。Codex 各模型暂用现有模板能力元数据，尚待供应商提供真实上下文及推理能力参数。
+必须同时更新镜像与 Compose；旧运行时未配置目录时，前端展示模型不代表 AionCore 一定允许切换。Codex 各模型的上下文窗口和已确认的推理能力由 `models.json` 覆盖模板元数据。
 
 ## 验证边界
 
 单元测试覆盖请求 ID、草稿默认值、协议过滤、失败保留、会话回调隔离、目录初始化和无损配置合并。模拟网关验证客户端发出的模型 ID，不代表 KB 实际路由、工具调用兼容性或计费已验收。真实 KB 联调仍需逐模型验证。
+
+## 模型上下文窗口
+
+在 `models.json` 对应模型项中设置 `contextWindow`（正整数，单位 tokens），必须使用网关实际开放的输入加输出总窗口，不从模型名称推断。未确认的模型不填写。该字段会同时写入 Codex 模型目录的 `context_window` / `max_context_window`，并在后端未上报窗口时用于 Studio 的上下文用量展示。Codex 自身仍可保留安全余量并自动压缩；UI 展示的是配置的模型总窗口。
+
+AionCore v0.2.2 主动省略自定义 Codex 模型的窗口上报，不能直接把其默认 258400 当作真实限制。修改此字段后需重新构建镜像、重建容器，并重启已运行的 Codex 会话进程，使其重新加载模型目录；不会删除会话历史。
+
+2026-10-09 按官方规格核实，业务方确认网关与官方限制一致：
+
+| 模型                | 上下文窗口（tokens） | 官方依据                                                                                                                                                        |
+| ------------------- | -------------------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Qwen3.5-Plus        |            1,000,000 | [阿里云模型文档](https://help.aliyun.com/en/model-studio/qwen3-5-plus)                                                                                          |
+| Qwen3.7-Plus        |            1,000,000 | [阿里云模型文档](https://help.aliyun.com/zh/model-studio/qwen3-7-plus)                                                                                          |
+| DeepSeek-V4.1-Flash |            1,048,576 | [DeepSeek 模型元数据](https://api-docs.deepseek.com/api/list-models/)                                                                                           |
+| GLM-5.3             |            1,048,576 | [智谱文档（1M）](https://docs.bigmodel.cn/cn/guide/models/text/glm-5.3)、[官方模型配置（精确值）](https://huggingface.co/zai-org/GLM-5.3/blob/main/config.json) |
+| Kimi-K3             |            1,048,576 | [Moonshot 官方模型卡](https://huggingface.co/moonshotai/Kimi-K3)                                                                                                |

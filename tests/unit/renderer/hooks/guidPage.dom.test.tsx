@@ -471,7 +471,7 @@ describe('GuidPage', () => {
     render(<GuidPage />);
 
     const promptButton = screen.getByRole('button', {
-      name: 'guid.defaultPromptCategories.literature.items.prompt1',
+      name: 'guid.defaultPromptCategories.research.items.prompt1',
     });
 
     expect(promptButton.className).toContain('!whitespace-normal');
@@ -490,8 +490,8 @@ describe('GuidPage', () => {
 
     expect(screen.queryByTestId('guid-prompt-carousel-category-title')).toBeNull();
     expect(screen.queryByTestId('guid-prompt-carousel-indicators')).toBeNull();
-    screen.getByRole('button', { name: 'guid.defaultPromptCategories.literature.items.prompt1' });
-    screen.getByRole('button', { name: 'guid.defaultPromptCategories.literature.items.prompt2' });
+    screen.getByRole('button', { name: 'guid.defaultPromptCategories.research.items.prompt1' });
+    screen.getByRole('button', { name: 'guid.defaultPromptCategories.research.items.prompt2' });
   });
 
   it('does not seed skill defaults from the assistant list while detail is loading', async () => {

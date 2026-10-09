@@ -8,11 +8,11 @@ import models from '@/renderer/components/agent/StudioModelSelector/models.json'
 const temporary: string[] = [];
 afterEach(() => temporary.splice(0).forEach((dir) => fs.rmSync(dir, { recursive: true, force: true })));
 
-function fixture(settings = '{}') {
+function fixture(settings = '{}', definitions: Array<(typeof models)[number] & { contextWindow?: number }> = models) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-model-seed-'));
   temporary.push(dir);
   fs.cpSync('docker/agent-hub/models', dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, 'models.json'), JSON.stringify(models));
+  fs.writeFileSync(path.join(dir, 'models.json'), JSON.stringify(definitions));
   const claude = path.join(dir, 'settings.json');
   const codex = path.join(dir, 'codex.json');
   fs.writeFileSync(claude, settings);
@@ -72,6 +72,9 @@ describe('Studio deployment model catalogs', () => {
     const template = JSON.parse(fs.readFileSync('docker/agent-hub/codex-model-catalog.json', 'utf8')).models[0];
     expect(catalog.models[0]).toMatchObject({
       ...template,
+      context_window: 1000000,
+      max_context_window: 1000000,
+      auto_compact_token_limit: null,
       slug: 'agenthub-codex-qwen3-5-plus',
       display_name: 'Qwen3.5-Plus',
       priority: 0,
@@ -99,4 +102,27 @@ describe('Studio deployment model catalogs', () => {
     expect(fs.readFileSync(f.claude, 'utf8')).toBe('{invalid');
     expect(fs.existsSync(f.codex)).toBe(false);
   });
+});
+
+it('seeds confirmed context limits per model instead of copying the template limit', () => {
+  const f = fixture(
+    '{}',
+    models.map((model, index) => ({ ...model, contextWindow: 100000 + index * 10000 }))
+  );
+  f.run();
+  const catalog = JSON.parse(fs.readFileSync(f.codex, 'utf8'));
+  expect(catalog.models.map((model: { context_window: number }) => model.context_window)).toEqual([
+    100000, 110000, 120000, 130000, 140000,
+  ]);
+  expect(catalog.models[0].max_context_window).toBe(100000);
+  expect(catalog.models[0].auto_compact_token_limit).toBeNull();
+});
+
+it.each([0, -1, 1.5])('rejects invalid context size %s without writing partial catalogs', (contextWindow) => {
+  const f = fixture(
+    '{}',
+    models.map((model) => ({ ...model, contextWindow }))
+  );
+  expect(f.run).toThrow();
+  expect(fs.existsSync(f.codex)).toBe(false);
 });

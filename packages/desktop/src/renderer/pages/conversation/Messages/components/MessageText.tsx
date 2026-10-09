@@ -24,6 +24,7 @@ import CollapsibleContent from '@renderer/components/chat/CollapsibleContent';
 import FilePreview from '@renderer/components/media/FilePreview';
 import HorizontalFileList from '@renderer/components/media/HorizontalFileList';
 import MarkdownView from '@renderer/components/Markdown';
+import StreamingText from '../acp/StreamingText';
 import { stripThinkTags, hasThinkTags } from '@renderer/utils/chat/thinkTagFilter';
 import { buildTurnClipboardText } from '@renderer/utils/chat/turnCopy';
 import { stripSkillSuggest, hasSkillSuggest } from '@renderer/utils/chat/skillSuggestParser';
@@ -341,9 +342,16 @@ const MessageText: React.FC<{
             </CollapsibleContent>
           ) : (
             <div data-testid='message-text-content'>
-              <MarkdownView codeStyle={CODE_STYLE} onLocalFileLink={handleLocalFileLink}>
+              <StreamingText
+                key={`${message.conversation_id}:${message.id}`}
+                conversationId={message.conversation_id}
+                current={isLastMessage && conversationContext?.type === 'acp'}
+                createdAt={message.created_at}
+                codeStyle={CODE_STYLE}
+                onLocalFileLink={handleLocalFileLink}
+              >
                 {data}
-              </MarkdownView>
+              </StreamingText>
             </div>
           )}
         </div>

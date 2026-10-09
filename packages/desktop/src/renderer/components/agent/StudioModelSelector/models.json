@@ -3,20 +3,26 @@
     "label": "Qwen3.5-Plus",
     "claude": "agenthub-claude-qwen3-5-plus",
     "codex": "agenthub-codex-qwen3-5-plus",
-    "rate": 0.29
+    "rate": 0.29,
+    "contextWindow": 1000000
   },
   {
     "label": "Qwen3.7-Plus",
     "claude": "agenthub-claude-qwen3-7-plus",
     "codex": "agenthub-codex-qwen3-7-plus",
-    "rate": 0.64
+    "rate": 0.64,
+    "contextWindow": 1000000
   },
   {
     "label": "DeepSeek-V4.1-Flash",
     "claude": "agenthub-claude-deepseek-v4-1-flash",
     "codex": "agenthub-codex-deepseek-v4-1-flash",
-    "rate": { "min": 0.44, "max": 0.89 },
-    "fallback": true
+    "rate": {
+      "min": 0.44,
+      "max": 0.89
+    },
+    "fallback": true,
+    "contextWindow": 1048576
   },
   {
     "label": "GLM-5.3",
@@ -26,7 +32,14 @@
       "default": "high",
       "supported": ["low", "high", "max"]
     },
-    "rate": 1.9
+    "rate": 1.9,
+    "contextWindow": 1048576
   },
-  { "label": "Kimi-K3", "claude": "agenthub-claude-kimi-k3", "codex": "agenthub-codex-kimi-k3", "rate": 4.22 }
+  {
+    "label": "Kimi-K3",
+    "claude": "agenthub-claude-kimi-k3",
+    "codex": "agenthub-codex-kimi-k3",
+    "rate": 4.22,
+    "contextWindow": 1048576
+  }
 ]

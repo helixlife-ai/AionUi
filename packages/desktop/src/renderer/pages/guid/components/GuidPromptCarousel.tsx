@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import type { GuidPromptCategory } from '../utils/guidDefaultPromptKeys';
 import styles from './GuidPromptCarousel.module.css';
 
-const AUTO_PLAY_INTERVAL_MS = 2500;
+const AUTO_PLAY_INTERVAL_MS = 6000;
 
 type GuidPromptCarouselProps = {
   categories: GuidPromptCategory[];
