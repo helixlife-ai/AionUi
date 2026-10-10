@@ -1,4 +1,4 @@
-# Agent Hub v0.2.22 — upstream 2.2.2 integration
+# Agent Hub v0.2.24 — upstream 2.2.2 integration
 
 This deployment pairs AionUi **2.2.2** with AionCore **v0.2.2**. The image tag in
 `docker-compose.yaml` and the appliance version in `config.json` must advance
@@ -10,14 +10,20 @@ The image must be built and published before distributing this compose file.
 | Component          | Pinned version                | Basis                                      |
 | ------------------ | ----------------------------- | ------------------------------------------ |
 | AionCore           | v0.2.2                        | `package.json`                             |
-| Claude Code        | 2.1.236                       | AionCore v0.2.2 verified CLI contract      |
-| Codex              | 0.151.0                       | AionCore v0.2.2 verified CLI contract      |
+| Claude Code        | 2.1.287                       | Official `stable` channel, 2026-10-10      |
+| Codex              | 0.162.1                       | Official non-prerelease, 2026-10-10        |
 | Node               | 22.23.1, Debian trixie, ARM64 | Existing appliance SIGILL regression guard |
 | Bun (builder only) | 1.3.14                        | Matches the locally validated toolchain    |
 
 The upstream baseline is defined in [AionCore v0.2.2 cli_version.rs](https://github.com/iOfficeAI/AionCore/blob/v0.2.2/crates/aionui-session/src/backend/cli_version.rs).
-The image pins those exact verified releases. Local testing additionally checks
-our gateway and deployment integration.
+The upstream verified baseline remains Claude 2.1.236 and Codex 0.151.0.
+The image pins the official stable releases above instead; this does not change
+AionCore's verified baseline. Studio hides only non-error `CLI_VERSION_NEWER`
+conversation notices, including historical ones. Older-version warnings and
+runtime errors remain visible. Settings and backend diagnostic records are retained.
+Claude's configured `modelPicker` requires 2.1.242 or later; 2.1.236 silently
+omits our five gateway models from the initialization catalog.
+Local testing additionally checks our gateway and deployment integration.
 This release no longer exports Claude/Codex in `managed-resources`; they run from
 PATH. The image therefore installs and executes both pinned CLIs, without the old
 bundled-Claude replacement step. The `--allow-dangerously-skip-permissions` flag
@@ -27,6 +33,25 @@ later mode switch without forcing the current session into full-auto mode.
 The six `auto-inject` skills are vendored from the same Core release. They include
 `conversation-create` and `session-message`, which the previous four-skill image
 would omit. The curated 92-skill corpus remains unchanged.
+
+## Stable CLI validation on 2026-10-10
+
+Claude 2.1.287 is the official npm `stable` channel; Codex 0.162.1 is the
+latest non-prerelease. Exact versions are pinned to keep image rebuilds reproducible.
+AionCore remains v0.2.2; no backend patch or protocol-response injection is used.
+
+The local ARM64 image `agent-hub:stable-cli-validation` passed the deployment
+smoke against the simulated gateway: both CLIs advertise all five configured
+models, confirm every switch as observed, and send each selected model to the
+gateway before and after container replacement. Streaming, native continuation,
+Codex command execution and sandbox write rejection also passed.
+The UI tests cover both live and persisted newer-version notices while retaining
+older-version warnings and errors. Full tests: 5,344 passed, 5 skipped;
+lint, TypeScript and i18n validation passed.
+
+This image has not been published or installed on the Raspberry Pi. The real
+gateway and the historical conversation in TAPD 1000811 still require appliance
+regression before the defect can be marked resolved.
 
 ## Existing-device upgrade
 

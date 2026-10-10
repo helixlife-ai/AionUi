@@ -25,6 +25,30 @@ import {
   prependHistoryMessages,
 } from '@/renderer/pages/conversation/Messages/hooks';
 
+describe('Studio historical CLI notices', () => {
+  it('hides persisted newer-version notices after DB normalization', () => {
+    const row = {
+      id: 'cli-notice',
+      conversation_id: 'conv-1',
+      type: 'tips',
+      position: 'left',
+      content: JSON.stringify({ content: 'Newer CLI', type: 'info', code: 'CLI_VERSION_NEWER' }),
+    } as unknown as TMessage;
+    expect(normalizeDbMessage(row)).toBeNull();
+  });
+
+  it('retains errors even when they carry the newer-version code', () => {
+    const row = {
+      id: 'cli-error',
+      conversation_id: 'conv-1',
+      type: 'tips',
+      position: 'left',
+      content: JSON.stringify({ content: 'CLI failure', type: 'error', code: 'CLI_VERSION_NEWER' }),
+    } as unknown as TMessage;
+    expect(normalizeDbMessage(row)).not.toBeNull();
+  });
+});
+
 const TURN_MSG_ID = 'turn-a';
 
 const retryFrame = (attempt: number, key = 'codex-retry:turn-a'): IResponseMessage =>
@@ -145,7 +169,7 @@ describe('codex retry tip history fold', () => {
       conversation_id: 'conv-1',
       type: 'tips',
       position: 'left',
-      content: JSON.stringify({ content: 'The installed codex is newer…', type: 'info', code: 'CLI_VERSION_NEWER' }),
+      content: JSON.stringify({ content: 'The installed codex is older…', type: 'warning', code: 'CLI_VERSION_OLDER' }),
     } as unknown as TMessage);
 
     const folded = foldSupersededTips([drift, ...persistedRun(), drift]);

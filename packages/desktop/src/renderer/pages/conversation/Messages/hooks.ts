@@ -24,6 +24,7 @@ import {
   loadLatestConversationMessages,
 } from '@/renderer/utils/chat/messagePagination';
 import { isAgentHubCodexTrustTip } from '@/renderer/utils/hub/isAgentHubCodexTrustTip';
+import { isAgentHubConversationTipHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 
 const [useMessageList, MessageListProvider, useUpdateMessageList] = createContext([] as TMessage[]);
 const [useMessageListLoading, MessageListLoadingProvider, useUpdateMessageListLoading] = createContext(false);
@@ -777,13 +778,14 @@ export function foldSupersededTips(messages: TMessage[]): TMessage[] {
 
 /**
  * Normalize a message loaded from backend DB into renderer runtime shape.
- * Returns null when the tip should be hidden in Agent Hub (Codex trust Notice).
+ * Returns null for tips hidden by Agent Hub's presentation policy.
  */
 export function normalizeDbMessage(msg: TMessage): TMessage | null {
   if (msg.type === 'tips') {
     const normalized = normalizeDbTipsMessage(msg);
     if (normalized.type === 'tips') {
       const tip = normalized.content;
+      if (isAgentHubConversationTipHidden(tip.code, tip.type)) return null;
       if (
         tip &&
         typeof tip === 'object' &&
