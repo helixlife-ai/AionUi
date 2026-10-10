@@ -121,6 +121,32 @@ describe('MessageTips — FeedbackButton wiring', () => {
     cleanup();
   });
 
+  it.each(['claude', 'codex'])('hides live newer-version notices for %s', (cli) => {
+    const { container } = render(
+      <MessageTips
+        message={buildTips('info', `${cli} version notice`, undefined, {
+          code: 'CLI_VERSION_NEWER',
+          params: { cli },
+        })}
+      />
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('keeps older-version warnings visible', () => {
+    const { container } = render(
+      <MessageTips message={buildTips('warning', 'Older CLI', undefined, { code: 'CLI_VERSION_OLDER' })} />
+    );
+    expect(container).not.toBeEmptyDOMElement();
+  });
+
+  it('keeps actual errors visible even when they use the newer-version code', () => {
+    const { container } = render(
+      <MessageTips message={buildTips('error', 'CLI failure', undefined, { code: 'CLI_VERSION_NEWER' })} />
+    );
+    expect(container).not.toBeEmptyDOMElement();
+  });
+
   it('does not render FeedbackButton on success tips', () => {
     render(<MessageTips message={buildTips('success')} />);
     expect(screen.queryByText('settings.oneClickFeedback')).not.toBeInTheDocument();

@@ -17,12 +17,24 @@ import {
   isAgentHubToolsSettingsHidden,
   isAgentHubWorkspaceFileAddHidden,
   isAgentHubFeedbackHidden,
+  isAgentHubConversationTipHidden,
 } from '@/renderer/utils/hub/agentHubUiPolicy';
 import { describe, expect, it } from 'vitest';
 import { applyProductBrand } from '@/renderer/utils/hub/productBrand';
 import zhCN from '@/renderer/services/i18n/locales/zh-CN';
 
 describe('agentHubUiPolicy', () => {
+  it('hides only non-error newer-CLI notices', () => {
+    expect(isAgentHubConversationTipHidden('CLI_VERSION_NEWER', 'info')).toBe(true);
+    expect(isAgentHubConversationTipHidden('CLI_VERSION_NEWER', 'warning')).toBe(true);
+    expect(isAgentHubConversationTipHidden('CLI_VERSION_NEWER', 'error')).toBe(false);
+  });
+
+  it('keeps older CLI warnings and unrelated diagnostics visible', () => {
+    expect(isAgentHubConversationTipHidden('CLI_VERSION_OLDER', 'warning')).toBe(false);
+    expect(isAgentHubConversationTipHidden('ACP_EMPTY_TURN', 'info')).toBe(false);
+    expect(isAgentHubConversationTipHidden(undefined, 'warning')).toBe(false);
+  });
   it('enables backend readiness gating for Agent Hub cold start', () => {
     expect(isAgentHubBackendWarmingScreenEnabled()).toBe(true);
   });

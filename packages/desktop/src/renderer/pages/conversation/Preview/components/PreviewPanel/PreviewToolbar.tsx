@@ -5,6 +5,7 @@
  */
 
 import { iconColors } from '@/renderer/styles/colors';
+import { isElectronDesktop } from '@/renderer/utils/platform';
 import { Close } from '@icon-park/react';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -202,7 +203,8 @@ const PreviewToolbar: React.FC<PreviewToolbarProps> = ({
   // showOpenInSystemButton（后者已包含纯 fileRef 的情况）。
   // The download rule keys off "is the file on disk", so use hasFilePath rather
   // than showOpenInSystemButton (which now also covers bare-fileRef tabs).
-  const showDownload = shouldShowDownload(content_type, hasFilePath);
+  // WebUI files live on the server, so users still need a local download.
+  const showDownload = !isElectronDesktop() || shouldShowDownload(content_type, hasFilePath);
 
   const toolbarBtn =
     'flex items-center gap-2px px-8px py-3px rd-4px cursor-pointer transition-colors duration-150 text-12px font-medium text-t-secondary hover:text-t-primary hover:bg-bg-3';
