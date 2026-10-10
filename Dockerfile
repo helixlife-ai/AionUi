@@ -100,9 +100,9 @@ RUN mkdir -p /root/.config/pip \
 # 全局安装 Claude Code + Codex，使 aioncore 启动时能在 PATH 上自动探测到
 # 若不锁版本，每次重建都会使该层失效，即任何应用更新都会强迫用户重拉 600MB。
 # 升级 CLI 时显式修改这些 ARG。
-# Pin the exact CLI versions verified by AionCore v0.2.2.
-ARG CLAUDE_CODE_VERSION=2.1.236
-ARG CODEX_VERSION=0.151.0
+# Pin official stable releases; validate their contracts against AionCore v0.2.2.
+ARG CLAUDE_CODE_VERSION=2.1.287
+ARG CODEX_VERSION=0.162.1
 RUN npm install -g --unsafe-perm \
       @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
       @openai/codex@${CODEX_VERSION} \

@@ -16,6 +16,7 @@ import FeedbackButton from '@renderer/components/base/FeedbackButton';
 import CollapsibleContent from '@renderer/components/chat/CollapsibleContent';
 import { iconColors } from '@/renderer/styles/colors';
 import { isAgentHubCodexTrustTip } from '@/renderer/utils/hub/isAgentHubCodexTrustTip';
+import { isAgentHubConversationTipHidden } from '@/renderer/utils/hub/agentHubUiPolicy';
 
 // One entry per `IMessageTips['type']`. `info` was missing, and the render
 // falls back to `warning`, so every informational tip was drawn with the alarm
@@ -72,6 +73,8 @@ const MessageTips: React.FC<{ message: IMessageTips }> = ({ message }) => {
   }
   const localizedTipBody = resolveAgentTipBody(content, code, params, t);
   const { json, data } = useFormatContent(localizedTipBody);
+
+  if (isAgentHubConversationTipHidden(code, type)) return null;
 
   const displayContent = json ? '' : localizedTipBody;
   // The report chip stays hidden for errors that opt out via

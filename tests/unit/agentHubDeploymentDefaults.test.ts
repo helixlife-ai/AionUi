@@ -28,11 +28,11 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).not.toContain('studio-server.newidea.pro');
   });
 
-  it('uses the v0.2.23-toB release consistently', () => {
-    expect(deploymentConfig.version).toBe('v0.2.23-toB');
+  it('uses the v0.2.24-toB release consistently', () => {
+    expect(deploymentConfig.version).toBe('v0.2.24-toB');
     expect(deploymentConfig.desc.trim()).not.toBe('');
     expect(deploymentConfig.desc).not.toMatch(/&#|<[^>]+>/);
-    expect(compose).toContain('application/agent-hub:v0.2.23-toB');
+    expect(compose).toContain('application/agent-hub:v0.2.24-toB');
     expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.16');
   });
 
@@ -65,9 +65,9 @@ describe('Agent Hub deployment defaults', () => {
 });
 
 describe('AionCore v0.2.2 deployment compatibility', () => {
-  it('installs the backend-verified CLI releases and checks the binaries', () => {
-    expect(dockerfile).toContain('ARG CLAUDE_CODE_VERSION=2.1.236');
-    expect(dockerfile).toContain('ARG CODEX_VERSION=0.151.0');
+  it('pins official stable CLI releases and checks the binaries', () => {
+    expect(dockerfile).toContain('ARG CLAUDE_CODE_VERSION=2.1.287');
+    expect(dockerfile).toContain('ARG CODEX_VERSION=0.162.1');
     expect(dockerfile).toContain('codex --version');
     expect(dockerfile).not.toContain('RUN node /etc/agent-hub/models/pinClaude.js');
   });

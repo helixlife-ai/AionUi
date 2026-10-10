@@ -5,7 +5,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
-const image = process.argv[2] || 'agent-hub:v0.2.23-toB';
+const image = process.argv[2] || 'agent-hub:v0.2.24-toB';
+const modelDefinitions = JSON.parse(
+  fs.readFileSync('packages/desktop/src/renderer/components/agent/StudioModelSelector/models.json', 'utf8')
+);
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-hub-image-smoke-'));
 const name = `agent-hub-smoke-${Date.now()}`;
 const docker = (...args) =>
@@ -150,6 +153,41 @@ const sendTurn = async (conversation, model, runTool = false) => {
   }
   throw new Error(`No completed model reply for ${model}`);
 };
+const verifyModelSwitches = async (conversation, backend) => {
+  const route = `/api/conversations/${conversation.id}`;
+  let catalog;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const runtime = await api(`${route}/runtime/ensure`, {});
+    catalog = runtime.config_options?.find((option) => option.id === 'model');
+    if (modelDefinitions.every((model) => catalog?.options.some((option) => option.value === model[backend]))) {
+      break;
+    }
+    await delay(500);
+  }
+  assert(catalog, `${backend} must expose its model catalog`);
+  const definitions = [...modelDefinitions].toSorted(
+    (a, b) => Number(a[backend].includes('deepseek')) - Number(b[backend].includes('deepseek'))
+  );
+  for (const definition of definitions) {
+    const model = definition[backend];
+    assert(
+      catalog.options.some((option) => option.value === model),
+      `${backend} catalog missing ${model}`
+    );
+    const response = await fetch(base + `${route}/config-options/model`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: model }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    const result = await response.json();
+    assert(response.ok, `${backend} switch to ${model}: ${JSON.stringify(result)}`);
+    const data = result.data ?? result;
+    assert.equal(data.config_options?.find((option) => option.id === 'model')?.current_value, model);
+    assert.equal(data.confirmation, 'observed');
+    await sendTurn(conversation, model);
+  }
+};
 try {
   start();
   await ready();
@@ -184,7 +222,7 @@ try {
     '-c',
     'node --version && claude --version && codex --version && /app/aionui-web/aionui-web version'
   );
-  assert(versionInfo.includes('2.1.236') && versionInfo.includes('0.151.0'), versionInfo);
+  assert(versionInfo.includes('2.1.287') && versionInfo.includes('0.162.1'), versionInfo);
   console.log(versionInfo);
   const sandboxProbe = docker(
     'exec',
@@ -220,8 +258,8 @@ try {
     await sendTurn(conversation, model);
     const page = await api(`/api/conversations/${conversation.id}/messages?limit=100`);
     assert(
-      !page.items.some((message) => ['CLI_VERSION_NEWER', 'CLI_VERSION_OLDER'].includes(message.content?.code)),
-      `${backend} should match the backend's verified version`
+      !page.items.some((message) => message.content?.code === 'CLI_VERSION_OLDER'),
+      `${backend} must not be older than the backend's verified version`
     );
     conversations.push({ conversation, model });
     console.log(`PASS: native ${backend} send and streamed response with ${model}`);
@@ -231,12 +269,19 @@ try {
   const codexConversation = conversations.find(({ model }) => model.includes('-codex-'));
   await sendTurn(codexConversation.conversation, codexConversation.model, true);
   console.log('PASS: Codex app-server executes a real command after another CLI process starts');
+  for (const { conversation, model } of conversations) {
+    await verifyModelSwitches(conversation, model.includes('-codex-') ? 'codex' : 'claude');
+  }
+  console.log('PASS: both native CLIs switch all five models and send the selected model to the gateway');
   fs.writeFileSync(path.join(directory, 'first-start.log'), docker('logs', name));
   docker('stop', '-t', '20', name);
   docker('rm', name);
   start();
   await ready();
   for (const { conversation, model } of conversations) await sendTurn(conversation, model);
+  for (const { conversation, model } of conversations) {
+    await verifyModelSwitches(conversation, model.includes('-codex-') ? 'codex' : 'claude');
+  }
   console.log(`PASS: container replacement resumes both conversations; fixtures: ${directory}`);
 } catch (error) {
   try {

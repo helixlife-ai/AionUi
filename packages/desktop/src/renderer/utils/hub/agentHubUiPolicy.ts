@@ -121,3 +121,8 @@ export function isAgentHubSettingsTabHidden(id: string): boolean {
 export function isAgentHubSessionCostHidden(): boolean {
   return true;
 }
+
+/** Studio manages CLI releases; retain errors and older-version warnings. */
+export function isAgentHubConversationTipHidden(code: string | undefined, type: string): boolean {
+  return type !== 'error' && code === 'CLI_VERSION_NEWER';
+}

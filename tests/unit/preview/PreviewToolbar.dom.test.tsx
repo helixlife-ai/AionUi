@@ -6,8 +6,15 @@
 
 import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PreviewToolbar from '@/renderer/pages/conversation/Preview/components/PreviewPanel/PreviewToolbar';
+import { isElectronDesktop } from '@/renderer/utils/platform';
+
+vi.mock('@/renderer/utils/platform', () => ({ isElectronDesktop: vi.fn(() => false) }));
+
+beforeEach(() => {
+  vi.mocked(isElectronDesktop).mockReturnValue(false);
+});
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -37,6 +44,41 @@ const baseProps = {
   onDownload: vi.fn(),
   onClose: vi.fn(),
 };
+
+describe('PreviewToolbar file download', () => {
+  it.each([
+    ['code', false],
+    ['code', true],
+    ['markdown', false],
+    ['markdown', true],
+  ] as const)('downloads server-backed %s files with leading actions: %s', (contentType, leadingActions) => {
+    const onDownload = vi.fn();
+    render(
+      <PreviewToolbar
+        {...baseProps}
+        content_type={contentType}
+        isMarkdown={contentType === 'markdown'}
+        leftExtra={leadingActions ? <span>file.md</span> : undefined}
+        onDownload={onDownload}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('preview.downloadFile'));
+    expect(onDownload).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['code', 'markdown'])('keeps the desktop rule for on-disk %s files', (contentType) => {
+    vi.mocked(isElectronDesktop).mockReturnValue(true);
+    render(<PreviewToolbar {...baseProps} content_type={contentType} isMarkdown={contentType === 'markdown'} />);
+    expect(screen.queryByTitle('preview.downloadFile')).not.toBeInTheDocument();
+  });
+
+  it('still downloads synthetic content on desktop', () => {
+    vi.mocked(isElectronDesktop).mockReturnValue(true);
+    render(<PreviewToolbar {...baseProps} hasFilePath={false} />);
+    expect(screen.getByTitle('preview.downloadFile')).toBeInTheDocument();
+  });
+});
 
 describe('PreviewToolbar save button', () => {
   it('does not render the save button when showSave is false', () => {

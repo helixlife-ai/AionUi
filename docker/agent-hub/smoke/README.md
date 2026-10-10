@@ -18,3 +18,9 @@ and must not be used to measure output quality or real streaming smoothness.
 The runner checks Codex sandbox write restrictions and executes a deterministic
 read-only command through the native app-server after another CLI process starts.
 This covers temporary helper cleanup on Docker Desktop shared filesystems.
+
+It also checks all five configured models on both backends: the runtime must
+advertise each ID, acknowledge a switch as observed, and use that ID in its next
+gateway request. The same checks run again after container replacement to cover
+historical conversation restoration. Newer-version diagnostic records are allowed;
+they are hidden by the Studio conversation UI, not removed from the backend.
