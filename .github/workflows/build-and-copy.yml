@@ -22,8 +22,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: master
+
 
       - name: Get tag version
         id: tag
