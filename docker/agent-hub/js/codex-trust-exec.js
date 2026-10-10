@@ -40,7 +40,12 @@ try {
   console.error(`[agent-hub] codex-trust-exec: failed to pre-trust cwd: ${err.message}`);
 }
 
-const child = spawn(real, process.argv.slice(3), { stdio: 'inherit' });
+const args = process.argv.slice(3);
+const listenIndex = args.indexOf('--listen');
+const useHistoryBridge = args[0] === 'app-server' && (listenIndex < 0 || args[listenIndex + 1] === 'stdio://');
+const child = useHistoryBridge
+  ? require('../codex/bridge.cjs').runAppServerBridge(real, args)
+  : spawn(real, args, { stdio: 'inherit' });
 child.on('error', (err) => {
   console.error(`[agent-hub] failed to spawn Codex: ${err.message}`);
   process.exit(127);

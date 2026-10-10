@@ -28,11 +28,11 @@ describe('Agent Hub deployment defaults', () => {
     expect(compose).not.toContain('studio-server.newidea.pro');
   });
 
-  it('uses the v0.2.24 release consistently', () => {
-    expect(deploymentConfig.version).toBe('v0.2.24');
+  it('uses the v0.2.25 release consistently', () => {
+    expect(deploymentConfig.version).toBe('v0.2.25');
     expect(deploymentConfig.desc.trim()).not.toBe('');
     expect(deploymentConfig.desc).not.toMatch(/&#|<[^>]+>/);
-    expect(compose).toContain('application/agent-hub:v0.2.24');
+    expect(compose).toContain('application/agent-hub:v0.2.25');
     expect(`${compose}\n${JSON.stringify(deploymentConfig)}`).not.toContain('v0.2.16');
   });
 

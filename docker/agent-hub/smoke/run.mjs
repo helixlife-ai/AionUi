@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { seedMissingThread, verifyRecovery, verifyUnusedThread } from './historyRecovery.mjs';
 
 const image = process.argv[2] || 'agent-hub:v0.2.24';
 const modelDefinitions = JSON.parse(
@@ -72,6 +73,14 @@ const start = () => {
     ...service.volumes.flatMap(({ source, target }) => ['-v', `${source}:${target}`]),
     '-v',
     `${path.resolve('docker/agent-hub/smoke')}:/smoke:ro`,
+    ...(process.env.STUDIO_SMOKE_CODEX_BRIDGE
+      ? [
+          '-v',
+          `${path.resolve('docker/agent-hub/codex')}:/etc/agent-hub/codex:ro`,
+          '-v',
+          `${path.resolve('docker/agent-hub/js/codex-trust-exec.js')}:/etc/agent-hub/js/codex-trust-exec.js:ro`,
+        ]
+      : []),
     '--entrypoint',
     '/bin/sh',
     image,
@@ -241,10 +250,28 @@ try {
   }
   console.log('PASS: both native CLIs switch all five models and send the selected model to the gateway');
   fs.writeFileSync(path.join(directory, 'first-start.log'), docker('logs', name));
+  const codexAssistant = assistants.find((item) => item.enabled && item.agent?.acp_backend === 'codex');
+  const unusedConversation = await api('/api/conversations', {
+    name: 'Unused Codex thread persistence smoke',
+    assistant: { id: codexAssistant.id },
+    extra: { workspace: '/agent_hub', custom_workspace: true },
+  });
+  const unusedAnchor = await verifyUnusedThread({ docker, name, api, base, conversation: unusedConversation });
+  seedMissingThread(docker, name, codexConversation.conversation.id);
   docker('stop', '-t', '20', name);
   docker('rm', name);
   start();
   await ready();
+  await verifyUnusedThread({ docker, name, api, base, conversation: unusedConversation, expectedAnchor: unusedAnchor });
+  await verifyRecovery({
+    docker,
+    name,
+    api,
+    base,
+    conversation: codexConversation.conversation,
+    sendTurn,
+    model: codexConversation.model,
+  });
   for (const { conversation, model } of conversations) await sendTurn(conversation, model);
   for (const { conversation, model } of conversations) {
     await verifyModelSwitches(conversation, model.includes('-codex-') ? 'codex' : 'claude');
