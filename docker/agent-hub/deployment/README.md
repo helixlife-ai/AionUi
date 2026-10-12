@@ -1,4 +1,4 @@
-# Agent Hub v0.2.24-toB — upstream 2.2.2 integration
+# Agent Hub v0.2.25-toB — upstream 2.2.2 integration
 
 This deployment pairs AionUi **2.2.2** with AionCore **v0.2.2**. The image tag in
 `docker-compose.yaml` and the appliance version in `config.json` must advance
@@ -40,7 +40,9 @@ This deployment targets only HLX-AIO-1AE and HLX-AIO-1BE.
 
 Claude 2.1.287 is the official npm `stable` channel; Codex 0.162.1 is the
 latest non-prerelease. Exact versions are pinned to keep image rebuilds reproducible.
-AionCore remains v0.2.2; no backend patch or protocol-response injection is used.
+AionCore remains v0.2.2; its binary is unchanged. The v0.2.25 deployment-owned
+Codex stdio adapter persists unused threads and restores visible saved context
+only when a native resume reports a missing rollout; healthy resumes pass through.
 
 The local ARM64 image `agent-hub:stable-cli-validation` passed the deployment
 smoke against the simulated gateway: both CLIs advertise all five configured
@@ -188,3 +190,28 @@ against a simulated gateway. Unit tests also cover
 missing-source preservation, owned-link pruning and preservation of custom skills.
 Full tests: 5,336 passed, 5 skipped; lint, TypeScript, Compose and formatting passed.
 Real 1AE/1BE appliance validation remains necessary before distribution.
+
+## toB v0.2.25-toB validation (2026-10-12)
+
+Based on `toB/master`, this release carries the master v0.2.25 Codex history
+recovery adapter without the toC skills92 archive. `config.json` and Compose use
+`v0.2.25-toB`; the description and HLX-AIO-1AE/HLX-AIO-1BE restrictions are unchanged.
+AionCore and the pinned CLI versions are unchanged.
+
+The local Linux ARM64 image is `agent-hub:local-v0.2.25-toB`, also tagged
+`helix-aio.tencentcloudcr.com/application/agent-hub:v0.2.25-toB`. It is not published.
+Docker Hub digest metadata lookup stalled; the build used the cached Node images
+listed above, both verified as 22.23.1. Dockerfile digest defaults are unchanged.
+
+- Full unit/integration/regression suite: 5,366 passed, 5 skipped.
+- Lint, formatting and TypeScript checks passed.
+- The isolated image smoke discovered a device-owned skill and six system skills,
+  with no toC corpus.
+- Both native CLIs switched all five models and used the selected model in the
+  next mock gateway request, before and after container replacement.
+- Missing Codex rollout recovery preserved Studio messages and restored saved
+  visible context; unused threads resumed after container replacement.
+- Native Codex command execution and sandbox write denial passed.
+
+The gateway is a deterministic protocol fixture, not the real KB service.
+Real 1AE/1BE appliance deployment and KB routing remain separate release checks.

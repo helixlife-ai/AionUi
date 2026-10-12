@@ -22,7 +22,7 @@ const server = http.createServer(async (req, res) => {
   }
   const id = `smoke_${++sequence}`;
   const text = `SMOKE_OK_${body.model}`;
-  requests.push({ path: req.url, model: body.model, stream: body.stream });
+  requests.push({ path: req.url, model: body.model, stream: body.stream, input: body.input });
   res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
   const send = (type, payload) => res.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...payload })}\n\n`);
   if (req.url.includes('/messages')) {

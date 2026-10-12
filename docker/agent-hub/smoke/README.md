@@ -24,3 +24,19 @@ advertise each ID, acknowledge a switch as observed, and use that ID in its next
 gateway request. The same checks run again after container replacement to cover
 historical conversation restoration. Newer-version diagnostic records are allowed;
 they are hidden by the Studio conversation UI, not removed from the backend.
+
+The Codex history recovery fixture deliberately replaces only its isolated native
+anchor with a nonexistent thread ID. It checks real model-switch confirmation,
+unchanged Studio message rows, and the historical text and attachment path in the
+next Responses request. The deployment-owned stdio adapter restores visible
+messages and tool records as context without replaying tools; healthy native
+resumes pass through unchanged. Fresh native threads are persisted even before
+the first model turn, so an idle restart does not leave an unusable anchor.
+
+To test the adapter against an existing image before rebuilding it:
+
+```sh
+STUDIO_SMOKE_CODEX_BRIDGE=1 node docker/agent-hub/smoke/run.mjs [local-image-tag]
+```
+
+This mounts only the repository's adapter files into the disposable test container.
