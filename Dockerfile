@@ -148,6 +148,7 @@ COPY docker/agent-hub/codex-model-catalog.json /etc/agent-hub/codex-model-catalo
 COPY docker/agent-hub/models/ /etc/agent-hub/models/
 COPY packages/desktop/src/renderer/components/agent/StudioModelSelector/models.json /etc/agent-hub/models/models.json
 COPY docker/agent-hub/js/ /etc/agent-hub/js/
+COPY docker/agent-hub/codex/ /etc/agent-hub/codex/
 COPY docker/agent-hub/otel/ /etc/agent-hub/otel/
 
 # auto-inject skills are vendored from AionCore v0.2.2, including the new
